@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "24"
+  VITE_API_BASE_URL = "https://api.radar.amazingzsys.site/api/v1"
 
 [[redirects]]
   from = "/*"

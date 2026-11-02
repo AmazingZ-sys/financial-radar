@@ -78,3 +78,11 @@ GitHub Actions、GHCR与Netlify的实际发布证据见下节。目标服务器�
 首次完整云端发布为 v1.0.0，对应代码 `5a15de20e45d73c258019f978135d1895fbc96af`，实际 [Actions run 41405313336](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41405313336) 的 verify、release、API/Worker images、image-manifest 和 Netlify 全部成功；[Release](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.0.0) 含 Changelog、release-metadata 与 image-manifest，两个实际GHCR digest经远程inspect成功，平台linux/amd64。[Netlify生产站点](https://financial-radar-amazingz.netlify.app) HTTP200，静态资源与CSP有效；后端未接通，未声称线上登录/业务接口可用。
 
 部署脚本自身通过匿名GitHub API实际选择v1.0.0并加载两个不可变digest/commit成功（`.local/release-receipt-smoke/receipt.json`）。后续补丁增加纯64hex伪镜像地址拒绝测试，全量本地95项通过，部署专项22项；后续发行结果以GitHub Releases/Actions为准。最初一次云端契约检查发现生成器未正确读取格式配置，修复后两次生成hash一致且schema语义不变，再次云端检查通过，未移除门禁。
+
+## 生产域名配置
+
+用户确认前端为 `https://radar.amazingzsys.site`、后端为 `https://api.radar.amazingzsys.site`。前端生产 API 前缀已配置为 `https://api.radar.amazingzsys.site/api/v1`，同时写入 GitHub Variable、Netlify build environment 和工作流默认值。本地开发仍使用 `/api/v1`。后端 `WEB_ORIGIN=https://radar.amazingzsys.site`，Secure Cookie 与 SameSite=Lax；采用前端直接请求 API 的方式，不配置 Netlify API 代理。
+
+本轮 `typecheck`、`lint`、95项单测、build、70项主集成+35项历史PG+86项模式隔离通过；OpenAPI契约无漂移。生产模式Web构建另核对编译产物中的实际API地址。Nginx模板填入API子域与证书路径，80端口保留ACME webroot；在官方Nginx容器中使用本地临时测试证书执行 `nginx -t` 通过，日志 `.local/domain-nginx/config-check.log`。这不代表生产证书或用户服务器部署已完成。
+
+本轮DNS检查时，前端和API两个域名均返回A记录 `49.51.38.38`，API HTTPS证书不匹配主机名；Netlify站点已登记前端custom domain。用户需要按Netlify要求调整前端DNS，并在API服务器完成对应证书与后端部署。Ubuntu 22.04/24.04具体操作见 [实际域名首装指南](24-server-api-radar-amazingzsys-site.md)，服务器操作由用户执行，最终网络状态以实时检查为准。

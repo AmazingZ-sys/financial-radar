@@ -194,7 +194,7 @@ jobs:
         env: { REDISMS_DISABLE_POSTINSTALL: 'true' }
       - run: pnpm --filter @radar/web build
         env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api/v1' }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.radar.amazingzsys.site/api/v1' }}
           VITE_APP_VERSION: ${{ needs.release.outputs.version }}
           VITE_COMMIT_SHA: ${{ needs.release.outputs.commit }}
       - name: Publish Netlify deploy

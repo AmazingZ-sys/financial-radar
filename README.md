@@ -2,6 +2,8 @@
 
 面向早期金融与链上信号的研究工作台。保存“当时看到了什么”的原始证据，分别计算机会和风险，依照可解释规则预警。**默认运行明确标记的 Fixture 模式**，不把合成项目、未知行情或日度数据描述成实时投资机会。
 
+生产域名配置：前端 `https://radar.amazingzsys.site`，API `https://api.radar.amazingzsys.site/api/v1`。Ubuntu 22.04/24.04 服务器首次安装、DNS、HTTPS、生产配置与更新步骤见 [实际域名部署指南](docs/24-server-api-radar-amazingzsys-site.md)。
+
 本项目按文档先行要求实施：[需求](docs/01-requirements.md) → [架构](docs/04-system-architecture.md) → [实施计划](docs/17-implementation-plan.md) → [验收证据](docs/acceptance.md)。用户附件原文保存在 [docs/user-request.md](docs/user-request.md)；原文末尾截断于文档列表的 `docs/18-risk`。
 
 ## 当前能力
@@ -61,7 +63,7 @@ pnpm dev
 - AI：服务端配置 `AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` 和预算。成本字段为保守预算预留/估算，不能替代供应商账单；未配置时规则链继续工作。
 - FRED 因已发现的 AI/存储条款冲突默认不接入；Coinbase 等许可按私有研究范围审查，公开再分发前须确认授权。具体官方链接均在数据源文档中。
 
-所有私密配置只在服务器环境，前端仅设置公开的 `VITE_API_BASE_URL`（含 `/api/v1` 完整前缀，例如 `https://api.example.com/api/v1`）。
+所有私密配置只在服务器环境，前端仅设置公开的 `VITE_API_BASE_URL`（生产值为 `https://api.radar.amazingzsys.site/api/v1`，本地开发为 `/api/v1`）。后端生产 `WEB_ORIGIN=https://radar.amazingzsys.site`，`COOKIE_SAME_SITE=Lax`、`SECURE_COOKIE=true`。
 
 ## 开发与验证
 

@@ -2,6 +2,8 @@
 
 更新：2026-11-02。本文与 `infra/scripts`、Compose、GitHub workflow 一起维护。脚本测试使用 fake executables，不代表在真实服务器执行成功。
 
+当前生产域名为前端 `radar.amazingzsys.site`、后端 `api.radar.amazingzsys.site`。按实际域名执行首次部署，请阅读 [Ubuntu 22.04/24.04 详细步骤](24-server-api-radar-amazingzsys-site.md)；本文继续说明通用部署、持久状态与恢复机制。
+
 ## 1. 已验证与外部条件
 
 本地验证覆盖 Compose 插值/Schema、Bash 语法、actionlint 1.6.27 静态校验与 22 项部署脚本测试，包含备份先于迁移、健康失败回旧应用、Nginx 校验失败不 reload、Release清单/版本/commit/digest与镜像标签校验、未完成Release跳过、私有资产下载失败保留当前版、Token不进入输出和旧部署记录补齐。另有 Node 24.15.0 隔离生产文件布局烟测。
