@@ -34,10 +34,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -150,16 +147,8 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "email": {
-                    "type": "string",
-                    "maxLength": 200,
-                    "format": "email"
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
-                  }
+                  "email": { "type": "string", "maxLength": 200, "format": "email" },
+                  "password": { "type": "string", "minLength": 1, "maxLength": 200 }
                 },
                 "required": ["email", "password"],
                 "additionalProperties": false
@@ -191,10 +180,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -324,10 +310,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -452,10 +435,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -580,45 +560,23 @@
                           "externalId": { "type": "string" },
                           "title": { "type": "string" },
                           "description": { "type": "string" },
-                          "originalUrl": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "uri"
-                          },
+                          "originalUrl": { "type": "string", "nullable": true, "format": "uri" },
                           "sourcePublishedAt": {
                             "type": "string",
                             "nullable": true,
                             "format": "date-time"
                           },
-                          "firstSeenAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "collectedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
+                          "firstSeenAt": { "type": "string", "format": "date-time" },
+                          "collectedAt": { "type": "string", "format": "date-time" },
                           "eventOccurredAt": {
                             "type": "string",
                             "nullable": true,
                             "format": "date-time"
                           },
-                          "normalizedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "detectedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "assets": {
-                            "type": "array",
-                            "items": { "type": "string" }
-                          },
-                          "categories": {
-                            "type": "array",
-                            "items": { "type": "string" }
-                          },
+                          "normalizedAt": { "type": "string", "format": "date-time" },
+                          "detectedAt": { "type": "string", "format": "date-time" },
+                          "assets": { "type": "array", "items": { "type": "string" } },
+                          "categories": { "type": "array", "items": { "type": "string" } },
                           "chain": { "type": "string" },
                           "assetKey": { "type": "string" },
                           "metrics": {
@@ -634,15 +592,8 @@
                           "conditionsVerified": { "type": "boolean" },
                           "rawDataReference": { "type": "string" },
                           "fingerprint": { "type": "string" },
-                          "confidence": {
-                            "type": "number",
-                            "minimum": 0,
-                            "maximum": 1
-                          },
-                          "severity": {
-                            "type": "string",
-                            "enum": ["P0", "P1", "P2", "P3"]
-                          },
+                          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                          "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
                           "verificationStatus": {
                             "type": "string",
                             "enum": ["UNVERIFIED", "VERIFIED", "DISPUTED"]
@@ -651,52 +602,23 @@
                             "type": "string",
                             "enum": ["PENDING", "COMPLETED", "FAILED", "DISABLED", "DEFERRED"]
                           },
-                          "opportunityScore": {
-                            "type": "number",
-                            "minimum": 0,
-                            "maximum": 100
-                          },
-                          "riskScore": {
-                            "type": "number",
-                            "minimum": 0,
-                            "maximum": 100
-                          },
-                          "dataMode": {
-                            "type": "string",
-                            "enum": ["live", "fixture"]
-                          },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "updatedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
+                          "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                          "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                          "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                          "createdAt": { "type": "string", "format": "date-time" },
+                          "updatedAt": { "type": "string", "format": "date-time" },
                           "review": {
                             "type": "object",
                             "properties": {
-                              "status": {
-                                "type": "string",
-                                "enum": ["APPROVED", "REJECTED"]
-                              },
+                              "status": { "type": "string", "enum": ["APPROVED", "REJECTED"] },
                               "note": { "type": "string" },
-                              "reviewerId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "reviewedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              }
+                              "reviewerId": { "type": "string", "format": "uuid" },
+                              "reviewedAt": { "type": "string", "format": "date-time" }
                             },
                             "required": ["status", "note", "reviewerId", "reviewedAt"]
                           },
                           "analysis": { "nullable": true },
-                          "evidence": {
-                            "type": "array",
-                            "items": { "nullable": true }
-                          },
+                          "evidence": { "type": "array", "items": { "nullable": true } },
                           "riskWarnings": {
                             "type": "array",
                             "items": { "type": "string" },
@@ -739,10 +661,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -873,45 +792,23 @@
                         "externalId": { "type": "string" },
                         "title": { "type": "string" },
                         "description": { "type": "string" },
-                        "originalUrl": {
-                          "type": "string",
-                          "nullable": true,
-                          "format": "uri"
-                        },
+                        "originalUrl": { "type": "string", "nullable": true, "format": "uri" },
                         "sourcePublishedAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
                         },
-                        "firstSeenAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "collectedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
+                        "firstSeenAt": { "type": "string", "format": "date-time" },
+                        "collectedAt": { "type": "string", "format": "date-time" },
                         "eventOccurredAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
                         },
-                        "normalizedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "detectedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "assets": {
-                          "type": "array",
-                          "items": { "type": "string" }
-                        },
-                        "categories": {
-                          "type": "array",
-                          "items": { "type": "string" }
-                        },
+                        "normalizedAt": { "type": "string", "format": "date-time" },
+                        "detectedAt": { "type": "string", "format": "date-time" },
+                        "assets": { "type": "array", "items": { "type": "string" } },
+                        "categories": { "type": "array", "items": { "type": "string" } },
                         "chain": { "type": "string" },
                         "assetKey": { "type": "string" },
                         "metrics": {
@@ -927,15 +824,8 @@
                         "conditionsVerified": { "type": "boolean" },
                         "rawDataReference": { "type": "string" },
                         "fingerprint": { "type": "string" },
-                        "confidence": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 1
-                        },
-                        "severity": {
-                          "type": "string",
-                          "enum": ["P0", "P1", "P2", "P3"]
-                        },
+                        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                        "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
                         "verificationStatus": {
                           "type": "string",
                           "enum": ["UNVERIFIED", "VERIFIED", "DISPUTED"]
@@ -944,52 +834,23 @@
                           "type": "string",
                           "enum": ["PENDING", "COMPLETED", "FAILED", "DISABLED", "DEFERRED"]
                         },
-                        "opportunityScore": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 100
-                        },
-                        "riskScore": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 100
-                        },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
+                        "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                        "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "createdAt": { "type": "string", "format": "date-time" },
+                        "updatedAt": { "type": "string", "format": "date-time" },
                         "review": {
                           "type": "object",
                           "properties": {
-                            "status": {
-                              "type": "string",
-                              "enum": ["APPROVED", "REJECTED"]
-                            },
+                            "status": { "type": "string", "enum": ["APPROVED", "REJECTED"] },
                             "note": { "type": "string" },
-                            "reviewerId": {
-                              "type": "string",
-                              "format": "uuid"
-                            },
-                            "reviewedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
+                            "reviewerId": { "type": "string", "format": "uuid" },
+                            "reviewedAt": { "type": "string", "format": "date-time" }
                           },
                           "required": ["status", "note", "reviewerId", "reviewedAt"]
                         },
                         "analysis": { "nullable": true },
-                        "evidence": {
-                          "type": "array",
-                          "items": { "nullable": true }
-                        },
+                        "evidence": { "type": "array", "items": { "nullable": true } },
                         "riskWarnings": {
                           "type": "array",
                           "items": { "type": "string" },
@@ -1031,10 +892,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -1165,10 +1023,7 @@
                           "sourceId": { "type": "string" },
                           "rawItemId": { "type": "string" },
                           "url": { "type": "string", "nullable": true },
-                          "sourcePublishedAt": {
-                            "type": "string",
-                            "nullable": true
-                          },
+                          "sourcePublishedAt": { "type": "string", "nullable": true },
                           "firstSeenAt": { "type": "string", "nullable": true },
                           "collectedAt": { "type": "string", "nullable": true },
                           "payload": { "nullable": true }
@@ -1190,10 +1045,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -1336,29 +1188,11 @@
                           },
                           "riskFlagged": { "type": "boolean" },
                           "watching": { "type": "boolean" },
-                          "firstSeenAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "opportunityScore": {
-                            "type": "number",
-                            "minimum": 0,
-                            "maximum": 100
-                          },
-                          "riskScore": {
-                            "type": "number",
-                            "minimum": 0,
-                            "maximum": 100
-                          },
-                          "participants": {
-                            "type": "number",
-                            "nullable": true,
-                            "minimum": 0
-                          },
-                          "participantGrowthPct": {
-                            "type": "number",
-                            "nullable": true
-                          },
+                          "firstSeenAt": { "type": "string", "format": "date-time" },
+                          "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                          "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                          "participants": { "type": "number", "nullable": true, "minimum": 0 },
+                          "participantGrowthPct": { "type": "number", "nullable": true },
                           "mintProgress": {
                             "type": "number",
                             "nullable": true,
@@ -1366,28 +1200,14 @@
                             "maximum": 100
                           },
                           "conditions": { "type": "string", "nullable": true },
-                          "conditionsVerified": {
-                            "type": "boolean",
-                            "default": false
-                          },
+                          "conditionsVerified": { "type": "boolean", "default": false },
                           "sourceUrls": {
                             "type": "array",
                             "items": { "type": "string", "format": "uri" }
                           },
-                          "dataMode": {
-                            "type": "string",
-                            "enum": ["live", "fixture"]
-                          },
-                          "startsAt": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "date-time"
-                          },
-                          "endsAt": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "date-time"
-                          },
+                          "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                          "startsAt": { "type": "string", "nullable": true, "format": "date-time" },
+                          "endsAt": { "type": "string", "nullable": true, "format": "date-time" },
                           "opportunityBreakdown": { "nullable": true },
                           "riskBreakdown": { "nullable": true },
                           "riskWarnings": {
@@ -1395,10 +1215,7 @@
                             "items": { "type": "string" },
                             "default": []
                           },
-                          "updatedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          }
+                          "updatedAt": { "type": "string", "format": "date-time" }
                         },
                         "required": [
                           "id",
@@ -1428,10 +1245,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -1580,29 +1394,11 @@
                         },
                         "riskFlagged": { "type": "boolean" },
                         "watching": { "type": "boolean" },
-                        "firstSeenAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "opportunityScore": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 100
-                        },
-                        "riskScore": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 100
-                        },
-                        "participants": {
-                          "type": "number",
-                          "nullable": true,
-                          "minimum": 0
-                        },
-                        "participantGrowthPct": {
-                          "type": "number",
-                          "nullable": true
-                        },
+                        "firstSeenAt": { "type": "string", "format": "date-time" },
+                        "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                        "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                        "participants": { "type": "number", "nullable": true, "minimum": 0 },
+                        "participantGrowthPct": { "type": "number", "nullable": true },
                         "mintProgress": {
                           "type": "number",
                           "nullable": true,
@@ -1610,28 +1406,14 @@
                           "maximum": 100
                         },
                         "conditions": { "type": "string", "nullable": true },
-                        "conditionsVerified": {
-                          "type": "boolean",
-                          "default": false
-                        },
+                        "conditionsVerified": { "type": "boolean", "default": false },
                         "sourceUrls": {
                           "type": "array",
                           "items": { "type": "string", "format": "uri" }
                         },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
-                        "startsAt": {
-                          "type": "string",
-                          "nullable": true,
-                          "format": "date-time"
-                        },
-                        "endsAt": {
-                          "type": "string",
-                          "nullable": true,
-                          "format": "date-time"
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "startsAt": { "type": "string", "nullable": true, "format": "date-time" },
+                        "endsAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "opportunityBreakdown": { "nullable": true },
                         "riskBreakdown": { "nullable": true },
                         "riskWarnings": {
@@ -1668,10 +1450,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -1802,10 +1581,7 @@
                           "fromStage": { "type": "string", "nullable": true },
                           "toStage": { "type": "string" },
                           "reason": { "type": "string" },
-                          "evidenceIds": {
-                            "type": "array",
-                            "items": { "type": "string" }
-                          },
+                          "evidenceIds": { "type": "array", "items": { "type": "string" } },
                           "occurredAt": { "type": "string" },
                           "recordedAt": { "type": "string" }
                         },
@@ -1826,10 +1602,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -1957,27 +1730,13 @@
                         "type": "object",
                         "properties": {
                           "id": { "type": "string", "format": "uuid" },
-                          "projectId": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "uuid"
-                          },
-                          "eventId": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "uuid"
-                          },
+                          "projectId": { "type": "string", "nullable": true, "format": "uuid" },
+                          "eventId": { "type": "string", "nullable": true, "format": "uuid" },
                           "type": { "type": "string" },
-                          "detectedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
+                          "detectedAt": { "type": "string", "format": "date-time" },
                           "opportunityScore": { "type": "number" },
                           "riskScore": { "type": "number" },
-                          "evidenceIds": {
-                            "type": "array",
-                            "items": { "type": "string" }
-                          },
+                          "evidenceIds": { "type": "array", "items": { "type": "string" } },
                           "reason": { "type": "string" },
                           "scoringVersion": { "type": "string" }
                         },
@@ -2001,10 +1760,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -2123,17 +1879,10 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 200
-                          },
+                          "id": { "type": "string", "minLength": 1, "maxLength": 200 },
                           "name": { "type": "string" },
                           "connectorType": { "type": "string" },
-                          "mode": {
-                            "type": "string",
-                            "enum": ["live", "fixture"]
-                          },
+                          "mode": { "type": "string", "enum": ["live", "fixture"] },
                           "enabled": { "type": "boolean" },
                           "status": { "type": "string" },
                           "intervalSeconds": { "type": "number" },
@@ -2150,29 +1899,16 @@
                           },
                           "successRate": { "type": "number", "nullable": true },
                           "latencyMs": { "type": "number", "nullable": true },
-                          "freshnessSeconds": {
-                            "type": "number",
-                            "nullable": true
-                          },
+                          "freshnessSeconds": { "type": "number", "nullable": true },
                           "description": { "type": "string", "default": "" },
-                          "docsUrl": {
-                            "type": "string",
-                            "nullable": true,
-                            "default": null
-                          },
-                          "keyConfigured": {
-                            "type": "boolean",
-                            "default": false
-                          },
+                          "docsUrl": { "type": "string", "nullable": true, "default": null },
+                          "keyConfigured": { "type": "boolean", "default": false },
                           "capabilities": {
                             "type": "array",
                             "items": { "type": "string" },
                             "default": []
                           },
-                          "delayLabel": {
-                            "type": "string",
-                            "default": "由来源决定"
-                          }
+                          "delayLabel": { "type": "string", "default": "由来源决定" }
                         },
                         "required": [
                           "id",
@@ -2197,10 +1933,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -2325,17 +2058,10 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
+                        "id": { "type": "string", "minLength": 1, "maxLength": 200 },
                         "name": { "type": "string" },
                         "connectorType": { "type": "string" },
-                        "mode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "mode": { "type": "string", "enum": ["live", "fixture"] },
                         "enabled": { "type": "boolean" },
                         "status": { "type": "string" },
                         "intervalSeconds": { "type": "number" },
@@ -2345,36 +2071,19 @@
                           "format": "date-time"
                         },
                         "lastError": { "type": "string", "nullable": true },
-                        "nextPollAt": {
-                          "type": "string",
-                          "nullable": true,
-                          "format": "date-time"
-                        },
+                        "nextPollAt": { "type": "string", "nullable": true, "format": "date-time" },
                         "successRate": { "type": "number", "nullable": true },
                         "latencyMs": { "type": "number", "nullable": true },
-                        "freshnessSeconds": {
-                          "type": "number",
-                          "nullable": true
-                        },
+                        "freshnessSeconds": { "type": "number", "nullable": true },
                         "description": { "type": "string", "default": "" },
-                        "docsUrl": {
-                          "type": "string",
-                          "nullable": true,
-                          "default": null
-                        },
-                        "keyConfigured": {
-                          "type": "boolean",
-                          "default": false
-                        },
+                        "docsUrl": { "type": "string", "nullable": true, "default": null },
+                        "keyConfigured": { "type": "boolean", "default": false },
                         "capabilities": {
                           "type": "array",
                           "items": { "type": "string" },
                           "default": []
                         },
-                        "delayLabel": {
-                          "type": "string",
-                          "default": "由来源决定"
-                        }
+                        "delayLabel": { "type": "string", "default": "由来源决定" }
                       },
                       "required": [
                         "id",
@@ -2398,10 +2107,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -2521,11 +2227,7 @@
                 "type": "object",
                 "properties": {
                   "enabled": { "type": "boolean" },
-                  "intervalSeconds": {
-                    "type": "integer",
-                    "minimum": 10,
-                    "maximum": 86400
-                  }
+                  "intervalSeconds": { "type": "integer", "minimum": 10, "maximum": 86400 }
                 },
                 "additionalProperties": false
               }
@@ -2547,10 +2249,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -2691,10 +2390,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -2824,14 +2520,8 @@
                             "nullable": true,
                             "format": "date-time"
                           },
-                          "delaySeconds": {
-                            "type": "number",
-                            "nullable": true
-                          },
-                          "dataMode": {
-                            "type": "string",
-                            "enum": ["live", "fixture"]
-                          },
+                          "delaySeconds": { "type": "number", "nullable": true },
+                          "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                           "frequency": { "type": "string" },
                           "sourceDate": { "type": "string", "nullable": true },
                           "precision": { "type": "number", "nullable": true },
@@ -2859,10 +2549,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -2985,14 +2672,8 @@
                           "value": { "type": "number" },
                           "sourceId": { "type": "string" },
                           "unit": { "type": "string" },
-                          "delaySeconds": {
-                            "type": "number",
-                            "nullable": true
-                          },
-                          "dataMode": {
-                            "type": "string",
-                            "enum": ["live", "fixture"]
-                          },
+                          "delaySeconds": { "type": "number", "nullable": true },
+                          "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                           "frequency": { "type": "string" },
                           "sourceDate": { "type": "string", "nullable": true },
                           "publicationTimeKnown": { "type": "boolean" },
@@ -3015,10 +2696,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -3141,10 +2819,7 @@
                         "eventsToday": { "type": "number" },
                         "projectsToday": { "type": "number" },
                         "highPriorityAlerts": { "type": "number" },
-                        "notificationSuccessRate": {
-                          "type": "number",
-                          "nullable": true
-                        },
+                        "notificationSuccessRate": { "type": "number", "nullable": true },
                         "recentEvents": {
                           "type": "array",
                           "items": {
@@ -3166,35 +2841,17 @@
                                 "nullable": true,
                                 "format": "date-time"
                               },
-                              "firstSeenAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
-                              "collectedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
+                              "firstSeenAt": { "type": "string", "format": "date-time" },
+                              "collectedAt": { "type": "string", "format": "date-time" },
                               "eventOccurredAt": {
                                 "type": "string",
                                 "nullable": true,
                                 "format": "date-time"
                               },
-                              "normalizedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
-                              "detectedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
-                              "assets": {
-                                "type": "array",
-                                "items": { "type": "string" }
-                              },
-                              "categories": {
-                                "type": "array",
-                                "items": { "type": "string" }
-                              },
+                              "normalizedAt": { "type": "string", "format": "date-time" },
+                              "detectedAt": { "type": "string", "format": "date-time" },
+                              "assets": { "type": "array", "items": { "type": "string" } },
+                              "categories": { "type": "array", "items": { "type": "string" } },
                               "chain": { "type": "string" },
                               "assetKey": { "type": "string" },
                               "metrics": {
@@ -3210,15 +2867,8 @@
                               "conditionsVerified": { "type": "boolean" },
                               "rawDataReference": { "type": "string" },
                               "fingerprint": { "type": "string" },
-                              "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1
-                              },
-                              "severity": {
-                                "type": "string",
-                                "enum": ["P0", "P1", "P2", "P3"]
-                              },
+                              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                              "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
                               "verificationStatus": {
                                 "type": "string",
                                 "enum": ["UNVERIFIED", "VERIFIED", "DISPUTED"]
@@ -3232,47 +2882,22 @@
                                 "minimum": 0,
                                 "maximum": 100
                               },
-                              "riskScore": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 100
-                              },
-                              "dataMode": {
-                                "type": "string",
-                                "enum": ["live", "fixture"]
-                              },
-                              "createdAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
-                              "updatedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
+                              "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                              "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                              "createdAt": { "type": "string", "format": "date-time" },
+                              "updatedAt": { "type": "string", "format": "date-time" },
                               "review": {
                                 "type": "object",
                                 "properties": {
-                                  "status": {
-                                    "type": "string",
-                                    "enum": ["APPROVED", "REJECTED"]
-                                  },
+                                  "status": { "type": "string", "enum": ["APPROVED", "REJECTED"] },
                                   "note": { "type": "string" },
-                                  "reviewerId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                  },
-                                  "reviewedAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
+                                  "reviewerId": { "type": "string", "format": "uuid" },
+                                  "reviewedAt": { "type": "string", "format": "date-time" }
                                 },
                                 "required": ["status", "note", "reviewerId", "reviewedAt"]
                               },
                               "analysis": { "nullable": true },
-                              "evidence": {
-                                "type": "array",
-                                "items": { "nullable": true }
-                              },
+                              "evidence": { "type": "array", "items": { "nullable": true } },
                               "riskWarnings": {
                                 "type": "array",
                                 "items": { "type": "string" },
@@ -3338,51 +2963,28 @@
                               },
                               "riskFlagged": { "type": "boolean" },
                               "watching": { "type": "boolean" },
-                              "firstSeenAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              },
+                              "firstSeenAt": { "type": "string", "format": "date-time" },
                               "opportunityScore": {
                                 "type": "number",
                                 "minimum": 0,
                                 "maximum": 100
                               },
-                              "riskScore": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 100
-                              },
-                              "participants": {
-                                "type": "number",
-                                "nullable": true,
-                                "minimum": 0
-                              },
-                              "participantGrowthPct": {
-                                "type": "number",
-                                "nullable": true
-                              },
+                              "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                              "participants": { "type": "number", "nullable": true, "minimum": 0 },
+                              "participantGrowthPct": { "type": "number", "nullable": true },
                               "mintProgress": {
                                 "type": "number",
                                 "nullable": true,
                                 "minimum": 0,
                                 "maximum": 100
                               },
-                              "conditions": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "conditionsVerified": {
-                                "type": "boolean",
-                                "default": false
-                              },
+                              "conditions": { "type": "string", "nullable": true },
+                              "conditionsVerified": { "type": "boolean", "default": false },
                               "sourceUrls": {
                                 "type": "array",
                                 "items": { "type": "string", "format": "uri" }
                               },
-                              "dataMode": {
-                                "type": "string",
-                                "enum": ["live", "fixture"]
-                              },
+                              "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                               "startsAt": {
                                 "type": "string",
                                 "nullable": true,
@@ -3400,10 +3002,7 @@
                                 "items": { "type": "string" },
                                 "default": []
                               },
-                              "updatedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                              }
+                              "updatedAt": { "type": "string", "format": "date-time" }
                             },
                             "required": [
                               "id",
@@ -3427,15 +3026,9 @@
                             ]
                           }
                         },
-                        "recentAlerts": {
-                          "type": "array",
-                          "items": { "nullable": true }
-                        },
+                        "recentAlerts": { "type": "array", "items": { "nullable": true } },
                         "workerOnline": { "type": "boolean" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" },
                         "latency": {
                           "type": "object",
@@ -3483,10 +3076,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -3605,28 +3195,19 @@
                       "properties": {
                         "version": { "type": "string" },
                         "commitSha": { "type": "string" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string" },
                         "worker": {
                           "type": "object",
                           "properties": {
                             "online": { "type": "boolean" },
-                            "lastHeartbeat": {
-                              "type": "string",
-                              "nullable": true
-                            }
+                            "lastHeartbeat": { "type": "string", "nullable": true }
                           },
                           "required": ["online", "lastHeartbeat"]
                         },
                         "queues": {
                           "type": "object",
-                          "additionalProperties": {
-                            "type": "number",
-                            "nullable": true
-                          }
+                          "additionalProperties": { "type": "number", "nullable": true }
                         },
                         "ai": {
                           "type": "object",
@@ -3648,10 +3229,7 @@
                           },
                           "required": ["configured", "provider", "model", "dailyBudgetUsd", "usage"]
                         },
-                        "keys": {
-                          "type": "object",
-                          "additionalProperties": { "type": "boolean" }
-                        },
+                        "keys": { "type": "object", "additionalProperties": { "type": "boolean" } },
                         "latency": {
                           "type": "object",
                           "properties": {
@@ -3680,10 +3258,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -3816,10 +3391,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -3953,10 +3525,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -4075,11 +3644,7 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "name": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 100
-                          },
+                          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
                           "enabled": { "type": "boolean", "default": true },
                           "conditions": {
                             "type": "object",
@@ -4091,11 +3656,7 @@
                               },
                               "sourceIds": {
                                 "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 200
-                                },
+                                "items": { "type": "string", "minLength": 1, "maxLength": 200 },
                                 "maxItems": 30
                               },
                               "assets": {
@@ -4130,36 +3691,20 @@
                                 },
                                 "maxItems": 8
                               },
-                              "minConfidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1
-                              },
+                              "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
                               "minOpportunityScore": {
                                 "type": "number",
                                 "minimum": 0,
                                 "maximum": 100
                               },
-                              "maxRiskScore": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 100
-                              },
+                              "maxRiskScore": { "type": "number", "minimum": 0, "maximum": 100 },
                               "minParticipantGrowthPct": {
                                 "type": "number",
                                 "minimum": 0,
                                 "maximum": 1000000
                               },
-                              "minMintProgress": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 100
-                              },
-                              "maxMintProgress": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 100
-                              },
+                              "minMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                              "maxMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
                               "minPriceChangePct": {
                                 "type": "number",
                                 "minimum": 0,
@@ -4204,14 +3749,8 @@
                           "id": { "type": "string", "format": "uuid" },
                           "ownerId": { "type": "string", "format": "uuid" },
                           "version": { "type": "integer" },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "updatedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          }
+                          "createdAt": { "type": "string", "format": "date-time" },
+                          "updatedAt": { "type": "string", "format": "date-time" }
                         },
                         "required": [
                           "name",
@@ -4231,10 +3770,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -4345,11 +3881,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "enabled": { "type": "boolean", "default": true },
                   "conditions": {
                     "type": "object",
@@ -4361,11 +3893,7 @@
                       },
                       "sourceIds": {
                         "type": "array",
-                        "items": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
+                        "items": { "type": "string", "minLength": 1, "maxLength": 200 },
                         "maxItems": 30
                       },
                       "assets": {
@@ -4400,56 +3928,20 @@
                         },
                         "maxItems": 8
                       },
-                      "minConfidence": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "minOpportunityScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxRiskScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
+                      "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                      "minOpportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxRiskScore": { "type": "number", "minimum": 0, "maximum": 100 },
                       "minParticipantGrowthPct": {
                         "type": "number",
                         "minimum": 0,
                         "maximum": 1000000
                       },
-                      "minMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "minPriceChangePct": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "minYieldChangeBps": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "windowSeconds": {
-                        "type": "integer",
-                        "minimum": 60,
-                        "maximum": 604800
-                      },
-                      "maxAgeSeconds": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 31536000
-                      },
+                      "minMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "minPriceChangePct": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+                      "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
                       "verifiedOnly": { "type": "boolean" }
                     },
                     "additionalProperties": false
@@ -4489,11 +3981,7 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "name": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
+                        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "enabled": { "type": "boolean", "default": true },
                         "conditions": {
                           "type": "object",
@@ -4505,11 +3993,7 @@
                             },
                             "sourceIds": {
                               "type": "array",
-                              "items": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 200
-                              },
+                              "items": { "type": "string", "minLength": 1, "maxLength": 200 },
                               "maxItems": 30
                             },
                             "assets": {
@@ -4544,36 +4028,20 @@
                               },
                               "maxItems": 8
                             },
-                            "minConfidence": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 1
-                            },
+                            "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
                             "minOpportunityScore": {
                               "type": "number",
                               "minimum": 0,
                               "maximum": 100
                             },
-                            "maxRiskScore": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
-                            },
+                            "maxRiskScore": { "type": "number", "minimum": 0, "maximum": 100 },
                             "minParticipantGrowthPct": {
                               "type": "number",
                               "minimum": 0,
                               "maximum": 1000000
                             },
-                            "minMintProgress": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
-                            },
-                            "maxMintProgress": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
-                            },
+                            "minMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                            "maxMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
                             "minPriceChangePct": {
                               "type": "number",
                               "minimum": 0,
@@ -4618,10 +4086,7 @@
                         "id": { "type": "string", "format": "uuid" },
                         "ownerId": { "type": "string", "format": "uuid" },
                         "version": { "type": "integer" },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
+                        "createdAt": { "type": "string", "format": "date-time" },
                         "updatedAt": { "type": "string", "format": "date-time" }
                       },
                       "required": [
@@ -4641,10 +4106,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -4765,11 +4227,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 },
                   "enabled": { "type": "boolean", "default": true },
                   "conditions": {
                     "type": "object",
@@ -4781,11 +4239,7 @@
                       },
                       "sourceIds": {
                         "type": "array",
-                        "items": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
+                        "items": { "type": "string", "minLength": 1, "maxLength": 200 },
                         "maxItems": 30
                       },
                       "assets": {
@@ -4820,56 +4274,20 @@
                         },
                         "maxItems": 8
                       },
-                      "minConfidence": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "minOpportunityScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxRiskScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
+                      "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                      "minOpportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxRiskScore": { "type": "number", "minimum": 0, "maximum": 100 },
                       "minParticipantGrowthPct": {
                         "type": "number",
                         "minimum": 0,
                         "maximum": 1000000
                       },
-                      "minMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "minPriceChangePct": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "minYieldChangeBps": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "windowSeconds": {
-                        "type": "integer",
-                        "minimum": 60,
-                        "maximum": 604800
-                      },
-                      "maxAgeSeconds": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 31536000
-                      },
+                      "minMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "minPriceChangePct": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+                      "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
                       "verifiedOnly": { "type": "boolean" }
                     },
                     "additionalProperties": false
@@ -4908,11 +4326,7 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "name": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
+                        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
                         "enabled": { "type": "boolean", "default": true },
                         "conditions": {
                           "type": "object",
@@ -4924,11 +4338,7 @@
                             },
                             "sourceIds": {
                               "type": "array",
-                              "items": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 200
-                              },
+                              "items": { "type": "string", "minLength": 1, "maxLength": 200 },
                               "maxItems": 30
                             },
                             "assets": {
@@ -4963,36 +4373,20 @@
                               },
                               "maxItems": 8
                             },
-                            "minConfidence": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 1
-                            },
+                            "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
                             "minOpportunityScore": {
                               "type": "number",
                               "minimum": 0,
                               "maximum": 100
                             },
-                            "maxRiskScore": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
-                            },
+                            "maxRiskScore": { "type": "number", "minimum": 0, "maximum": 100 },
                             "minParticipantGrowthPct": {
                               "type": "number",
                               "minimum": 0,
                               "maximum": 1000000
                             },
-                            "minMintProgress": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
-                            },
-                            "maxMintProgress": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
-                            },
+                            "minMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                            "maxMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
                             "minPriceChangePct": {
                               "type": "number",
                               "minimum": 0,
@@ -5037,10 +4431,7 @@
                         "id": { "type": "string", "format": "uuid" },
                         "ownerId": { "type": "string", "format": "uuid" },
                         "version": { "type": "integer" },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
+                        "createdAt": { "type": "string", "format": "date-time" },
                         "updatedAt": { "type": "string", "format": "date-time" }
                       },
                       "required": [
@@ -5060,10 +4451,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -5194,10 +4582,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -5322,11 +4707,7 @@
                       },
                       "sourceIds": {
                         "type": "array",
-                        "items": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
+                        "items": { "type": "string", "minLength": 1, "maxLength": 200 },
                         "maxItems": 30
                       },
                       "assets": {
@@ -5361,56 +4742,20 @@
                         },
                         "maxItems": 8
                       },
-                      "minConfidence": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "minOpportunityScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxRiskScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
+                      "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                      "minOpportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxRiskScore": { "type": "number", "minimum": 0, "maximum": 100 },
                       "minParticipantGrowthPct": {
                         "type": "number",
                         "minimum": 0,
                         "maximum": 1000000
                       },
-                      "minMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "minPriceChangePct": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "minYieldChangeBps": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "windowSeconds": {
-                        "type": "integer",
-                        "minimum": 60,
-                        "maximum": 604800
-                      },
-                      "maxAgeSeconds": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 31536000
-                      },
+                      "minMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "minPriceChangePct": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+                      "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
                       "verifiedOnly": { "type": "boolean" }
                     },
                     "additionalProperties": false
@@ -5433,10 +4778,7 @@
                       "type": "object",
                       "properties": {
                         "matched": { "type": "boolean" },
-                        "reasons": {
-                          "type": "array",
-                          "items": { "type": "string" }
-                        }
+                        "reasons": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": ["matched", "reasons"]
                     },
@@ -5446,10 +4788,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -5592,10 +4931,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -5716,10 +5052,7 @@
                         "properties": {
                           "id": { "type": "string", "format": "uuid" },
                           "name": { "type": "string" },
-                          "provider": {
-                            "type": "string",
-                            "enum": ["telegram", "feishu", "bark"]
-                          },
+                          "provider": { "type": "string", "enum": ["telegram", "feishu", "bark"] },
                           "enabled": { "type": "boolean" },
                           "configured": { "type": "boolean" },
                           "description": { "type": "string", "default": "" }
@@ -5733,10 +5066,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -5885,10 +5215,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -6000,9 +5327,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "channelId": { "type": "string", "format": "uuid" }
-                },
+                "properties": { "channelId": { "type": "string", "format": "uuid" } },
                 "required": ["channelId"],
                 "additionalProperties": false
               }
@@ -6031,10 +5356,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -6155,11 +5477,7 @@
                         "properties": {
                           "id": { "type": "string", "format": "uuid" },
                           "channelId": { "type": "string", "format": "uuid" },
-                          "eventId": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "uuid"
-                          },
+                          "eventId": { "type": "string", "nullable": true, "format": "uuid" },
                           "status": {
                             "type": "string",
                             "enum": [
@@ -6172,10 +5490,7 @@
                             ]
                           },
                           "attempts": { "type": "integer" },
-                          "queuedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
+                          "queuedAt": { "type": "string", "format": "date-time" },
                           "acceptedAt": {
                             "type": "string",
                             "nullable": true,
@@ -6189,10 +5504,7 @@
                             "enum": ["P0", "P1", "P2", "P3"],
                             "default": "P2"
                           },
-                          "dataMode": {
-                            "type": "string",
-                            "enum": ["live", "fixture"]
-                          }
+                          "dataMode": { "type": "string", "enum": ["live", "fixture"] }
                         },
                         "required": [
                           "id",
@@ -6214,10 +5526,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -6353,10 +5662,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -6478,15 +5784,8 @@
                           "enum": ["dark", "light", "system"],
                           "default": "dark"
                         },
-                        "timezone": {
-                          "type": "string",
-                          "default": "Asia/Shanghai"
-                        },
-                        "locale": {
-                          "type": "string",
-                          "maxLength": 20,
-                          "default": "zh-CN"
-                        },
+                        "timezone": { "type": "string", "default": "Asia/Shanghai" },
+                        "locale": { "type": "string", "maxLength": 20, "default": "zh-CN" },
                         "notifications": {
                           "type": "object",
                           "properties": {
@@ -6524,10 +5823,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -6644,11 +5940,7 @@
                     "default": "dark"
                   },
                   "timezone": { "type": "string", "default": "Asia/Shanghai" },
-                  "locale": {
-                    "type": "string",
-                    "maxLength": 20,
-                    "default": "zh-CN"
-                  },
+                  "locale": { "type": "string", "maxLength": 20, "default": "zh-CN" },
                   "notifications": {
                     "type": "object",
                     "properties": {
@@ -6672,11 +5964,7 @@
                         "default": "P2"
                       }
                     },
-                    "default": {
-                      "quietStart": null,
-                      "quietEnd": null,
-                      "minimumPriority": "P2"
-                    }
+                    "default": { "quietStart": null, "quietEnd": null, "minimumPriority": "P2" }
                   }
                 },
                 "additionalProperties": false
@@ -6700,15 +5988,8 @@
                           "enum": ["dark", "light", "system"],
                           "default": "dark"
                         },
-                        "timezone": {
-                          "type": "string",
-                          "default": "Asia/Shanghai"
-                        },
-                        "locale": {
-                          "type": "string",
-                          "maxLength": 20,
-                          "default": "zh-CN"
-                        },
+                        "timezone": { "type": "string", "default": "Asia/Shanghai" },
+                        "locale": { "type": "string", "maxLength": 20, "default": "zh-CN" },
                         "notifications": {
                           "type": "object",
                           "properties": {
@@ -6746,10 +6027,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -6893,10 +6171,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -7006,9 +6281,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "name": { "type": "string", "minLength": 1, "maxLength": 100 }
-                },
+                "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 100 } },
                 "required": ["name"],
                 "additionalProperties": false
               }
@@ -7050,10 +6323,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -7174,11 +6444,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "assetKey": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
-                  }
+                  "assetKey": { "type": "string", "minLength": 1, "maxLength": 200 }
                 },
                 "required": ["assetKey"],
                 "additionalProperties": false
@@ -7205,10 +6471,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -7347,10 +6610,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -7474,11 +6734,7 @@
                       },
                       "sourceIds": {
                         "type": "array",
-                        "items": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
+                        "items": { "type": "string", "minLength": 1, "maxLength": 200 },
                         "maxItems": 30
                       },
                       "assets": {
@@ -7513,56 +6769,20 @@
                         },
                         "maxItems": 8
                       },
-                      "minConfidence": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "minOpportunityScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxRiskScore": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
+                      "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                      "minOpportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxRiskScore": { "type": "number", "minimum": 0, "maximum": 100 },
                       "minParticipantGrowthPct": {
                         "type": "number",
                         "minimum": 0,
                         "maximum": 1000000
                       },
-                      "minMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "maxMintProgress": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "minPriceChangePct": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "minYieldChangeBps": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1000000
-                      },
-                      "windowSeconds": {
-                        "type": "integer",
-                        "minimum": 60,
-                        "maximum": 604800
-                      },
-                      "maxAgeSeconds": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 31536000
-                      },
+                      "minMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "maxMintProgress": { "type": "number", "minimum": 0, "maximum": 100 },
+                      "minPriceChangePct": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
+                      "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+                      "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
                       "verifiedOnly": { "type": "boolean" }
                     },
                     "default": {},
@@ -7590,10 +6810,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -7711,49 +6928,15 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "sourceId": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 100
-                          },
-                          "externalId": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 200
-                          },
-                          "title": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 200
-                          },
-                          "country": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 50
-                          },
-                          "scheduledAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "previousValue": {
-                            "type": "string",
-                            "nullable": true,
-                            "maxLength": 100
-                          },
-                          "expectedValue": {
-                            "type": "string",
-                            "nullable": true,
-                            "maxLength": 100
-                          },
-                          "actualValue": {
-                            "type": "string",
-                            "nullable": true,
-                            "maxLength": 100
-                          },
-                          "importance": {
-                            "type": "string",
-                            "enum": ["high", "medium", "low"]
-                          },
+                          "sourceId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                          "externalId": { "type": "string", "minLength": 1, "maxLength": 200 },
+                          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                          "country": { "type": "string", "minLength": 1, "maxLength": 50 },
+                          "scheduledAt": { "type": "string", "format": "date-time" },
+                          "previousValue": { "type": "string", "nullable": true, "maxLength": 100 },
+                          "expectedValue": { "type": "string", "nullable": true, "maxLength": 100 },
+                          "actualValue": { "type": "string", "nullable": true, "maxLength": 100 },
+                          "importance": { "type": "string", "enum": ["high", "medium", "low"] },
                           "confirmed": { "type": "boolean" },
                           "sourceUrl": { "type": "string", "format": "uri" },
                           "sourcePublishedAt": {
@@ -7761,10 +6944,7 @@
                             "nullable": true,
                             "format": "date-time"
                           },
-                          "dataMode": {
-                            "type": "string",
-                            "enum": ["live", "fixture"]
-                          },
+                          "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                           "id": { "type": "string", "format": "uuid" }
                         },
                         "required": [
@@ -7792,10 +6972,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -7913,49 +7090,15 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "sourceId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
-                        },
-                        "externalId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
-                        "title": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
-                        "country": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 50
-                        },
-                        "scheduledAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "previousValue": {
-                          "type": "string",
-                          "nullable": true,
-                          "maxLength": 100
-                        },
-                        "expectedValue": {
-                          "type": "string",
-                          "nullable": true,
-                          "maxLength": 100
-                        },
-                        "actualValue": {
-                          "type": "string",
-                          "nullable": true,
-                          "maxLength": 100
-                        },
-                        "importance": {
-                          "type": "string",
-                          "enum": ["high", "medium", "low"]
-                        },
+                        "sourceId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "externalId": { "type": "string", "minLength": 1, "maxLength": 200 },
+                        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                        "country": { "type": "string", "minLength": 1, "maxLength": 50 },
+                        "scheduledAt": { "type": "string", "format": "date-time" },
+                        "previousValue": { "type": "string", "nullable": true, "maxLength": 100 },
+                        "expectedValue": { "type": "string", "nullable": true, "maxLength": 100 },
+                        "actualValue": { "type": "string", "nullable": true, "maxLength": 100 },
+                        "importance": { "type": "string", "enum": ["high", "medium", "low"] },
                         "confirmed": { "type": "boolean" },
                         "sourceUrl": { "type": "string", "format": "uri" },
                         "sourcePublishedAt": {
@@ -7963,10 +7106,7 @@
                           "nullable": true,
                           "format": "date-time"
                         },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        }
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] }
                       },
                       "required": [
                         "sourceId",
@@ -8014,10 +7154,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -8137,28 +7274,13 @@
                         "opportunity": {
                           "type": "object",
                           "properties": {
-                            "version": {
-                              "type": "string",
-                              "pattern": "^[a-zA-Z0-9._-]{1,80}$"
-                            },
+                            "version": { "type": "string", "pattern": "^[a-zA-Z0-9._-]{1,80}$" },
                             "weights": {
                               "type": "object",
                               "properties": {
-                                "sourceTrust": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "stage": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "freshness": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
+                                "sourceTrust": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "stage": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "freshness": { "type": "number", "minimum": 0, "maximum": 100 },
                                 "participantGrowth": {
                                   "type": "number",
                                   "minimum": 0,
@@ -8198,10 +7320,7 @@
                         "risk": {
                           "type": "object",
                           "properties": {
-                            "version": {
-                              "type": "string",
-                              "pattern": "^[a-zA-Z0-9._-]{1,80}$"
-                            },
+                            "version": { "type": "string", "pattern": "^[a-zA-Z0-9._-]{1,80}$" },
                             "weights": {
                               "type": "object",
                               "properties": {
@@ -8210,21 +7329,9 @@
                                   "minimum": 0,
                                   "maximum": 100
                                 },
-                                "permissions": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "liquidity": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "concentration": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
+                                "permissions": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "liquidity": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "concentration": { "type": "number", "minimum": 0, "maximum": 100 },
                                 "suspiciousActivity": {
                                   "type": "number",
                                   "minimum": 0,
@@ -8235,21 +7342,9 @@
                                   "minimum": 0,
                                   "maximum": 100
                                 },
-                                "phishing": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "cost": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "mutableRules": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                }
+                                "phishing": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "cost": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "mutableRules": { "type": "number", "minimum": 0, "maximum": 100 }
                               },
                               "required": [
                                 "unverifiedOfficial",
@@ -8278,10 +7373,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -8399,28 +7491,13 @@
                         "opportunity": {
                           "type": "object",
                           "properties": {
-                            "version": {
-                              "type": "string",
-                              "pattern": "^[a-zA-Z0-9._-]{1,80}$"
-                            },
+                            "version": { "type": "string", "pattern": "^[a-zA-Z0-9._-]{1,80}$" },
                             "weights": {
                               "type": "object",
                               "properties": {
-                                "sourceTrust": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "stage": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "freshness": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
+                                "sourceTrust": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "stage": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "freshness": { "type": "number", "minimum": 0, "maximum": 100 },
                                 "participantGrowth": {
                                   "type": "number",
                                   "minimum": 0,
@@ -8460,10 +7537,7 @@
                         "risk": {
                           "type": "object",
                           "properties": {
-                            "version": {
-                              "type": "string",
-                              "pattern": "^[a-zA-Z0-9._-]{1,80}$"
-                            },
+                            "version": { "type": "string", "pattern": "^[a-zA-Z0-9._-]{1,80}$" },
                             "weights": {
                               "type": "object",
                               "properties": {
@@ -8472,21 +7546,9 @@
                                   "minimum": 0,
                                   "maximum": 100
                                 },
-                                "permissions": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "liquidity": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "concentration": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
+                                "permissions": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "liquidity": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "concentration": { "type": "number", "minimum": 0, "maximum": 100 },
                                 "suspiciousActivity": {
                                   "type": "number",
                                   "minimum": 0,
@@ -8497,21 +7559,9 @@
                                   "minimum": 0,
                                   "maximum": 100
                                 },
-                                "phishing": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "cost": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "mutableRules": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                }
+                                "phishing": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "cost": { "type": "number", "minimum": 0, "maximum": 100 },
+                                "mutableRules": { "type": "number", "minimum": 0, "maximum": 100 }
                               },
                               "required": [
                                 "unverifiedOfficial",
@@ -8540,10 +7590,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -8675,10 +7722,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -8799,10 +7843,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": ["APPROVED", "REJECTED"]
-                  },
+                  "status": { "type": "string", "enum": ["APPROVED", "REJECTED"] },
                   "note": { "type": "string", "maxLength": 2000, "default": "" }
                 },
                 "required": ["status"],
@@ -8828,45 +7869,23 @@
                         "externalId": { "type": "string" },
                         "title": { "type": "string" },
                         "description": { "type": "string" },
-                        "originalUrl": {
-                          "type": "string",
-                          "nullable": true,
-                          "format": "uri"
-                        },
+                        "originalUrl": { "type": "string", "nullable": true, "format": "uri" },
                         "sourcePublishedAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
                         },
-                        "firstSeenAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "collectedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
+                        "firstSeenAt": { "type": "string", "format": "date-time" },
+                        "collectedAt": { "type": "string", "format": "date-time" },
                         "eventOccurredAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
                         },
-                        "normalizedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "detectedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "assets": {
-                          "type": "array",
-                          "items": { "type": "string" }
-                        },
-                        "categories": {
-                          "type": "array",
-                          "items": { "type": "string" }
-                        },
+                        "normalizedAt": { "type": "string", "format": "date-time" },
+                        "detectedAt": { "type": "string", "format": "date-time" },
+                        "assets": { "type": "array", "items": { "type": "string" } },
+                        "categories": { "type": "array", "items": { "type": "string" } },
                         "chain": { "type": "string" },
                         "assetKey": { "type": "string" },
                         "metrics": {
@@ -8882,15 +7901,8 @@
                         "conditionsVerified": { "type": "boolean" },
                         "rawDataReference": { "type": "string" },
                         "fingerprint": { "type": "string" },
-                        "confidence": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 1
-                        },
-                        "severity": {
-                          "type": "string",
-                          "enum": ["P0", "P1", "P2", "P3"]
-                        },
+                        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                        "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
                         "verificationStatus": {
                           "type": "string",
                           "enum": ["UNVERIFIED", "VERIFIED", "DISPUTED"]
@@ -8899,52 +7911,23 @@
                           "type": "string",
                           "enum": ["PENDING", "COMPLETED", "FAILED", "DISABLED", "DEFERRED"]
                         },
-                        "opportunityScore": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 100
-                        },
-                        "riskScore": {
-                          "type": "number",
-                          "minimum": 0,
-                          "maximum": 100
-                        },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
+                        "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                        "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "createdAt": { "type": "string", "format": "date-time" },
+                        "updatedAt": { "type": "string", "format": "date-time" },
                         "review": {
                           "type": "object",
                           "properties": {
-                            "status": {
-                              "type": "string",
-                              "enum": ["APPROVED", "REJECTED"]
-                            },
+                            "status": { "type": "string", "enum": ["APPROVED", "REJECTED"] },
                             "note": { "type": "string" },
-                            "reviewerId": {
-                              "type": "string",
-                              "format": "uuid"
-                            },
-                            "reviewedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
+                            "reviewerId": { "type": "string", "format": "uuid" },
+                            "reviewedAt": { "type": "string", "format": "date-time" }
                           },
                           "required": ["status", "note", "reviewerId", "reviewedAt"]
                         },
                         "analysis": { "nullable": true },
-                        "evidence": {
-                          "type": "array",
-                          "items": { "nullable": true }
-                        },
+                        "evidence": { "type": "array", "items": { "nullable": true } },
                         "riskWarnings": {
                           "type": "array",
                           "items": { "type": "string" },
@@ -8986,10 +7969,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -9130,10 +8110,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
@@ -9252,15 +8229,9 @@
                       "properties": {
                         "day": { "type": "string" },
                         "timezone": { "type": "string", "enum": ["UTC"] },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["fixture", "live"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["fixture", "live"] },
                         "asOf": { "type": "string" },
-                        "method": {
-                          "type": "string",
-                          "enum": ["stored-evidence-and-analysis"]
-                        },
+                        "method": { "type": "string", "enum": ["stored-evidence-and-analysis"] },
                         "totalEvents": { "type": "number" },
                         "categories": {
                           "type": "array",
@@ -9283,15 +8254,9 @@
                               "severity": { "type": "string" },
                               "summary": { "type": "string" },
                               "analysisStatus": { "type": "string" },
-                              "sourceUrls": {
-                                "type": "array",
-                                "items": { "type": "string" }
-                              },
+                              "sourceUrls": { "type": "array", "items": { "type": "string" } },
                               "firstSeenAt": { "type": "string" },
-                              "riskWarnings": {
-                                "type": "array",
-                                "items": { "type": "string" }
-                              }
+                              "riskWarnings": { "type": "array", "items": { "type": "string" } }
                             },
                             "required": [
                               "eventId",
@@ -9305,10 +8270,7 @@
                             ]
                           }
                         },
-                        "limitations": {
-                          "type": "array",
-                          "items": { "type": "string" }
-                        }
+                        "limitations": { "type": "array", "items": { "type": "string" } }
                       },
                       "required": [
                         "day",
@@ -9328,10 +8290,7 @@
                         "total": { "type": "number" },
                         "page": { "type": "number" },
                         "pageSize": { "type": "number" },
-                        "dataMode": {
-                          "type": "string",
-                          "enum": ["live", "fixture"]
-                        },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
                         "asOf": { "type": "string", "format": "date-time" }
                       },
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]

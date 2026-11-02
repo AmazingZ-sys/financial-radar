@@ -1,5 +1,5 @@
 export interface paths {
-  "/health": {
+  '/health': {
     parameters: {
       query?: never;
       header?: never;
@@ -22,10 +22,10 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** @enum {string} */
-                status: "ok";
+                status: 'ok';
                 version: string;
               };
               meta?: {
@@ -33,7 +33,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -46,7 +46,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -61,7 +61,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -76,7 +76,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -91,7 +91,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -110,7 +110,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/auth/login": {
+  '/api/v1/auth/login': {
     parameters: {
       query?: never;
       header?: never;
@@ -129,7 +129,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             /** Format: email */
             email: string;
             password: string;
@@ -143,7 +143,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -157,7 +157,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -170,7 +170,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -185,7 +185,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -200,7 +200,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -215,7 +215,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -232,7 +232,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/auth/me": {
+  '/api/v1/auth/me': {
     parameters: {
       query?: never;
       header?: never;
@@ -255,7 +255,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -269,7 +269,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -282,7 +282,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -297,7 +297,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -312,7 +312,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -327,7 +327,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -346,7 +346,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/auth/logout": {
+  '/api/v1/auth/logout': {
     parameters: {
       query?: never;
       header?: never;
@@ -371,7 +371,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 ok: boolean;
               };
@@ -380,7 +380,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -393,7 +393,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -408,7 +408,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -423,7 +423,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -438,7 +438,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -455,7 +455,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/events": {
+  '/api/v1/events': {
     parameters: {
       query?: never;
       header?: never;
@@ -478,7 +478,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -513,23 +513,22 @@ export interface paths {
                 fingerprint: string;
                 confidence: number;
                 /** @enum {string} */
-                severity: "P0" | "P1" | "P2" | "P3";
+                severity: 'P0' | 'P1' | 'P2' | 'P3';
                 /** @enum {string} */
-                verificationStatus: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
+                verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 /** @enum {string} */
-                analysisStatus:
-                  "PENDING" | "COMPLETED" | "FAILED" | "DISABLED" | "DEFERRED";
+                analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
                 opportunityScore: number;
                 riskScore: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
                 updatedAt: string;
                 review?: {
                   /** @enum {string} */
-                  status: "APPROVED" | "REJECTED";
+                  status: 'APPROVED' | 'REJECTED';
                   note: string;
                   /** Format: uuid */
                   reviewerId: string;
@@ -548,7 +547,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -561,7 +560,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -576,7 +575,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -591,7 +590,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -606,7 +605,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -625,7 +624,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/events/{id}": {
+  '/api/v1/events/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -650,7 +649,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -685,23 +684,22 @@ export interface paths {
                 fingerprint: string;
                 confidence: number;
                 /** @enum {string} */
-                severity: "P0" | "P1" | "P2" | "P3";
+                severity: 'P0' | 'P1' | 'P2' | 'P3';
                 /** @enum {string} */
-                verificationStatus: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
+                verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 /** @enum {string} */
-                analysisStatus:
-                  "PENDING" | "COMPLETED" | "FAILED" | "DISABLED" | "DEFERRED";
+                analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
                 opportunityScore: number;
                 riskScore: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
                 updatedAt: string;
                 review?: {
                   /** @enum {string} */
-                  status: "APPROVED" | "REJECTED";
+                  status: 'APPROVED' | 'REJECTED';
                   note: string;
                   /** Format: uuid */
                   reviewerId: string;
@@ -720,7 +718,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -733,7 +731,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -748,7 +746,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -763,7 +761,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -778,7 +776,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -797,7 +795,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/events/{id}/sources": {
+  '/api/v1/events/{id}/sources': {
     parameters: {
       query?: never;
       header?: never;
@@ -822,7 +820,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 sourceId: string;
@@ -838,7 +836,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -851,7 +849,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -866,7 +864,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -881,7 +879,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -896,7 +894,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -915,7 +913,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/projects": {
+  '/api/v1/projects': {
     parameters: {
       query?: never;
       header?: never;
@@ -938,7 +936,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -948,16 +946,16 @@ export interface paths {
                 assetKey: string;
                 /** @enum {string} */
                 stage:
-                  | "DISCOVERED"
-                  | "UNVERIFIED"
-                  | "VERIFIED"
-                  | "EARLY_STAGE"
-                  | "ACTIVE"
-                  | "COMPLETED"
-                  | "TRADING"
-                  | "INACTIVE";
+                  | 'DISCOVERED'
+                  | 'UNVERIFIED'
+                  | 'VERIFIED'
+                  | 'EARLY_STAGE'
+                  | 'ACTIVE'
+                  | 'COMPLETED'
+                  | 'TRADING'
+                  | 'INACTIVE';
                 /** @enum {string} */
-                verificationStatus: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
+                verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 riskFlagged: boolean;
                 watching: boolean;
                 /** Format: date-time */
@@ -972,7 +970,7 @@ export interface paths {
                 conditionsVerified: boolean;
                 sourceUrls: string[];
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 startsAt?: string | null;
                 /** Format: date-time */
@@ -989,7 +987,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1002,7 +1000,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1017,7 +1015,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1032,7 +1030,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1047,7 +1045,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1066,7 +1064,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/projects/{id}": {
+  '/api/v1/projects/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -1091,7 +1089,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -1101,16 +1099,16 @@ export interface paths {
                 assetKey: string;
                 /** @enum {string} */
                 stage:
-                  | "DISCOVERED"
-                  | "UNVERIFIED"
-                  | "VERIFIED"
-                  | "EARLY_STAGE"
-                  | "ACTIVE"
-                  | "COMPLETED"
-                  | "TRADING"
-                  | "INACTIVE";
+                  | 'DISCOVERED'
+                  | 'UNVERIFIED'
+                  | 'VERIFIED'
+                  | 'EARLY_STAGE'
+                  | 'ACTIVE'
+                  | 'COMPLETED'
+                  | 'TRADING'
+                  | 'INACTIVE';
                 /** @enum {string} */
-                verificationStatus: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
+                verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 riskFlagged: boolean;
                 watching: boolean;
                 /** Format: date-time */
@@ -1125,7 +1123,7 @@ export interface paths {
                 conditionsVerified: boolean;
                 sourceUrls: string[];
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 startsAt?: string | null;
                 /** Format: date-time */
@@ -1142,7 +1140,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1155,7 +1153,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1170,7 +1168,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1185,7 +1183,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1200,7 +1198,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1219,7 +1217,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/projects/{id}/timeline": {
+  '/api/v1/projects/{id}/timeline': {
     parameters: {
       query?: never;
       header?: never;
@@ -1244,7 +1242,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 fromStage: string | null;
@@ -1259,7 +1257,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1272,7 +1270,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1287,7 +1285,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1302,7 +1300,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1317,7 +1315,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1336,7 +1334,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/projects/{id}/signals": {
+  '/api/v1/projects/{id}/signals': {
     parameters: {
       query?: never;
       header?: never;
@@ -1361,7 +1359,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -1383,7 +1381,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1396,7 +1394,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1411,7 +1409,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1426,7 +1424,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1441,7 +1439,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1460,7 +1458,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/sources": {
+  '/api/v1/sources': {
     parameters: {
       query?: never;
       header?: never;
@@ -1483,13 +1481,13 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 name: string;
                 connectorType: string;
                 /** @enum {string} */
-                mode: "live" | "fixture";
+                mode: 'live' | 'fixture';
                 enabled: boolean;
                 status: string;
                 intervalSeconds: number;
@@ -1517,7 +1515,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1530,7 +1528,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1545,7 +1543,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1560,7 +1558,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1575,7 +1573,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1594,7 +1592,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/sources/{id}": {
+  '/api/v1/sources/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -1619,13 +1617,13 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 name: string;
                 connectorType: string;
                 /** @enum {string} */
-                mode: "live" | "fixture";
+                mode: 'live' | 'fixture';
                 enabled: boolean;
                 status: string;
                 intervalSeconds: number;
@@ -1653,7 +1651,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1666,7 +1664,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1681,7 +1679,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1696,7 +1694,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1711,7 +1709,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1739,7 +1737,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             enabled?: boolean;
             intervalSeconds?: number;
           };
@@ -1752,14 +1750,14 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data?: unknown;
               meta?: {
                 total: number;
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1772,7 +1770,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1787,7 +1785,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1802,7 +1800,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1817,7 +1815,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1830,7 +1828,7 @@ export interface paths {
     };
     trace?: never;
   };
-  "/api/v1/sources/{id}/health": {
+  '/api/v1/sources/{id}/health': {
     parameters: {
       query?: never;
       header?: never;
@@ -1855,7 +1853,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 status: string;
@@ -1868,7 +1866,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -1881,7 +1879,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1896,7 +1894,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1911,7 +1909,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1926,7 +1924,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -1945,7 +1943,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/markets/assets": {
+  '/api/v1/markets/assets': {
     parameters: {
       query?: never;
       header?: never;
@@ -1968,7 +1966,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 asset: string;
                 name: string;
@@ -1980,7 +1978,7 @@ export interface paths {
                 observedAt: string | null;
                 delaySeconds: number | null;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 frequency?: string;
                 sourceDate?: string | null;
                 precision?: number | null;
@@ -1994,7 +1992,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -2007,7 +2005,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2022,7 +2020,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2037,7 +2035,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2052,7 +2050,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2071,7 +2069,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/markets/history": {
+  '/api/v1/markets/history': {
     parameters: {
       query?: never;
       header?: never;
@@ -2094,7 +2092,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 observedAt: string;
                 value: number;
@@ -2102,7 +2100,7 @@ export interface paths {
                 unit: string;
                 delaySeconds: number | null;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 frequency?: string;
                 sourceDate?: string | null;
                 publicationTimeKnown?: boolean;
@@ -2114,7 +2112,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -2127,7 +2125,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2142,7 +2140,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2157,7 +2155,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2172,7 +2170,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2191,7 +2189,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/dashboard": {
+  '/api/v1/dashboard': {
     parameters: {
       query?: never;
       header?: never;
@@ -2214,7 +2212,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 onlineSources: number;
                 totalSources: number;
@@ -2257,27 +2255,22 @@ export interface paths {
                   fingerprint: string;
                   confidence: number;
                   /** @enum {string} */
-                  severity: "P0" | "P1" | "P2" | "P3";
+                  severity: 'P0' | 'P1' | 'P2' | 'P3';
                   /** @enum {string} */
-                  verificationStatus: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
+                  verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                   /** @enum {string} */
-                  analysisStatus:
-                    | "PENDING"
-                    | "COMPLETED"
-                    | "FAILED"
-                    | "DISABLED"
-                    | "DEFERRED";
+                  analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
                   opportunityScore: number;
                   riskScore: number;
                   /** @enum {string} */
-                  dataMode: "live" | "fixture";
+                  dataMode: 'live' | 'fixture';
                   /** Format: date-time */
                   createdAt: string;
                   /** Format: date-time */
                   updatedAt: string;
                   review?: {
                     /** @enum {string} */
-                    status: "APPROVED" | "REJECTED";
+                    status: 'APPROVED' | 'REJECTED';
                     note: string;
                     /** Format: uuid */
                     reviewerId: string;
@@ -2300,16 +2293,16 @@ export interface paths {
                   assetKey: string;
                   /** @enum {string} */
                   stage:
-                    | "DISCOVERED"
-                    | "UNVERIFIED"
-                    | "VERIFIED"
-                    | "EARLY_STAGE"
-                    | "ACTIVE"
-                    | "COMPLETED"
-                    | "TRADING"
-                    | "INACTIVE";
+                    | 'DISCOVERED'
+                    | 'UNVERIFIED'
+                    | 'VERIFIED'
+                    | 'EARLY_STAGE'
+                    | 'ACTIVE'
+                    | 'COMPLETED'
+                    | 'TRADING'
+                    | 'INACTIVE';
                   /** @enum {string} */
-                  verificationStatus: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
+                  verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                   riskFlagged: boolean;
                   watching: boolean;
                   /** Format: date-time */
@@ -2324,7 +2317,7 @@ export interface paths {
                   conditionsVerified: boolean;
                   sourceUrls: string[];
                   /** @enum {string} */
-                  dataMode: "live" | "fixture";
+                  dataMode: 'live' | 'fixture';
                   /** Format: date-time */
                   startsAt?: string | null;
                   /** Format: date-time */
@@ -2339,7 +2332,7 @@ export interface paths {
                 recentAlerts: unknown[];
                 workerOnline: boolean;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
                 latency: {
@@ -2358,7 +2351,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -2371,7 +2364,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2386,7 +2379,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2401,7 +2394,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2416,7 +2409,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2435,7 +2428,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/system/status": {
+  '/api/v1/system/status': {
     parameters: {
       query?: never;
       header?: never;
@@ -2458,12 +2451,12 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 version: string;
                 commitSha: string;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 asOf: string;
                 worker: {
                   online: boolean;
@@ -2498,7 +2491,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -2511,7 +2504,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2526,7 +2519,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2541,7 +2534,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2556,7 +2549,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2575,7 +2568,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/system/latency": {
+  '/api/v1/system/latency': {
     parameters: {
       query?: never;
       header?: never;
@@ -2598,7 +2591,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 stage: string;
                 p50Ms: number | null;
@@ -2610,7 +2603,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -2623,7 +2616,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2638,7 +2631,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2653,7 +2646,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2668,7 +2661,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2687,7 +2680,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/system/logs": {
+  '/api/v1/system/logs': {
     parameters: {
       query?: never;
       header?: never;
@@ -2710,7 +2703,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 action: string;
@@ -2723,7 +2716,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -2736,7 +2729,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2751,7 +2744,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2766,7 +2759,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2781,7 +2774,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2800,7 +2793,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/alert-rules": {
+  '/api/v1/alert-rules': {
     parameters: {
       query?: never;
       header?: never;
@@ -2823,7 +2816,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 name: string;
                 /** @default true */
@@ -2835,14 +2828,14 @@ export interface paths {
                   categories?: string[];
                   chains?: string[];
                   stages?: (
-                    | "DISCOVERED"
-                    | "UNVERIFIED"
-                    | "VERIFIED"
-                    | "EARLY_STAGE"
-                    | "ACTIVE"
-                    | "COMPLETED"
-                    | "TRADING"
-                    | "INACTIVE"
+                    | 'DISCOVERED'
+                    | 'UNVERIFIED'
+                    | 'VERIFIED'
+                    | 'EARLY_STAGE'
+                    | 'ACTIVE'
+                    | 'COMPLETED'
+                    | 'TRADING'
+                    | 'INACTIVE'
                   )[];
                   minConfidence?: number;
                   minOpportunityScore?: number;
@@ -2860,7 +2853,7 @@ export interface paths {
                  * @default P2
                  * @enum {string}
                  */
-                priority: "P0" | "P1" | "P2" | "P3";
+                priority: 'P0' | 'P1' | 'P2' | 'P3';
                 /** @default 3600 */
                 cooldownSeconds: number;
                 /** @default [] */
@@ -2880,7 +2873,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -2893,7 +2886,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2908,7 +2901,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2923,7 +2916,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2938,7 +2931,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -2960,7 +2953,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             name: string;
             /** @default true */
             enabled?: boolean;
@@ -2971,14 +2964,14 @@ export interface paths {
               categories?: string[];
               chains?: string[];
               stages?: (
-                | "DISCOVERED"
-                | "UNVERIFIED"
-                | "VERIFIED"
-                | "EARLY_STAGE"
-                | "ACTIVE"
-                | "COMPLETED"
-                | "TRADING"
-                | "INACTIVE"
+                | 'DISCOVERED'
+                | 'UNVERIFIED'
+                | 'VERIFIED'
+                | 'EARLY_STAGE'
+                | 'ACTIVE'
+                | 'COMPLETED'
+                | 'TRADING'
+                | 'INACTIVE'
               )[];
               minConfidence?: number;
               minOpportunityScore?: number;
@@ -2996,7 +2989,7 @@ export interface paths {
              * @default P2
              * @enum {string}
              */
-            priority?: "P0" | "P1" | "P2" | "P3";
+            priority?: 'P0' | 'P1' | 'P2' | 'P3';
             /** @default 3600 */
             cooldownSeconds?: number;
             /** @default [] */
@@ -3011,7 +3004,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 name: string;
                 /** @default true */
@@ -3023,14 +3016,14 @@ export interface paths {
                   categories?: string[];
                   chains?: string[];
                   stages?: (
-                    | "DISCOVERED"
-                    | "UNVERIFIED"
-                    | "VERIFIED"
-                    | "EARLY_STAGE"
-                    | "ACTIVE"
-                    | "COMPLETED"
-                    | "TRADING"
-                    | "INACTIVE"
+                    | 'DISCOVERED'
+                    | 'UNVERIFIED'
+                    | 'VERIFIED'
+                    | 'EARLY_STAGE'
+                    | 'ACTIVE'
+                    | 'COMPLETED'
+                    | 'TRADING'
+                    | 'INACTIVE'
                   )[];
                   minConfidence?: number;
                   minOpportunityScore?: number;
@@ -3048,7 +3041,7 @@ export interface paths {
                  * @default P2
                  * @enum {string}
                  */
-                priority: "P0" | "P1" | "P2" | "P3";
+                priority: 'P0' | 'P1' | 'P2' | 'P3';
                 /** @default 3600 */
                 cooldownSeconds: number;
                 /** @default [] */
@@ -3068,7 +3061,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3081,7 +3074,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3096,7 +3089,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3111,7 +3104,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3126,7 +3119,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3143,7 +3136,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/alert-rules/{id}": {
+  '/api/v1/alert-rules/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -3171,7 +3164,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 ok: boolean;
               };
@@ -3180,7 +3173,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3193,7 +3186,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3208,7 +3201,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3223,7 +3216,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3238,7 +3231,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3263,7 +3256,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             name?: string;
             /** @default true */
             enabled?: boolean;
@@ -3274,14 +3267,14 @@ export interface paths {
               categories?: string[];
               chains?: string[];
               stages?: (
-                | "DISCOVERED"
-                | "UNVERIFIED"
-                | "VERIFIED"
-                | "EARLY_STAGE"
-                | "ACTIVE"
-                | "COMPLETED"
-                | "TRADING"
-                | "INACTIVE"
+                | 'DISCOVERED'
+                | 'UNVERIFIED'
+                | 'VERIFIED'
+                | 'EARLY_STAGE'
+                | 'ACTIVE'
+                | 'COMPLETED'
+                | 'TRADING'
+                | 'INACTIVE'
               )[];
               minConfidence?: number;
               minOpportunityScore?: number;
@@ -3299,7 +3292,7 @@ export interface paths {
              * @default P2
              * @enum {string}
              */
-            priority?: "P0" | "P1" | "P2" | "P3";
+            priority?: 'P0' | 'P1' | 'P2' | 'P3';
             /** @default 3600 */
             cooldownSeconds?: number;
             /** @default [] */
@@ -3314,7 +3307,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 name: string;
                 /** @default true */
@@ -3326,14 +3319,14 @@ export interface paths {
                   categories?: string[];
                   chains?: string[];
                   stages?: (
-                    | "DISCOVERED"
-                    | "UNVERIFIED"
-                    | "VERIFIED"
-                    | "EARLY_STAGE"
-                    | "ACTIVE"
-                    | "COMPLETED"
-                    | "TRADING"
-                    | "INACTIVE"
+                    | 'DISCOVERED'
+                    | 'UNVERIFIED'
+                    | 'VERIFIED'
+                    | 'EARLY_STAGE'
+                    | 'ACTIVE'
+                    | 'COMPLETED'
+                    | 'TRADING'
+                    | 'INACTIVE'
                   )[];
                   minConfidence?: number;
                   minOpportunityScore?: number;
@@ -3351,7 +3344,7 @@ export interface paths {
                  * @default P2
                  * @enum {string}
                  */
-                priority: "P0" | "P1" | "P2" | "P3";
+                priority: 'P0' | 'P1' | 'P2' | 'P3';
                 /** @default 3600 */
                 cooldownSeconds: number;
                 /** @default [] */
@@ -3371,7 +3364,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3384,7 +3377,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3399,7 +3392,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3414,7 +3407,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3429,7 +3422,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3442,7 +3435,7 @@ export interface paths {
     };
     trace?: never;
   };
-  "/api/v1/alert-rules/test": {
+  '/api/v1/alert-rules/test': {
     parameters: {
       query?: never;
       header?: never;
@@ -3461,7 +3454,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             /** Format: uuid */
             ruleId?: string;
             /** Format: uuid */
@@ -3473,14 +3466,14 @@ export interface paths {
               categories?: string[];
               chains?: string[];
               stages?: (
-                | "DISCOVERED"
-                | "UNVERIFIED"
-                | "VERIFIED"
-                | "EARLY_STAGE"
-                | "ACTIVE"
-                | "COMPLETED"
-                | "TRADING"
-                | "INACTIVE"
+                | 'DISCOVERED'
+                | 'UNVERIFIED'
+                | 'VERIFIED'
+                | 'EARLY_STAGE'
+                | 'ACTIVE'
+                | 'COMPLETED'
+                | 'TRADING'
+                | 'INACTIVE'
               )[];
               minConfidence?: number;
               minOpportunityScore?: number;
@@ -3504,7 +3497,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 matched: boolean;
                 reasons: string[];
@@ -3514,7 +3507,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3527,7 +3520,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3542,7 +3535,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3557,7 +3550,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3572,7 +3565,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3589,7 +3582,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/alerts": {
+  '/api/v1/alerts': {
     parameters: {
       query?: never;
       header?: never;
@@ -3612,7 +3605,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 ruleId: string;
@@ -3627,7 +3620,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3640,7 +3633,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3655,7 +3648,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3670,7 +3663,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3685,7 +3678,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3704,7 +3697,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/notification-channels": {
+  '/api/v1/notification-channels': {
     parameters: {
       query?: never;
       header?: never;
@@ -3727,13 +3720,13 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
                 name: string;
                 /** @enum {string} */
-                provider: "telegram" | "feishu" | "bark";
+                provider: 'telegram' | 'feishu' | 'bark';
                 enabled: boolean;
                 configured: boolean;
                 /** @default  */
@@ -3744,7 +3737,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3757,7 +3750,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3772,7 +3765,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3787,7 +3780,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3802,7 +3795,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3821,7 +3814,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/notification-channels/{id}": {
+  '/api/v1/notification-channels/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -3846,7 +3839,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             enabled: boolean;
           };
         };
@@ -3858,7 +3851,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -3869,7 +3862,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3882,7 +3875,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3897,7 +3890,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3912,7 +3905,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3927,7 +3920,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -3940,7 +3933,7 @@ export interface paths {
     };
     trace?: never;
   };
-  "/api/v1/notification-channels/test": {
+  '/api/v1/notification-channels/test': {
     parameters: {
       query?: never;
       header?: never;
@@ -3959,7 +3952,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             /** Format: uuid */
             channelId: string;
           };
@@ -3972,19 +3965,19 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
                 /** @enum {string} */
-                status: "PENDING";
+                status: 'PENDING';
               };
               meta?: {
                 total: number;
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -3997,7 +3990,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4012,7 +4005,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4027,7 +4020,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4042,7 +4035,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4059,7 +4052,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/notifications": {
+  '/api/v1/notifications': {
     parameters: {
       query?: never;
       header?: never;
@@ -4082,7 +4075,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -4091,13 +4084,7 @@ export interface paths {
                 /** Format: uuid */
                 eventId: string | null;
                 /** @enum {string} */
-                status:
-                  | "PENDING"
-                  | "SENDING"
-                  | "SENT"
-                  | "FAILED"
-                  | "RETRYING"
-                  | "CANCELLED";
+                status: 'PENDING' | 'SENDING' | 'SENT' | 'FAILED' | 'RETRYING' | 'CANCELLED';
                 attempts: number;
                 /** Format: date-time */
                 queuedAt: string;
@@ -4111,16 +4098,16 @@ export interface paths {
                  * @default P2
                  * @enum {string}
                  */
-                priority: "P0" | "P1" | "P2" | "P3";
+                priority: 'P0' | 'P1' | 'P2' | 'P3';
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
               }[];
               meta?: {
                 total: number;
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4133,7 +4120,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4148,7 +4135,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4163,7 +4150,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4178,7 +4165,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4197,7 +4184,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/notifications/{id}/retry": {
+  '/api/v1/notifications/{id}/retry': {
     parameters: {
       query?: never;
       header?: never;
@@ -4224,19 +4211,19 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
                 /** @enum {string} */
-                status: "PENDING";
+                status: 'PENDING';
               };
               meta?: {
                 total: number;
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4249,7 +4236,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4264,7 +4251,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4279,7 +4266,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4294,7 +4281,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4311,7 +4298,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/settings": {
+  '/api/v1/settings': {
     parameters: {
       query?: never;
       header?: never;
@@ -4334,13 +4321,13 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /**
                  * @default dark
                  * @enum {string}
                  */
-                theme: "dark" | "light" | "system";
+                theme: 'dark' | 'light' | 'system';
                 /** @default Asia/Shanghai */
                 timezone: string;
                 /** @default zh-CN */
@@ -4361,7 +4348,7 @@ export interface paths {
                    * @default P2
                    * @enum {string}
                    */
-                  minimumPriority: "P0" | "P1" | "P2" | "P3";
+                  minimumPriority: 'P0' | 'P1' | 'P2' | 'P3';
                 };
               };
               meta?: {
@@ -4369,7 +4356,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4382,7 +4369,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4397,7 +4384,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4412,7 +4399,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4427,7 +4414,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4453,12 +4440,12 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             /**
              * @default dark
              * @enum {string}
              */
-            theme?: "dark" | "light" | "system";
+            theme?: 'dark' | 'light' | 'system';
             /** @default Asia/Shanghai */
             timezone?: string;
             /** @default zh-CN */
@@ -4479,7 +4466,7 @@ export interface paths {
                * @default P2
                * @enum {string}
                */
-              minimumPriority?: "P0" | "P1" | "P2" | "P3";
+              minimumPriority?: 'P0' | 'P1' | 'P2' | 'P3';
             };
           };
         };
@@ -4491,13 +4478,13 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /**
                  * @default dark
                  * @enum {string}
                  */
-                theme: "dark" | "light" | "system";
+                theme: 'dark' | 'light' | 'system';
                 /** @default Asia/Shanghai */
                 timezone: string;
                 /** @default zh-CN */
@@ -4518,7 +4505,7 @@ export interface paths {
                    * @default P2
                    * @enum {string}
                    */
-                  minimumPriority: "P0" | "P1" | "P2" | "P3";
+                  minimumPriority: 'P0' | 'P1' | 'P2' | 'P3';
                 };
               };
               meta?: {
@@ -4526,7 +4513,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4539,7 +4526,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4554,7 +4541,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4569,7 +4556,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4584,7 +4571,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4597,7 +4584,7 @@ export interface paths {
     };
     trace?: never;
   };
-  "/api/v1/watchlists": {
+  '/api/v1/watchlists': {
     parameters: {
       query?: never;
       header?: never;
@@ -4620,7 +4607,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -4638,7 +4625,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4651,7 +4638,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4666,7 +4653,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4681,7 +4668,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4696,7 +4683,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4718,7 +4705,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             name: string;
           };
         };
@@ -4730,7 +4717,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -4748,7 +4735,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4761,7 +4748,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4776,7 +4763,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4791,7 +4778,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4806,7 +4793,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4823,7 +4810,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/watchlists/{id}/items": {
+  '/api/v1/watchlists/{id}/items': {
     parameters: {
       query?: never;
       header?: never;
@@ -4844,7 +4831,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             assetKey: string;
           };
         };
@@ -4856,7 +4843,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 ok: boolean;
               };
@@ -4865,7 +4852,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4878,7 +4865,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4893,7 +4880,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4908,7 +4895,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4923,7 +4910,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -4940,7 +4927,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/watchlists/{id}/items/{assetKey}": {
+  '/api/v1/watchlists/{id}/items/{assetKey}': {
     parameters: {
       query?: never;
       header?: never;
@@ -4969,7 +4956,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 ok: boolean;
               };
@@ -4978,7 +4965,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -4991,7 +4978,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5006,7 +4993,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5021,7 +5008,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5036,7 +5023,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5052,7 +5039,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/replay": {
+  '/api/v1/replay': {
     parameters: {
       query?: never;
       header?: never;
@@ -5071,7 +5058,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             /** Format: date-time */
             at: string;
             /** @default {} */
@@ -5082,14 +5069,14 @@ export interface paths {
               categories?: string[];
               chains?: string[];
               stages?: (
-                | "DISCOVERED"
-                | "UNVERIFIED"
-                | "VERIFIED"
-                | "EARLY_STAGE"
-                | "ACTIVE"
-                | "COMPLETED"
-                | "TRADING"
-                | "INACTIVE"
+                | 'DISCOVERED'
+                | 'UNVERIFIED'
+                | 'VERIFIED'
+                | 'EARLY_STAGE'
+                | 'ACTIVE'
+                | 'COMPLETED'
+                | 'TRADING'
+                | 'INACTIVE'
               )[];
               minConfidence?: number;
               minOpportunityScore?: number;
@@ -5113,14 +5100,14 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data?: unknown;
               meta?: {
                 total: number;
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -5133,7 +5120,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5148,7 +5135,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5163,7 +5150,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5178,7 +5165,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5195,7 +5182,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/calendar": {
+  '/api/v1/calendar': {
     parameters: {
       query?: never;
       header?: never;
@@ -5218,7 +5205,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 sourceId: string;
                 externalId: string;
@@ -5230,14 +5217,14 @@ export interface paths {
                 expectedValue: string | null;
                 actualValue: string | null;
                 /** @enum {string} */
-                importance: "high" | "medium" | "low";
+                importance: 'high' | 'medium' | 'low';
                 confirmed: boolean;
                 /** Format: uri */
                 sourceUrl: string;
                 /** Format: date-time */
                 sourcePublishedAt: string | null;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: uuid */
                 id: string;
               }[];
@@ -5246,7 +5233,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -5259,7 +5246,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5274,7 +5261,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5289,7 +5276,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5304,7 +5291,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5323,7 +5310,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/calendar/import": {
+  '/api/v1/calendar/import': {
     parameters: {
       query?: never;
       header?: never;
@@ -5342,7 +5329,7 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             items: {
               sourceId: string;
               externalId: string;
@@ -5354,14 +5341,14 @@ export interface paths {
               expectedValue: string | null;
               actualValue: string | null;
               /** @enum {string} */
-              importance: "high" | "medium" | "low";
+              importance: 'high' | 'medium' | 'low';
               confirmed: boolean;
               /** Format: uri */
               sourceUrl: string;
               /** Format: date-time */
               sourcePublishedAt: string | null;
               /** @enum {string} */
-              dataMode: "live" | "fixture";
+              dataMode: 'live' | 'fixture';
             }[];
           };
         };
@@ -5373,7 +5360,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 imported: number;
               };
@@ -5382,7 +5369,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -5395,7 +5382,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5410,7 +5397,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5425,7 +5412,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5440,7 +5427,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5457,7 +5444,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/system/scoring": {
+  '/api/v1/system/scoring': {
     parameters: {
       query?: never;
       header?: never;
@@ -5480,7 +5467,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 opportunity: {
                   version: string;
@@ -5514,7 +5501,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -5527,7 +5514,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5542,7 +5529,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5557,7 +5544,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5572,7 +5559,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5604,7 +5591,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 opportunity: {
                   version: string;
@@ -5638,7 +5625,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -5651,7 +5638,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5666,7 +5653,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5681,7 +5668,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5696,7 +5683,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5709,7 +5696,7 @@ export interface paths {
     };
     trace?: never;
   };
-  "/api/v1/system/scoring/history": {
+  '/api/v1/system/scoring/history': {
     parameters: {
       query?: never;
       header?: never;
@@ -5732,7 +5719,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 key: string;
                 data?: unknown;
@@ -5743,7 +5730,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -5756,7 +5743,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5771,7 +5758,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5786,7 +5773,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5801,7 +5788,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5820,7 +5807,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/events/{id}/review": {
+  '/api/v1/events/{id}/review': {
     parameters: {
       query?: never;
       header?: never;
@@ -5841,9 +5828,9 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
+          'application/json': {
             /** @enum {string} */
-            status: "APPROVED" | "REJECTED";
+            status: 'APPROVED' | 'REJECTED';
             /** @default  */
             note?: string;
           };
@@ -5856,7 +5843,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 /** Format: uuid */
                 id: string;
@@ -5891,23 +5878,22 @@ export interface paths {
                 fingerprint: string;
                 confidence: number;
                 /** @enum {string} */
-                severity: "P0" | "P1" | "P2" | "P3";
+                severity: 'P0' | 'P1' | 'P2' | 'P3';
                 /** @enum {string} */
-                verificationStatus: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
+                verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 /** @enum {string} */
-                analysisStatus:
-                  "PENDING" | "COMPLETED" | "FAILED" | "DISABLED" | "DEFERRED";
+                analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
                 opportunityScore: number;
                 riskScore: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
                 updatedAt: string;
                 review?: {
                   /** @enum {string} */
-                  status: "APPROVED" | "REJECTED";
+                  status: 'APPROVED' | 'REJECTED';
                   note: string;
                   /** Format: uuid */
                   reviewerId: string;
@@ -5926,7 +5912,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -5939,7 +5925,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5954,7 +5940,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5969,7 +5955,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -5984,7 +5970,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6001,7 +5987,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/projects/{id}/metrics": {
+  '/api/v1/projects/{id}/metrics': {
     parameters: {
       query?: never;
       header?: never;
@@ -6026,7 +6012,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 id: string;
                 sourceId: string;
@@ -6038,7 +6024,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -6051,7 +6037,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6066,7 +6052,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6081,7 +6067,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6096,7 +6082,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6115,7 +6101,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/digests/daily": {
+  '/api/v1/digests/daily': {
     parameters: {
       query?: never;
       header?: never;
@@ -6138,16 +6124,16 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               data: {
                 day: string;
                 /** @enum {string} */
-                timezone: "UTC";
+                timezone: 'UTC';
                 /** @enum {string} */
-                dataMode: "fixture" | "live";
+                dataMode: 'fixture' | 'live';
                 asOf: string;
                 /** @enum {string} */
-                method: "stored-evidence-and-analysis";
+                method: 'stored-evidence-and-analysis';
                 totalEvents: number;
                 categories: {
                   name: string;
@@ -6170,7 +6156,7 @@ export interface paths {
                 page: number;
                 pageSize: number;
                 /** @enum {string} */
-                dataMode: "live" | "fixture";
+                dataMode: 'live' | 'fixture';
                 /** Format: date-time */
                 asOf: string;
               };
@@ -6183,7 +6169,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6198,7 +6184,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6213,7 +6199,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
@@ -6228,7 +6214,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
+            'application/json': {
               error: {
                 code: string;
                 message: string;
