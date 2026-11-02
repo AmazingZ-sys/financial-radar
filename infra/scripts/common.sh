@@ -120,6 +120,7 @@ load_release_images() {
     select(([.[].target] | sort)==["api","worker"]) |
     select(all(.[]; . as $image | .version==$version and .commit==$commit and
       (.image | type)=="string" and
+      (.image | startswith($repository+"/"+$image.target+"@sha256:")) and
       (.image | ltrimstr($repository+"/"+$image.target+"@sha256:") | test("^[a-f0-9]{64}$"))))
   ' >/dev/null <<< "$task_manifest" || { echo 'Release image manifest version/commit/digests are invalid' >&2; return 1; }
   task_api=$(jq -r '.images[] | select(.target=="api") | .image' <<< "$task_manifest")

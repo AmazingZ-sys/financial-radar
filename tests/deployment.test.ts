@@ -281,6 +281,17 @@ describe('deployment application transaction', () => {
     expect(result.stderr).toContain('manifest version/commit/digests are invalid');
     expect(h.log()).not.toContain('pull api worker');
   });
+  it('refuses a bare digest without the required repository and image target prefix', () => {
+    const h = harness();
+    const manifest = JSON.parse(readFileSync(join(h.root, 'fixtures/201.json'), 'utf8'));
+    manifest.images[0].image = 'a'.repeat(64);
+    h.fixture('201', manifest);
+    const result = h.run('deploy.sh', ['v0.2.0']);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('manifest version/commit/digests are invalid');
+    expect(h.log()).not.toContain('pull api worker');
+    expect(h.log()).not.toContain('pg_dump');
+  });
   it('refuses image labels with a different version than the selected Release', () => {
     const h = harness({ IMAGE_VERSION_OVERRIDE: 'v9.9.9' });
     const result = h.run('deploy.sh', ['v0.2.0']);

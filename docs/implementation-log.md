@@ -26,4 +26,4 @@ Dockerfile/Compose、宿主Nginx、GHCR语义发布/Netlify同workflow needs链�
 
 ## S6 · 自动发布与一键更新
 
-按用户追加要求接入 GitHub→Release→GHCR→Netlify 流程。修复 Netlify 二次构建覆盖配置、空 API 前缀与 Monorepo workspace 选择；服务器默认只部署镜像清单齐备的稳定 Release，验证实际 digest/version/commit，并保留备份、失败回滚和Nginx配置检测后reload。新增前端3项与部署脚本10项单测，全量94项通过；云端发布证据在实际完成后补充。
+按用户追加要求接入 GitHub→Release→GHCR→Netlify 流程。修复 Netlify 二次构建覆盖配置、空 API 前缀与 Monorepo workspace 选择；服务器默认只部署镜像清单齐备的稳定 Release，验证实际 digest/version/commit，并保留备份、失败回滚和Nginx配置检测后reload。新增前端3项与部署脚本10项单测，全量94项通过；随后补充镜像完整前缀校验及测试，全量95项、部署专项22项通过。首次真实云端发布v1.0.0的全部job成功，Netlify HTTP200、GHCR两份digest远程可读、脚本实际匿名下载Release清单通过。证据见acceptance与自动发布文档；后端服务器由用户部署。

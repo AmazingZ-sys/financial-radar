@@ -2,6 +2,10 @@
 
 配置日期：2026-11-02。仓库为 `AmazingZ-sys/financial-radar`；前端发布目标为 <https://financial-radar-amazingz.netlify.app>。实际版本、镜像摘要和运行结果以 [GitHub Releases](https://github.com/AmazingZ-sys/financial-radar/releases) 与 [Actions](https://github.com/AmazingZ-sys/financial-radar/actions) 为准。
 
+## 已完成的首次发布
+
+[自动发布 run 41405313336](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41405313336) 已全部成功，生成 [v1.0.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.0.0)，API/Worker镜像、Release清单与Netlify生产站点均实际验证。后续版本以仓库Releases为准。[Netlify管理入口](https://app.netlify.com/projects/financial-radar-amazingz) 可进行域名绑定；前端公开页面由应用自己的管理员认证保护业务数据。
+
 ## 开发者发布
 
 向 main 推送 Conventional Commit 后，单一 GitHub Actions 工作流依次执行：完整校验 → semantic-release → API/Worker GHCR 镜像 → Release 镜像清单 → Netlify 生产发布。首次功能提交生成 v1.0.0；以后 feat 增加 minor、fix 增加 patch，纯 docs/chore 提交无版本变化时不重复发布。

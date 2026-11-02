@@ -4,11 +4,11 @@
 
 ## 1. 已验证与外部条件
 
-本地验证覆盖 Compose 插值/Schema、Bash 语法、actionlint 1.6.27 静态校验与 21 项部署脚本测试，包含备份先于迁移、健康失败回旧应用、Nginx 校验失败不 reload、Release清单/版本/commit/digest与镜像标签校验、未完成Release跳过、私有资产下载失败保留当前版、Token不进入输出和旧部署记录补齐。另有 Node 24.15.0 隔离生产文件布局烟测。
+本地验证覆盖 Compose 插值/Schema、Bash 语法、actionlint 1.6.27 静态校验与 22 项部署脚本测试，包含备份先于迁移、健康失败回旧应用、Nginx 校验失败不 reload、Release清单/版本/commit/digest与镜像标签校验、未完成Release跳过、私有资产下载失败保留当前版、Token不进入输出和旧部署记录补齐。另有 Node 24.15.0 隔离生产文件布局烟测。
 
 Docker Desktop 启动后，已在 Docker Engine 29.9.2 上实际构建 API/Worker 镜像，并使用唯一的 `radar-acceptance-d3556adb2c5a` 项目对最终冻结代码复用生产 Compose 验收通过：四服务 healthy、随机特殊字符密码与 URL 编码、两次迁移、两次采集幂等、5 条原始项/5 条事件/4 个项目/4 条信号、生产管理员 Session/CSRF、安全 Cookie、非 root 应用、PG/Redis 容器替换后持久化，以及真实备份恢复到独立新库。日志和 result.json 保存在 `.local/docker-acceptance`；本次测试容器、网络与卷已清理，未触碰其他项目。
 
-`infra/scripts/test-compose.sh` 将该流程作为可重复 CI gate：随机唯一项目、无主机端口、独立测试配置，只删除本次创建的资源与镜像。失败保留日志；若清理本身失败则返回非零并保留配置供定向清理。旧 test-images.sh 委托此脚本。镜像中不存在业务源码，只包含 dist、生产依赖与迁移文件。GitHub Actions 云端运行、GHCR/Netlify 真实发布、宿主机 Nginx/证书和目标服务器部署仍未执行，不能由本地容器通过推断成功。
+`infra/scripts/test-compose.sh` 将该流程作为可重复 CI gate：随机唯一项目、无主机端口、独立测试配置，只删除本次创建的资源与镜像。失败保留日志；若清理本身失败则返回非零并保留配置供定向清理。旧 test-images.sh 委托此脚本。镜像中不存在业务源码，只包含 dist、生产依赖与迁移文件。GitHub Actions、GHCR与Netlify的首次真实发布v1.0.0已完成，证据见 `23-release-and-update.md` 和 `acceptance.md`。宿主机Nginx/证书和目标服务器部署由用户另行验收，不能由容器或前端上线推断成功。
 
 服务器需要 Linux、Docker Engine + Compose v2 或兼容版本、Bash、curl、jq、足够磁盘、可访问 GHCR/GitHub 及配置好的宿主机 Nginx。`NGINX_RELOAD=true` 时需要 `nginx -t` 与 `systemctl reload nginx` 权限。脚本不会自动安装软件、改 Nginx 配置、申请证书、删除数据库卷或重启 Nginx。
 

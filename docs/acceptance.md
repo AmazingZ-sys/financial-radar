@@ -17,7 +17,7 @@
 | AI        | Provider、JSON/证据校验、预算预留/UTC日限额、缓存/退避/降级、人工复核                                        | 未配置真实模型密钥；费用是保守预留与估算；语义真实性仍需来源核验与人工研究                               |
 | 日历/日报 | PG日历、可靠来源管理员导入、未知值/发布确认、UTC日摘要接口                                                   | Live没有自动官方日历源时为空；日报从已存事实/已有分析生成，无自动每日外发订阅                            |
 | 通知      | Telegram/飞书/Bark，渠道测试、启停、重试、模板、冷却/时段、尝试审计                                          | Fixture永不外发；SENT只表示平台接受；响应丢失时不能保证第三方exactly-once或用户已读                      |
-| 运维      | Compose、宿主Nginx模板、版本/摘要部署、备份/新库恢复/应用回滚、GHCR+Netlify同workflow发布链                  | 真实生产服务器、TLS、GHCR/Netlify发布依赖尚未提供                                                        |
+| 运维      | Compose、宿主Nginx模板、版本/摘要部署、备份/新库恢复/应用回滚、GHCR+Netlify同workflow发布链                  | 目标生产服务器与TLS由用户配置；GHCR/Netlify发布已完成                                                    |
 
 ## 已执行质量门禁
 
@@ -26,7 +26,7 @@
 | `pnpm install --frozen-lockfile --ignore-scripts` | 12个workspace项目，锁文件可复现安装                                                |
 | `pnpm typecheck`                                  | 全包strict检查与根scripts/tests工具检查通过                                        |
 | `pnpm lint` / `pnpm format:check`                 | 通过，无忽略整个业务目录来规避检查                                                 |
-| `pnpm test`                                       | 13个文件、94项测试通过（包含21项部署脚本发布校验与故障路径测试）                   |
+| `pnpm test`                                       | 13个文件、95项测试通过（包含22项部署脚本发布校验与故障路径测试）                   |
 | `pnpm test:integration`                           | 真实PG/Redis，70项纵向/API检查 + 35项历史PG检查 + 86项Fixture/live双向隔离断言通过 |
 | `pnpm --filter @radar/worker recovery`            | 8项隔离真实进程恢复检查通过，结束清理自身临时资源                                  |
 | `pnpm test:e2e`                                   | Chromium 10/10通过（29.2s），真实API，无伪造业务响应                               |
@@ -69,8 +69,12 @@ Docker Desktop 29.9.2下实际构建API与Worker镜像，最终冻结代码在�
 
 最终验收证据在忽略提交的 `.local/docker-acceptance/radar-acceptance-d3556adb2c5a/result.json`；此前三个独立验收项目 `radar-acceptance-12dbd8868b90`、`radar-acceptance-716f13fb141f`、`radar-acceptance-a329334caab7` 的同名文件也保留在该父目录。各次均包含日志和备份恢复记录。测试使用本地验收镜像与测试revision；该revision不是线上Release证据，工作区实现尚未提交。可重复入口 `infra/scripts/test-compose.sh` 已加入CI验证阶段。此前仅生产依赖+dist+迁移的隔离文件布局验证也通过，并发现修复ESM CommonJS require和迁移模块打包后重复自执行的问题。
 
-尚未执行GitHub Actions线上运行、GHCR推送、Netlify发布、生产服务器部署及真实IM/LLM联通。交付的工作流和脚本不能替代这些外部执行证据；生产发布前需配置凭据、域名、TLS、来源许可和真实服务预算。
+GitHub Actions、GHCR与Netlify的实际发布证据见下节。目标服务器部署、宿主Nginx/TLS及真实IM/LLM联通仍由用户另行配置和验收；前端上线不能替代这些执行证据。
 
 ## 自动发布收尾
 
-本轮统一空白 API 前缀回退，Netlify CLI 显式选择 Web workspace 并禁用二次构建；配置站点与 GitHub 加密 Secrets，临时 API 前缀为 `/api/v1`，后端域名另行配置。部署脚本默认选择已有完整发布清单的稳定 Release，校验 metadata/manifest 与实际镜像标签，直接拉不可变 digest。新增测试覆盖未完成 Release、清单版本/commit/仓库异常、私有资产下载失败与既有 pin 保持。实际云端发布结果在完成后补充，服务器和 Nginx 由用户自行部署。
+本轮统一空白 API 前缀回退，Netlify CLI 显式选择 Web workspace 并禁用二次构建；配置站点与 GitHub 加密 Secrets，临时 API 前缀为 `/api/v1`，后端域名另行配置。部署脚本默认选择已有完整发布清单的稳定 Release，校验 metadata/manifest 与实际镜像标签，直接拉不可变 digest。新增测试覆盖未完成 Release、清单版本/commit/仓库异常、私有资产下载失败与既有 pin 保持。首次云端发布已完成，服务器和 Nginx 由用户自行部署。
+
+首次完整云端发布为 v1.0.0，对应代码 `5a15de20e45d73c258019f978135d1895fbc96af`，实际 [Actions run 41405313336](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41405313336) 的 verify、release、API/Worker images、image-manifest 和 Netlify 全部成功；[Release](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.0.0) 含 Changelog、release-metadata 与 image-manifest，两个实际GHCR digest经远程inspect成功，平台linux/amd64。[Netlify生产站点](https://financial-radar-amazingz.netlify.app) HTTP200，静态资源与CSP有效；后端未接通，未声称线上登录/业务接口可用。
+
+部署脚本自身通过匿名GitHub API实际选择v1.0.0并加载两个不可变digest/commit成功（`.local/release-receipt-smoke/receipt.json`）。后续补丁增加纯64hex伪镜像地址拒绝测试，全量本地95项通过，部署专项22项；后续发行结果以GitHub Releases/Actions为准。最初一次云端契约检查发现生成器未正确读取格式配置，修复后两次生成hash一致且schema语义不变，再次云端检查通过，未移除门禁。
