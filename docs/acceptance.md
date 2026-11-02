@@ -1,0 +1,76 @@
+# Financial Radar 验收记录
+
+日期：2026-11-02，Asia/Shanghai。此文件描述实际执行结果，不把设计、Fixture、外部服务和生产部署混为一项。原始需求末尾截断，已收到部分作为实现基线。
+
+## 交付范围
+
+| 领域      | 已实现并可运行                                                                                               | 边界                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| 工程      | pnpm workspace / Turbo；Vue、Hono、独立Worker；strict TypeScript                                             | Node 24 LTS，本地使用24.15.0；依赖固定lockfile                                                           |
+| 持久化    | 29张业务表；Drizzle Schema、2个增量SQL迁移、checksum/事务锁、管理员初始化                                    | JSONB合并event_assets/evidence、project_assets/sources、AI usage与分析状态；并非原建议每个关系均单独建表 |
+| API       | 41个OpenAPI路径、47个HTTP操作；Zod输入输出、统一错误/分页/过滤                                               | 按业务域路由，数据库访问集中在后端；前端不接触密钥                                                       |
+| 账户      | scrypt独立salt、hashed session、HttpOnly、CSRF/Origin、管理员权限、Redis限流、审计、密码轮换/撤销会话        | 单管理员起步；没有实现公开自助注册、细粒度团队RBAC                                                       |
+| 控制台    | 总览、事件/证据、机会/时间线/指标、行情、日历、规则、通知、源健康、系统/观察列表、AI人工复核/版本权重        | 中文、主题、响应式与加载/空/错/Retry；未知行情为空，不填充样本价格                                       |
+| 采集      | Fed RSS、GitHub Release、Coinbase ticker、Treasury日度、UniSat、指定EVM Factory与Solana Program、已知资产DEX | 全链部署/全量地址统计不在当前适配器覆盖范围；不依赖DEX广告列表证明新币可信                               |
+| 流水线    | 原始持久化→标准化→身份/相似去重→规则/独立评分→项目/信号→事务通知/outbox→尝试记录；历史指标差分和时钟窗口扫描 | 原始项失败不前移checkpoint；严重风险有独立下限；只读信息，不交易/签名；UniSat/DEX仍是有界范围            |
+| 回放      | 依发布时间/首次观察/采集的可知时间过滤，存储当时信号和分数解释                                               | 无可靠完整ORDI历史证据包，未声称重建真实历史收益                                                         |
+| AI        | Provider、JSON/证据校验、预算预留/UTC日限额、缓存/退避/降级、人工复核                                        | 未配置真实模型密钥；费用是保守预留与估算；语义真实性仍需来源核验与人工研究                               |
+| 日历/日报 | PG日历、可靠来源管理员导入、未知值/发布确认、UTC日摘要接口                                                   | Live没有自动官方日历源时为空；日报从已存事实/已有分析生成，无自动每日外发订阅                            |
+| 通知      | Telegram/飞书/Bark，渠道测试、启停、重试、模板、冷却/时段、尝试审计                                          | Fixture永不外发；SENT只表示平台接受；响应丢失时不能保证第三方exactly-once或用户已读                      |
+| 运维      | Compose、宿主Nginx模板、版本/摘要部署、备份/新库恢复/应用回滚、GHCR+Netlify同workflow发布链                  | 真实生产服务器、TLS、GHCR/Netlify发布依赖尚未提供                                                        |
+
+## 已执行质量门禁
+
+| 命令/过程                                         | 实际结果                                                                           |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile --ignore-scripts` | 12个workspace项目，锁文件可复现安装                                                |
+| `pnpm typecheck`                                  | 全包strict检查与根scripts/tests工具检查通过                                        |
+| `pnpm lint` / `pnpm format:check`                 | 通过，无忽略整个业务目录来规避检查                                                 |
+| `pnpm test`                                       | 13个文件、94项测试通过（包含21项部署脚本发布校验与故障路径测试）                   |
+| `pnpm test:integration`                           | 真实PG/Redis，70项纵向/API检查 + 35项历史PG检查 + 86项Fixture/live双向隔离断言通过 |
+| `pnpm --filter @radar/worker recovery`            | 8项隔离真实进程恢复检查通过，结束清理自身临时资源                                  |
+| `pnpm test:e2e`                                   | Chromium 10/10通过（29.2s），真实API，无伪造业务响应                               |
+| `pnpm build`                                      | Web/API/Worker及相关包成功；编译产物直接Node启动另经验证                           |
+| `pnpm api:types`                                  | 实际路由生成OpenAPI和前端声明；CI检查生成契约漂移                                  |
+| `pnpm security:check`                             | 源码凭据模式/动态执行扫描通过，不打印匹配密钥                                      |
+| `pnpm audit --prod --audit-level moderate`        | 未发现已知生产依赖漏洞；修复了最初Hono Node adapter安全公告涉及的旧版本            |
+| Compose config / Bash / actionlint                | 生产/开发Compose可解析、脚本语法通过、actionlint静态检查通过                       |
+| `bash infra/scripts/test-compose.sh`              | API/Worker真实镜像构建及隔离四服务生产Compose验收通过，详见下节                    |
+
+历史专项通过35项真实PG检查：9个历史信号与2个窗口信号，覆盖信号/事件/证据/独立评分、规则通知outbox、并发重试、晚到与未来样本、无数值条款撤销，以及部署首见只提示一次。新增摘要断言验证严重风险至少85分、300%真实参与者增长、匹配评分明细与证据，以及后续普通快照不解除风险、持有人数不覆盖参与者增长；首次未来观测只留原始证据，旧记录缺观测时间时从可知指标或摘要时间恢复基线，迟到数据不能回滚当前状态。主集成额外验证这些对象能经鉴权API读取且在Live不可见。独立入口为 `pnpm exec tsx scripts/history-integration.ts`，也已纳入 `pnpm test:integration`。
+
+本地详细输出在忽略提交的 `.local/{typecheck-release,integration-release,unit-release,build-release,e2e-current,recovery-final}.log`。E2E覆盖真实登录、证据/项目详情、规则CRUD与持久化、主题、390px移动无溢出、未知凭据、日历未知字段、时区、评分版本不覆盖、网络故障Retry、来源启停恢复、人工复核不改变事实评分、原始payload折叠、评分解释和规则来源筛选持久化。桌面与移动最终截图在 `.local/{dashboard-final,opportunities-final,opportunities-mobile-final}.png`；Web和恢复专项记录分别见 `web-acceptance.md`、`recovery-drill.md`。
+
+## 数据源真实验证
+
+- Fed：读取20条官方RSS并标准化。
+- GitHub：读取ordinals/ord的30条Release并标准化。
+- Treasury：官方XML实际HTTP200；63条原始项对应63条观测，2Y/10Y/30Y三期限；来源业务日期2026-10-01至10-30；重复采集后仍63条。精确发布时间未知、delaySeconds=null，不生成伪造盘中异动。
+- Coinbase：当前环境网络/超时，未记为成功。已实现有界重试和失败状态，不使用Fixture回填Live。
+- UniSat/EVM/Solana/DEX范围适配：契约/Fixture与错误路径测试通过；没有生产授权密钥/范围，未声称全链生产监控验收。
+- UniSat 每轮保留稳定资产 key 下的 snapshot raw 项，`sourcePublishedAt` 保持未知，部署时间仅作 `eventOccurredAt`；采集最近50条未完成部署和已完成尾部20条，不能代表全量。DEX 只接受管理员提供的已知 token 地址列表，空列表显示未配置。
+- 历史检测单元与Worker链路已实现：三次可知快照按观测间隔计算铸造速度加速，统一供给上限；明确 `uniqueParticipants` 才计算独立参与者增长，`holders` 不作替代；流动性/成交量/可靠社群计数、项目阶段/可信度变化及已核验参与窗口临近/到期均保存独立信号和证据。窗口时钟扫描在Worker `--once` 与reconcile运行，稳定键防重复；缺失字段、未来/乱序样本、条件撤销和时间异常不触发。
+- BLS/EIA：已研究当前官方接口与授权；本版未接入Live采集。黄金、WTI/Brent等授权实时行情未接入；界面对应数值未知。FRED的AI/存储条款冲突使默认Live禁用。
+
+## 恢复与安全证据
+
+真实隔离PG/Redis停止后`/ready=503`、同目录/端口重启后`200`，事实计数保持；正式Worker有心跳后SIGKILL，再执行恢复，过期SENDING/QUEUED租约补偿且dedup无重复；持久冷却阻止重启后的提前请求。人工构造租约过期不能证明精准打断“渠道接受后DB提交前”窗口；Telegram接口无本系统业务幂等键，超时仍可能重复，已记录不确定性。
+
+Fixture/live API双向隔离防止同库保留的合成数据出现在Live列表、直接ID详情、统计、行情、通知、回放或AI用量。系统元数据/用户规则和设置可以保留跨模式；Worker心跳校验version、mode与commit，避免旧进程残留造成假健康。
+
+## 容器与生产发布状态
+
+Docker Desktop 29.9.2下实际构建API与Worker镜像，最终冻结代码在唯一隔离项目 `radar-acceptance-d3556adb2c5a` 运行生产Compose；不映射主机端口，不占用开发服务。验证结果：
+
+- 随机特殊字符PG/Redis密码及编码连接串可用；两次迁移保留2个版本，两次采集保持5条raw、5个event、4个project和4个signal。
+- API、Worker、PostgreSQL、Redis四服务全部healthy；真实生产管理员登录、Secure/HttpOnly Session Cookie、CSRF和受保护API通过；应用容器以非root用户运行。
+- 强制替换PG/Redis容器后，数据库事实计数和Redis AOF标记均保留；重新启动应用后健康检查通过。
+- 实际调用 `backup.sh` 生成pg_dump档案，再用 `restore.sh` 恢复到新库，五类记录计数一致；只清理本次项目的容器、网络和卷。
+
+最终验收证据在忽略提交的 `.local/docker-acceptance/radar-acceptance-d3556adb2c5a/result.json`；此前三个独立验收项目 `radar-acceptance-12dbd8868b90`、`radar-acceptance-716f13fb141f`、`radar-acceptance-a329334caab7` 的同名文件也保留在该父目录。各次均包含日志和备份恢复记录。测试使用本地验收镜像与测试revision；该revision不是线上Release证据，工作区实现尚未提交。可重复入口 `infra/scripts/test-compose.sh` 已加入CI验证阶段。此前仅生产依赖+dist+迁移的隔离文件布局验证也通过，并发现修复ESM CommonJS require和迁移模块打包后重复自执行的问题。
+
+尚未执行GitHub Actions线上运行、GHCR推送、Netlify发布、生产服务器部署及真实IM/LLM联通。交付的工作流和脚本不能替代这些外部执行证据；生产发布前需配置凭据、域名、TLS、来源许可和真实服务预算。
+
+## 自动发布收尾
+
+本轮统一空白 API 前缀回退，Netlify CLI 显式选择 Web workspace 并禁用二次构建；配置站点与 GitHub 加密 Secrets，临时 API 前缀为 `/api/v1`，后端域名另行配置。部署脚本默认选择已有完整发布清单的稳定 Release，校验 metadata/manifest 与实际镜像标签，直接拉不可变 digest。新增测试覆盖未完成 Release、清单版本/commit/仓库异常、私有资产下载失败与既有 pin 保持。实际云端发布结果在完成后补充，服务器和 Nginx 由用户自行部署。

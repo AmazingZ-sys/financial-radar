@@ -1,0 +1,17 @@
+node_modules/
+.pnpm-store/
+.env
+.env.*
+!.env.example
+!deploy.example.env
+dist/
+.turbo/
+coverage/
+playwright-report/
+test-results/
+.local/
+.netlify/
+.deploy/
+backups/
+*.log
+.DS_Store

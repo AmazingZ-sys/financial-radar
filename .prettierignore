@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+node_modules
+dist
+.local
+.netlify
+coverage
+playwright-report
+test-results
+docs/user-request.md
+apps/web/src/generated/

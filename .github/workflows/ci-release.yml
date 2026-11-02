@@ -1,0 +1,206 @@
+name: Verify and release
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Retry publishing an existing verified stable tag (vX.Y.Z)'
+        required: true
+        type: string
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: radar-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          { POSTGRES_USER: radar, POSTGRES_PASSWORD: test_only_password, POSTGRES_DB: radar_test }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U radar -d radar_test" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATA_MODE: fixture
+      DATABASE_URL: postgresql://radar:test_only_password@127.0.0.1:5432/radar_test
+      REDIS_URL: redis://127.0.0.1:6379
+      ADMIN_EMAIL: admin@radar.local
+      ADMIN_PASSWORD: change-me-local-only
+      WEB_ORIGIN: http://localhost:5173
+      REDISMS_DISABLE_POSTINSTALL: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          {
+            ref: "${{ github.event_name == 'workflow_dispatch' && inputs.release_version || github.sha }}",
+          }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Verify generated API contract
+        run: |
+          pnpm api:types
+          git diff --exit-code -- docs/openapi.json apps/web/src/generated/api.d.ts
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
+      - run: pnpm test:integration
+      - run: pnpm build
+      - name: Build images and verify isolated production Compose
+        run: bash infra/scripts/test-compose.sh
+      - run: pnpm security:check
+      - run: pnpm audit --prod --audit-level high
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Compose and shell validation
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env.example config --quiet
+          for script in infra/scripts/*.sh; do bash -n "$script"; done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-report, path: playwright-report, retention-days: 7 }
+  release:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions: { contents: write, issues: write, pull-requests: write }
+    outputs:
+      version: ${{ steps.release.outputs.version || steps.retry.outputs.version }}
+      commit: ${{ steps.release.outputs.commit || steps.retry.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, ref: '${{ github.sha }}' }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+        env: { REDISMS_DISABLE_POSTINSTALL: 'true' }
+      - name: Restore cumulative changelog from previous Release asset
+        if: github.event_name != 'workflow_dispatch'
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: |
+          previous=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.draft==false and .prerelease==false)][0].tag_name // empty')
+          if [[ -n "$previous" ]]; then
+            gh release download "$previous" --pattern CHANGELOG.md --clobber
+          fi
+      - id: retry
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RETRY_VERSION: ${{ inputs.release_version }}
+        run: |
+          [[ "$RETRY_VERSION" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          gh release view "$RETRY_VERSION" --json isDraft,isPrerelease --jq 'select(.isDraft==false and .isPrerelease==false)' | jq -e . >/dev/null
+          commit=$(git rev-list -n 1 "$RETRY_VERSION")
+          test -n "$commit"
+          echo "version=$RETRY_VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - id: release
+        if: github.event_name != 'workflow_dispatch'
+        run: pnpm release
+        env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+  images:
+    needs: release
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      matrix: { target: [api, worker] }
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ needs.release.outputs.commit }}' }
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          {
+            registry: ghcr.io,
+            username: '${{ github.actor }}',
+            password: '${{ secrets.GITHUB_TOKEN }}',
+          }
+      - id: repo
+        shell: bash
+        run: |
+          echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.name }}/${{ matrix.target }}:${{ needs.release.outputs.version }}
+            ghcr.io/${{ steps.repo.outputs.name }}/${{ matrix.target }}:sha-${{ needs.release.outputs.commit }}
+          build-args: |
+            APP_VERSION=${{ needs.release.outputs.version }}
+            COMMIT_SHA=${{ needs.release.outputs.commit }}
+            BUILD_DATE=${{ steps.repo.outputs.built_at }}
+            SOURCE_URL=https://github.com/${{ github.repository }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+      - name: Save immutable image receipt
+        env:
+          IMAGE_NAME: ghcr.io/${{ steps.repo.outputs.name }}/${{ matrix.target }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_TARGET: ${{ matrix.target }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.release.outputs.commit }}
+        run: jq -n --arg image "$IMAGE_NAME@$IMAGE_DIGEST" --arg target "$IMAGE_TARGET" --arg version "$RELEASE_VERSION" --arg commit "$RELEASE_COMMIT" '{target:$target,image:$image,version:$version,commit:$commit}' > "image-$IMAGE_TARGET.json"
+      - uses: actions/upload-artifact@v4
+        with: { name: 'image-${{ matrix.target }}', path: 'image-${{ matrix.target }}.json' }
+  image-manifest:
+    needs: [release, images]
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'image-*', merge-multiple: true }
+      - name: Attach immutable receipts to the existing Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          jq -s '{images:.}' image-api.json image-worker.json > image-manifest.json
+          gh release upload "$RELEASE_VERSION" image-manifest.json --clobber
+  netlify:
+    needs: [release, images, image-manifest]
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ needs.release.outputs.commit }}' }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+        env: { REDISMS_DISABLE_POSTINSTALL: 'true' }
+      - run: pnpm --filter @radar/web build
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api/v1' }}
+          VITE_APP_VERSION: ${{ needs.release.outputs.version }}
+          VITE_COMMIT_SHA: ${{ needs.release.outputs.commit }}
+      - name: Publish Netlify deploy
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          test -n "$NETLIFY_AUTH_TOKEN" && test -n "$NETLIFY_SITE_ID"
+          pnpm exec netlify deploy --filter @radar/web --prod --no-build --dir apps/web/dist --message "${{ needs.release.outputs.version }} ${{ needs.release.outputs.commit }}"

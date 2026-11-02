@@ -1,0 +1,98 @@
+name: financial-radar
+x-app: &app
+  restart: unless-stopped
+  env_file: ${APP_ENV_FILE:-.env}
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: '3' }
+  environment: &environment
+    NODE_ENV: production
+    SECURE_COOKIE: 'true'
+    DATABASE_URL: ${DATABASE_URL:?Set a complete percent-encoded PostgreSQL URL with host postgres}
+    REDIS_URL: ${REDIS_URL:?Set a complete percent-encoded Redis URL with host redis}
+    PORT: '3000'
+    APP_VERSION: ${APP_VERSION:?Set an explicit release version}
+    COMMIT_SHA: ${COMMIT_SHA:-unknown}
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+services:
+  api:
+    <<: *app
+    image: ${API_IMAGE:-${IMAGE_REPOSITORY:-ghcr.io/amazingz-sys/financial-radar}/api:${APP_VERSION:?Set APP_VERSION}}
+    environment:
+      <<: *environment
+      SERVICE_NAME: api
+    ports: ['127.0.0.1:3000:3000']
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 768m
+    cpus: 1
+  worker:
+    <<: *app
+    image: ${WORKER_IMAGE:-${IMAGE_REPOSITORY:-ghcr.io/amazingz-sys/financial-radar}/worker:${APP_VERSION:?Set APP_VERSION}}
+    environment:
+      <<: *environment
+      SERVICE_NAME: worker
+    healthcheck:
+      test: [CMD, node, apps/worker/dist/health.js]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    mem_limit: 1g
+    cpus: 1
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-radar}
+      POSTGRES_USER: ${POSTGRES_USER:-radar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+    mem_limit: 1g
+    cpus: 1
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      [redis-server, --appendonly, 'yes', --requirepass, '${REDIS_PASSWORD:?Set REDIS_PASSWORD}']
+    volumes: [redis_data:/data]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+    mem_limit: 512m
+    cpus: 0.5
+volumes:
+  pg_data:
+  redis_data:

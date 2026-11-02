@@ -1,0 +1,27 @@
+{
+  "name": "@radar/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsup --config tsup.config.ts",
+    "once": "tsx src/index.ts --once",
+    "recovery": "tsx scripts/recovery.ts"
+  },
+  "dependencies": {
+    "@radar/config": "workspace:*",
+    "@radar/database": "workspace:*",
+    "@radar/connectors": "workspace:*",
+    "@radar/signals": "workspace:*",
+    "@radar/ai": "workspace:*",
+    "@radar/notifications": "workspace:*",
+    "@radar/observability": "workspace:*",
+    "bullmq": "^5.61.2",
+    "ioredis": "^5.8.2",
+    "postgres": "^3.4.7",
+    "@radar/shared": "workspace:*"
+  }
+}
