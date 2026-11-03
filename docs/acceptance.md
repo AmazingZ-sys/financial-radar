@@ -129,3 +129,10 @@ GitHub Actions、GHCR与Netlify的实际发布证据见下节。目标服务器�
 用户明确授权前端生产发布和 API/Worker 最新镜像发布。复核现有版本为 v1.0.3，发布路径为 main 推送 → verify → semantic-release → GHCR 两个镜像 → 镜像清单 → Netlify。服务器更新步骤已写入 [v1.1.0 指南](27-v1.1-server-update.md)，不把镜像发布等同于用户服务器已更新。
 
 发布复核修复动态出站只固定首个 DNS 地址的问题：现在向 Node24 提供全部已校验的固定地址，支持 IPv6 失败后回退 IPv4，单地址回调优先IPv4，仍在请求前拒绝混合私网DNS。新增回归断言验证多地址固定与不重复解析，5项出站测试、config 类型和 lint 已通过。`deploy.env` 已加入忽略规则，防止服务器部署凭据误提交。
+
+## v1.1.0 生产前端与 API/Worker 镜像发布 · 2026-11-03
+
+- GitHub Actions [41568826737](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41568826737) 的 verify、release、API image、Worker image、image-manifest 与 Netlify 全部成功；verify 包含生成契约、typecheck、lint、格式、单测、PostgreSQL/Redis 集成、构建、生产 Compose 验收、安全扫描、依赖审计和 Playwright E2E。
+- Release `v1.1.0` 指向 `a71d6ea7aea2d4b4a5226aa3c3cf06283c1264e1`；发布 metadata 与 image-manifest 的版本及完整 commit SHA 相互一致。远端 immutable digest 和 tag digest 一致：API `sha256:6bb068d6a4cdac5c53d7a87cd0d98ae095f0ba137ddedc3635dde7235fdc7c51`、Worker `sha256:7cee351ce967156c760d76539007609896bb22cf3f5f7e26a6ae3479445b056e`；两者远端镜像均含 `linux/amd64` manifest。
+- Netlify 于03:01 UTC发布生产版。`https://radar.amazingzsys.site` 与 `https://financial-radar-amazingz.netlify.app` 均返回HTTP 200，相同的新入口JS/CSS已替换原资源；新懒加载资源含AI中转配置、Telegram/飞书/Bark配置、RSS/Atom与多分类目录功能，生产API前缀仍为 `https://api.radar.amazingzsys.site/api/v1`。仅做公开页面与静态资源核验，未登录或更改生产数据。核验收据和抓取摘要位于忽略提交的 `.local/published-v1.1.0/`。
+- 目标 API 服务器只读健康检查仍返回 `v1.0.3`。因此此证据确认前端和后端镜像已发布，不表示用户服务器已升级；服务器更新与应用验证步骤见 [v1.1.0 服务器更新指南](27-v1.1-server-update.md)。目标服务器更新、真实LLM/IM凭据联通和Feed连通性仍待服务器侧执行与核验。
