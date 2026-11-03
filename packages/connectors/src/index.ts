@@ -5,6 +5,8 @@ export * from './fixture.js';
 export * from './chains.js';
 export * from './treasury.js';
 export * from './scope.js';
+export * from './news.js';
+import { NewsRssConnector, NEWS_PRESETS } from './news.js';
 import { TreasuryDailyConnector } from './treasury.js';
 import { EvmFactoryConnector, SolanaMintConnector } from './chains.js';
 import type { Connector } from './types.js';
@@ -26,6 +28,9 @@ export class ConnectorRegistry {
   }
   get(id: string) {
     return this.connectors.get(id);
+  }
+  remove(id: string) {
+    this.connectors.delete(id);
   }
   list() {
     return [...this.connectors.values()];
@@ -58,5 +63,6 @@ export function createRegistry(config: {
     .register(new SolanaMintConnector(config.solanaRpcUrl, config.solanaProgramId));
   for (const repository of normalizeRepositories(config.githubRepositories))
     registry.register(new GitHubReleasesConnector(config.githubToken, repository));
+  for (const feed of NEWS_PRESETS) registry.register(new NewsRssConnector(feed));
   return registry;
 }

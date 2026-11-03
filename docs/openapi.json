@@ -537,6 +537,496 @@
         }
       }
     },
+    "/api/v1/sources/catalog": {
+      "get": {
+        "summary": "可接入来源目录（live 能力）",
+        "tags": ["sources"],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "categories": { "type": "array", "items": { "type": "string" } },
+                          "description": { "type": "string" },
+                          "docsUrl": { "type": "string", "format": "uri" },
+                          "feedUrl": { "type": "string", "nullable": true, "format": "uri" },
+                          "intervalSeconds": { "type": "number" },
+                          "licenseStatus": { "type": "string" },
+                          "requiresConfiguration": { "type": "boolean" },
+                          "installed": { "type": "boolean" },
+                          "enabled": { "type": "boolean" }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "categories",
+                          "description",
+                          "docsUrl",
+                          "feedUrl",
+                          "intervalSeconds",
+                          "licenseStatus",
+                          "requiresConfiguration",
+                          "installed",
+                          "enabled"
+                        ]
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sources": {
+      "post": {
+        "summary": "新增公开 RSS/Atom 来源",
+        "tags": ["sources"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "feedUrl": { "type": "string", "maxLength": 2000, "format": "uri" },
+                  "categories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["macro", "finance", "technology", "world", "crypto"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 5
+                  },
+                  "intervalSeconds": {
+                    "type": "integer",
+                    "minimum": 60,
+                    "maximum": 86400,
+                    "default": 300
+                  },
+                  "enabled": { "type": "boolean", "default": true }
+                },
+                "required": ["name", "feedUrl", "categories"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "created": { "type": "boolean" }
+                      },
+                      "required": ["id", "created"]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "数据源健康",
+        "tags": ["sources"],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+                          "name": { "type": "string" },
+                          "connectorType": { "type": "string" },
+                          "mode": { "type": "string", "enum": ["live", "fixture"] },
+                          "enabled": { "type": "boolean" },
+                          "status": { "type": "string" },
+                          "intervalSeconds": { "type": "number" },
+                          "lastSuccessAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "lastError": { "type": "string", "nullable": true },
+                          "nextPollAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "successRate": { "type": "number", "nullable": true },
+                          "latencyMs": { "type": "number", "nullable": true },
+                          "freshnessSeconds": { "type": "number", "nullable": true },
+                          "description": { "type": "string", "default": "" },
+                          "docsUrl": { "type": "string", "nullable": true, "default": null },
+                          "keyConfigured": { "type": "boolean", "default": false },
+                          "capabilities": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": []
+                          },
+                          "delayLabel": { "type": "string", "default": "由来源决定" },
+                          "categories": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": []
+                          },
+                          "custom": { "type": "boolean", "default": false },
+                          "feedUrl": { "type": "string", "nullable": true, "default": null }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "connectorType",
+                          "mode",
+                          "enabled",
+                          "status",
+                          "intervalSeconds",
+                          "lastSuccessAt",
+                          "lastError",
+                          "nextPollAt",
+                          "successRate",
+                          "latencyMs",
+                          "freshnessSeconds"
+                        ]
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/events": {
       "get": {
         "summary": "事件流",
@@ -1862,179 +2352,6 @@
         }
       }
     },
-    "/api/v1/sources": {
-      "get": {
-        "summary": "数据源健康",
-        "tags": ["sources"],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": { "type": "string", "minLength": 1, "maxLength": 200 },
-                          "name": { "type": "string" },
-                          "connectorType": { "type": "string" },
-                          "mode": { "type": "string", "enum": ["live", "fixture"] },
-                          "enabled": { "type": "boolean" },
-                          "status": { "type": "string" },
-                          "intervalSeconds": { "type": "number" },
-                          "lastSuccessAt": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "date-time"
-                          },
-                          "lastError": { "type": "string", "nullable": true },
-                          "nextPollAt": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "date-time"
-                          },
-                          "successRate": { "type": "number", "nullable": true },
-                          "latencyMs": { "type": "number", "nullable": true },
-                          "freshnessSeconds": { "type": "number", "nullable": true },
-                          "description": { "type": "string", "default": "" },
-                          "docsUrl": { "type": "string", "nullable": true, "default": null },
-                          "keyConfigured": { "type": "boolean", "default": false },
-                          "capabilities": {
-                            "type": "array",
-                            "items": { "type": "string" },
-                            "default": []
-                          },
-                          "delayLabel": { "type": "string", "default": "由来源决定" }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "connectorType",
-                          "mode",
-                          "enabled",
-                          "status",
-                          "intervalSeconds",
-                          "lastSuccessAt",
-                          "lastError",
-                          "nextPollAt",
-                          "successRate",
-                          "latencyMs",
-                          "freshnessSeconds"
-                        ]
-                      }
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "total": { "type": "number" },
-                        "page": { "type": "number" },
-                        "pageSize": { "type": "number" },
-                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
-                        "asOf": { "type": "string", "format": "date-time" }
-                      },
-                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": { "type": "string" },
-                        "message": { "type": "string" },
-                        "requestId": { "type": "string" }
-                      },
-                      "required": ["code", "message", "requestId"]
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "需要登录",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": { "type": "string" },
-                        "message": { "type": "string" },
-                        "requestId": { "type": "string" }
-                      },
-                      "required": ["code", "message", "requestId"]
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "权限或 CSRF 校验失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": { "type": "string" },
-                        "message": { "type": "string" },
-                        "requestId": { "type": "string" }
-                      },
-                      "required": ["code", "message", "requestId"]
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "请求频率超过限制",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": { "type": "string" },
-                        "message": { "type": "string" },
-                        "requestId": { "type": "string" }
-                      },
-                      "required": ["code", "message", "requestId"]
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/sources/{id}": {
       "get": {
         "summary": "数据源详情",
@@ -2083,7 +2400,14 @@
                           "items": { "type": "string" },
                           "default": []
                         },
-                        "delayLabel": { "type": "string", "default": "由来源决定" }
+                        "delayLabel": { "type": "string", "default": "由来源决定" },
+                        "categories": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "default": []
+                        },
+                        "custom": { "type": "boolean", "default": false },
+                        "feedUrl": { "type": "string", "nullable": true, "default": null }
                       },
                       "required": [
                         "id",
@@ -5035,7 +5359,7 @@
     },
     "/api/v1/notification-channels": {
       "get": {
-        "summary": "通知渠道（仅配置状态）",
+        "summary": "通知渠道与安全配置状态",
         "tags": ["notification-channels"],
         "responses": {
           "200": {
@@ -5055,9 +5379,24 @@
                           "provider": { "type": "string", "enum": ["telegram", "feishu", "bark"] },
                           "enabled": { "type": "boolean" },
                           "configured": { "type": "boolean" },
-                          "description": { "type": "string", "default": "" }
+                          "description": { "type": "string" },
+                          "configOrigin": { "type": "string", "enum": ["environment", "database"] },
+                          "chatId": { "type": "string" },
+                          "botTokenConfigured": { "type": "boolean" },
+                          "webhookConfigured": { "type": "boolean" }
                         },
-                        "required": ["id", "name", "provider", "enabled", "configured"]
+                        "required": [
+                          "id",
+                          "name",
+                          "provider",
+                          "enabled",
+                          "configured",
+                          "description",
+                          "configOrigin",
+                          "chatId",
+                          "botTokenConfigured",
+                          "webhookConfigured"
+                        ]
                       }
                     },
                     "meta": {
@@ -5170,7 +5509,7 @@
     },
     "/api/v1/notification-channels/{id}": {
       "patch": {
-        "summary": "启用或禁用通知渠道",
+        "summary": "保存通知渠道配置",
         "tags": ["notification-channels"],
         "parameters": [
           {
@@ -5186,8 +5525,25 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": { "enabled": { "type": "boolean" } },
-                "required": ["enabled"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "enabled": { "type": "boolean" },
+                  "botToken": { "type": "string", "maxLength": 4096 },
+                  "chatId": { "type": "string", "maxLength": 200 },
+                  "webhookUrl": {
+                    "anyOf": [
+                      { "type": "string", "enum": [""] },
+                      { "type": "string", "maxLength": 2048, "format": "uri" }
+                    ]
+                  },
+                  "serverUrl": {
+                    "anyOf": [
+                      { "type": "string", "enum": [""] },
+                      { "type": "string", "maxLength": 2048, "format": "uri" }
+                    ]
+                  },
+                  "clearCredentials": { "type": "boolean" }
+                },
                 "additionalProperties": false
               }
             }
@@ -5205,9 +5561,28 @@
                       "type": "object",
                       "properties": {
                         "id": { "type": "string", "format": "uuid" },
-                        "enabled": { "type": "boolean" }
+                        "name": { "type": "string" },
+                        "provider": { "type": "string", "enum": ["telegram", "feishu", "bark"] },
+                        "enabled": { "type": "boolean" },
+                        "configured": { "type": "boolean" },
+                        "description": { "type": "string" },
+                        "configOrigin": { "type": "string", "enum": ["environment", "database"] },
+                        "chatId": { "type": "string" },
+                        "botTokenConfigured": { "type": "boolean" },
+                        "webhookConfigured": { "type": "boolean" }
                       },
-                      "required": ["id", "enabled"]
+                      "required": [
+                        "id",
+                        "name",
+                        "provider",
+                        "enabled",
+                        "configured",
+                        "description",
+                        "configOrigin",
+                        "chatId",
+                        "botTokenConfigured",
+                        "webhookConfigured"
+                      ]
                     },
                     "meta": {
                       "type": "object",
@@ -6816,6 +7191,454 @@
                       "required": ["total", "page", "pageSize", "dataMode", "asOf"]
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/ai": {
+      "get": {
+        "summary": "AI 服务配置（不回显密钥）",
+        "tags": ["integrations"],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "enabled": { "type": "boolean" },
+                        "baseUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                        "model": { "type": "string", "maxLength": 150 },
+                        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
+                        "jsonMode": { "type": "boolean" },
+                        "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
+                        "maxCallCostUsd": { "type": "number", "minimum": 0, "maximum": 1000 },
+                        "apiKeyConfigured": { "type": "boolean" },
+                        "configOrigin": { "type": "string", "enum": ["environment", "database"] },
+                        "hasOverride": { "type": "boolean" }
+                      },
+                      "required": [
+                        "name",
+                        "enabled",
+                        "baseUrl",
+                        "model",
+                        "timeoutMs",
+                        "jsonMode",
+                        "dailyBudgetUsd",
+                        "maxCallCostUsd",
+                        "apiKeyConfigured",
+                        "configOrigin",
+                        "hasOverride"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "保存 AI 服务配置",
+        "tags": ["integrations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "enabled": { "type": "boolean" },
+                  "baseUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                  "model": { "type": "string", "maxLength": 150 },
+                  "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
+                  "jsonMode": { "type": "boolean" },
+                  "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
+                  "maxCallCostUsd": { "type": "number", "minimum": 0, "maximum": 1000 },
+                  "apiKey": { "type": "string", "maxLength": 4096 },
+                  "clearApiKey": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "enabled": { "type": "boolean" },
+                        "baseUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
+                        "model": { "type": "string", "maxLength": 150 },
+                        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
+                        "jsonMode": { "type": "boolean" },
+                        "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
+                        "maxCallCostUsd": { "type": "number", "minimum": 0, "maximum": 1000 },
+                        "apiKeyConfigured": { "type": "boolean" },
+                        "configOrigin": { "type": "string", "enum": ["environment", "database"] },
+                        "hasOverride": { "type": "boolean" }
+                      },
+                      "required": [
+                        "name",
+                        "enabled",
+                        "baseUrl",
+                        "model",
+                        "timeoutMs",
+                        "jsonMode",
+                        "dailyBudgetUsd",
+                        "maxCallCostUsd",
+                        "apiKeyConfigured",
+                        "configOrigin",
+                        "hasOverride"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/ai/test": {
+      "post": {
+        "summary": "测试已保存的 AI 模型连接",
+        "tags": ["integrations"],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": { "type": "string", "enum": ["connected", "skipped"] },
+                        "message": { "type": "string" },
+                        "model": { "type": "string" }
+                      },
+                      "required": ["status", "message", "model"]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
                 }
               }
             }

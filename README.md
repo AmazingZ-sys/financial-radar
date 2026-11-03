@@ -4,6 +4,8 @@
 
 生产域名配置：前端 `https://radar.amazingzsys.site`，API `https://api.radar.amazingzsys.site/api/v1`。Ubuntu 22.04/24.04 服务器首次安装、DNS、HTTPS、生产配置与更新步骤见 [实际域名部署指南](docs/24-server-api-radar-amazingzsys-site.md)。
 
+已经运行的服务器升级到本轮 AI/通知可配置与多领域新闻版本，见 [v1.1.0 更新步骤](docs/27-v1.1-server-update.md)。
+
 本项目按文档先行要求实施：[需求](docs/01-requirements.md) → [架构](docs/04-system-architecture.md) → [实施计划](docs/17-implementation-plan.md) → [验收证据](docs/acceptance.md)。用户附件原文保存在 [docs/user-request.md](docs/user-request.md)；原文末尾截断于文档列表的 `docs/18-risk`。
 
 ## 当前能力
@@ -60,10 +62,14 @@ pnpm dev
 - `DEX_CHAIN` + `DEX_TOKEN_ADDRESSES`：仅跟踪最多30个已知 token；空地址列表为未配置，不代表新币全量发现。
 - UniSat：`UNISAT_API_KEY`。EVM：`EVM_RPC_URL` + 已核验 `EVM_FACTORY_ADDRESS`；Solana：`SOLANA_RPC_URL` + `SOLANA_PROGRAM_ID`。范围型监控不能解释为全链覆盖。
 - Telegram：`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`。飞书：官方 `FEISHU_WEBHOOK_URL`。Bark：完整 HTTPS 设备推送 `BARK_SERVER_URL`。
-- AI：服务端配置 `AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` 和预算。成本字段为保守预算预留/估算，不能替代供应商账单；未配置时规则链继续工作。
+- AI：在「系统管理 → AI 服务配置」填写 OpenAI-compatible 服务或中转站的 API 根地址（例如 `https://relay.example/v1`）、模型、API Key、超时、JSON 模式和预算。`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` 等环境变量保留为初始默认值；页面保存后覆盖，后续 Worker 任务直接读取，无需重启。成本为保守预算预留/估算，不能替代供应商账单；未配置时规则链继续工作。
 - FRED 因已发现的 AI/存储条款冲突默认不接入；Coinbase 等许可按私有研究范围审查，公开再分发前须确认授权。具体官方链接均在数据源文档中。
 
-所有私密配置只在服务器环境，前端仅设置公开的 `VITE_API_BASE_URL`（生产值为 `https://api.radar.amazingzsys.site/api/v1`，本地开发为 `/api/v1`）。后端生产 `WEB_ORIGIN=https://radar.amazingzsys.site`，`COOKIE_SAME_SITE=Lax`、`SECURE_COOKIE=true`。
+「通知中心」支持保存 Telegram、飞书、Bark 的渠道凭据与启停；「数据源」展示宏观政策、财经市场、科技动态、全球热点与加密资产分类及来源目录，并支持新增已获授权的公开 HTTPS RSS/Atom 订阅。新闻保存标题、摘要、来源和实际发布时间，不抓取付费全文。Fixture 可查看 Live 目录，但不采集真实订阅、不实际调用 AI 或发送通知；启用真实采集需在服务器设置 `DATA_MODE=live`。
+
+密钥在页面中只用于当前提交，不存入浏览器持久存储，接口只返回是否已配置。凭据加密存储在 PostgreSQL，`INTEGRATION_ENCRYPTION_KEY` 是 API/Worker 共享的服务器加密根密钥（至少32字符）；为空时兼容使用 `SESSION_SECRET`。请在首次保存前配置稳定根密钥，并与数据库备份分别妥善保存。更改有效根密钥后需重新填写集成凭据。空白密钥保留旧值，「清除凭据」明确清除；清除后不自动恢复环境变量中的密钥。
+
+动态地址须为公开 HTTPS，拒绝私网、凭据 userinfo 和重定向；AI Base URL 不应携带查询密钥。前端仅设置公开的 `VITE_API_BASE_URL`（生产值为 `https://api.radar.amazingzsys.site/api/v1`，本地开发为 `/api/v1`）。后端生产 `WEB_ORIGIN=https://radar.amazingzsys.site`，`COOKIE_SAME_SITE=Lax`、`SECURE_COOKIE=true`。配置契约与安全边界见 [配置设计](docs/25-configurable-integrations.md)。
 
 ## 开发与验证
 

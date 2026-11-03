@@ -28,13 +28,13 @@ RSS XML 解析不解析外部实体。日志不得记录完整抓取请求 URL�
 
 ## 4. 密钥与审计
 
-数据库、Redis、Telegram、AI 等凭据仅通过环境或密钥挂载注入。浏览器环境变量限定 VITE_API_BASE_URL 和公开构建元数据；不得设置 VITE_* 私密 key。普通接口只返回 configured、enabled、掩码与最后修改时间。
+数据库、Redis、集成加密根密钥通过服务器环境或密钥挂载注入。AI 与通知凭据可由管理员通过 HTTPS/Session/CSRF 提交，加密存入 PostgreSQL；浏览器仅暂存当前输入，提交、关闭或卸载时清空，不落 localStorage/sessionStorage 或查询缓存。环境中的第三方凭据是初始默认，覆盖配置与明确清除的语义见 [25 可配置集成](25-configurable-integrations.md)。浏览器环境变量限定 VITE_API_BASE_URL 和公开构建元数据；不得设置 VITE_* 私密 key。普通接口只返回配置状态及公开字段，不回显第三方密钥或带设备 Key 的 URL。
 
 日志记录 requestId、jobId、eventId、sourceId 和结果，不记录 Authorization、Cookie、密码、完整 Bot URL。结构化 logger 在对象键和错误文本两层脱敏。Fixture 不含真实凭据。`.env`、备份、日志与认证状态文件必须进入 .gitignore。
 
 审计覆盖登录失败/成功、规则变更、渠道变更、来源启停、设置修改、回放执行与人工核验；记录操作者、时间、实体、变更摘要与 requestId。密钥变化只记录是否改变，不能记录值。
 
-密钥轮换顺序：创建新凭据→更新服务器环境→重启相关服务→测试→撤销旧凭据→检查失败队列。会话密钥轮换可使旧会话失效，管理员应重新登录。
+第三方密钥轮换顺序：创建新凭据→控制台保存→测试→撤销旧凭据→检查失败队列；环境默认配置修改仍需重启。集成加密根密钥由 API/Worker 共享并独立备份，更换有效根密钥后需重新填写集成凭据。会话撤销以数据库 Session 为准，不能只轮换 SESSION_SECRET。
 
 ## 5. 运行环境
 

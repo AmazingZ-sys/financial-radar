@@ -1,4 +1,4 @@
-import { sql } from '@radar/database';
+import { sql, readAIConfig, notificationConfigView } from '@radar/database';
 import { config } from '@radar/config';
 import {
   EventSchema,
@@ -399,14 +399,25 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
         samples: z.number(),
       }),
     }),
-    async () => {
-      const [hb, usage, queues] = await Promise.all([
+    async (c) => {
+      const [hb, usage, queues, aiConfig, channels] = await Promise.all([
         sql`SELECT data FROM system_settings WHERE key='worker:heartbeat'`,
         sql`SELECT count(*) calls,coalesce(sum(input_tokens),0) input_tokens,coalesce(sum(output_tokens),0) output_tokens,coalesce(sum(estimated_cost),0) estimated_cost FROM ai_analysis_runs WHERE (provider='fixture')=${config.dataMode === 'fixture'} AND created_at>=date_trunc('day',now())`,
         queueCounts(),
+        readAIConfig(),
+        sql`SELECT id,name,enabled,provider,data FROM notification_channels WHERE owner_id=${c.get('actor').id}`,
       ]);
       const t = hb[0]?.data?.timestamp ?? hb[0]?.data?.at ?? null;
       const u = usage[0]!;
+      const channelViews = channels.map((row) =>
+        notificationConfigView({
+          id: String(row.id),
+          name: String(row.name),
+          enabled: Boolean(row.enabled),
+          provider: String(row.provider),
+          data: row.data,
+        }),
+      );
       return {
         data: {
           version: config.version,
@@ -424,16 +435,16 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
           },
           queues,
           ai: {
-            configured: !!config.aiApiKey && !!config.aiModel,
+            configured: aiConfig.enabled && !!aiConfig.apiKey && !!aiConfig.model,
             provider:
               config.dataMode === 'fixture'
                 ? 'fixture'
-                : config.aiApiKey
+                : aiConfig.enabled && aiConfig.apiKey && aiConfig.model
                   ? 'openai-compatible'
                   : 'disabled',
             model:
-              config.dataMode === 'fixture' ? 'fixture-evidence-v1' : config.aiModel || '未配置',
-            dailyBudgetUsd: config.aiDailyBudgetUsd,
+              config.dataMode === 'fixture' ? 'fixture-evidence-v1' : aiConfig.model || '未配置',
+            dailyBudgetUsd: aiConfig.dailyBudgetUsd,
             usage: {
               calls: Number(u.calls),
               inputTokens: Number(u.input_tokens),
@@ -442,7 +453,9 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
             },
           },
           keys: {
-            telegram: !!config.telegramBotToken && !!config.telegramChatId,
+            telegram: channelViews.some((row) => row.provider === 'telegram' && row.configured),
+            feishu: channelViews.some((row) => row.provider === 'feishu' && row.configured),
+            bark: channelViews.some((row) => row.provider === 'bark' && row.configured),
             github: !!config.githubToken,
             unisat: !!config.unisatApiKey,
             evmRpc: !!config.evmRpcUrl,

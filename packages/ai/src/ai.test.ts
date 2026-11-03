@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { FixtureAIProvider, validateEvidence, analysisCacheKey } from './index.js';
+import {
+  CompatibleAIProvider,
+  FixtureAIProvider,
+  validateEvidence,
+  analysisCacheKey,
+} from './index.js';
 const input = {
   eventId: 'event',
   assets: ['BTC'],
@@ -37,5 +42,49 @@ describe('AI evidence contract', () => {
   it('cache keys change with evidence/model while staying deterministic', () => {
     expect(analysisCacheKey(input, 'model-a')).not.toBe(analysisCacheKey(input, 'model-b'));
     expect(analysisCacheKey(input, 'model-a')).toBe(analysisCacheKey(input, 'model-a'));
+    expect(analysisCacheKey(input, 'model-a', 'relay-a')).not.toBe(
+      analysisCacheKey(input, 'model-a', 'relay-b'),
+    );
+  });
+  it('uses a configured relay root/model and can omit unsupported JSON mode', async () => {
+    const output = (await new FixtureAIProvider().analyze(input)).result;
+    let requestUrl = '';
+    let requestBody: Record<string, unknown> = {};
+    const fetcher: typeof fetch = async (url, options) => {
+      requestUrl = String(url);
+      requestBody = JSON.parse(String(options?.body));
+      expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer relay-test-secret');
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify(output) } }] }),
+      );
+    };
+    const result = await new CompatibleAIProvider(
+      'https://relay.example/custom/v1/',
+      'relay-test-secret',
+      'relay-model',
+      fetcher,
+      1000,
+      false,
+    ).analyze(input);
+    expect(requestUrl).toBe('https://relay.example/custom/v1/chat/completions');
+    expect(requestBody.model).toBe('relay-model');
+    expect(requestBody).not.toHaveProperty('response_format');
+    expect(result.model).toBe('relay-model');
+  });
+  it('keeps untrusted malformed completion bodies out of persisted error messages', async () => {
+    const fetcher: typeof fetch = async () =>
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'untrusted-body-containing-a-secret' } }],
+        }),
+      );
+    await expect(
+      new CompatibleAIProvider(
+        'https://relay.example/v1',
+        'test-key',
+        'relay-model',
+        fetcher,
+      ).analyze(input),
+    ).rejects.toThrow('AI completion 未返回有效 JSON');
   });
 });

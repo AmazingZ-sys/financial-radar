@@ -10,7 +10,7 @@ P0 紧急且已验证的重大事故/基础设施故障；P1 可信的早期参�
 
 ## 2. Provider
 
-统一 `send(message, channelConfig)` 返回 `accepted`、platformMessageId、acceptedAt、retryable、retryAfter。Telegram Bot 为首个真实渠道；飞书 Bot/Bark 可沿相同抽象扩展，未验证渠道在 UI 标记未配置。Token/收件人从服务端环境注入，普通 API 不返回。支持 plain text/受控转义格式，避免来源正文注入平台格式；消息长度上限截断并附站内详情 URL。
+统一 `send(message, channelConfig)` 返回 `accepted`、platformMessageId、acceptedAt、retryable、retryAfter。Telegram Bot、飞书 Bot、Bark 在通知中心配置；环境变量作为初始默认，页面保存凭据后由后续发送任务读取服务端加密配置。Token/设备 Key/Webhook 不回显，页面仅显示配置状态和非密钥 Chat ID；空白保留、明确清除后不回退环境密钥。支持 plain text/受控转义格式，避免来源正文注入平台格式；消息长度上限截断并附站内详情 URL。凭据损坏时保留可编辑的安全视图，实际发送记录 FAILED 并释放租约。
 
 ## 3. 数据库状态机
 

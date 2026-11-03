@@ -455,6 +455,374 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/sources/catalog': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 可接入来源目录（live 能力） */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                id: string;
+                name: string;
+                categories: string[];
+                description: string;
+                /** Format: uri */
+                docsUrl: string;
+                /** Format: uri */
+                feedUrl: string | null;
+                intervalSeconds: number;
+                licenseStatus: string;
+                requiresConfiguration: boolean;
+                installed: boolean;
+                enabled: boolean;
+              }[];
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/sources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 数据源健康 */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                id: string;
+                name: string;
+                connectorType: string;
+                /** @enum {string} */
+                mode: 'live' | 'fixture';
+                enabled: boolean;
+                status: string;
+                intervalSeconds: number;
+                /** Format: date-time */
+                lastSuccessAt: string | null;
+                lastError: string | null;
+                /** Format: date-time */
+                nextPollAt: string | null;
+                successRate: number | null;
+                latencyMs: number | null;
+                freshnessSeconds: number | null;
+                /** @default  */
+                description: string;
+                /** @default null */
+                docsUrl: string | null;
+                /** @default false */
+                keyConfigured: boolean;
+                /** @default [] */
+                capabilities: string[];
+                /** @default 由来源决定 */
+                delayLabel: string;
+                /** @default [] */
+                categories: string[];
+                /** @default false */
+                custom: boolean;
+                /** @default null */
+                feedUrl: string | null;
+              }[];
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** 新增公开 RSS/Atom 来源 */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            name: string;
+            /** Format: uri */
+            feedUrl: string;
+            categories: ('macro' | 'finance' | 'technology' | 'world' | 'crypto')[];
+            /** @default 300 */
+            intervalSeconds?: number;
+            /** @default true */
+            enabled?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                id: string;
+                created: boolean;
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/events': {
     parameters: {
       query?: never;
@@ -1458,140 +1826,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/sources': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** 数据源健康 */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description 成功 */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              data: {
-                id: string;
-                name: string;
-                connectorType: string;
-                /** @enum {string} */
-                mode: 'live' | 'fixture';
-                enabled: boolean;
-                status: string;
-                intervalSeconds: number;
-                /** Format: date-time */
-                lastSuccessAt: string | null;
-                lastError: string | null;
-                /** Format: date-time */
-                nextPollAt: string | null;
-                successRate: number | null;
-                latencyMs: number | null;
-                freshnessSeconds: number | null;
-                /** @default  */
-                description: string;
-                /** @default null */
-                docsUrl: string | null;
-                /** @default false */
-                keyConfigured: boolean;
-                /** @default [] */
-                capabilities: string[];
-                /** @default 由来源决定 */
-                delayLabel: string;
-              }[];
-              meta?: {
-                total: number;
-                page: number;
-                pageSize: number;
-                /** @enum {string} */
-                dataMode: 'live' | 'fixture';
-                /** Format: date-time */
-                asOf: string;
-              };
-            };
-          };
-        };
-        /** @description 输入无效 */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-                requestId: string;
-              };
-            };
-          };
-        };
-        /** @description 需要登录 */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-                requestId: string;
-              };
-            };
-          };
-        };
-        /** @description 权限或 CSRF 校验失败 */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-                requestId: string;
-              };
-            };
-          };
-        };
-        /** @description 请求频率超过限制 */
-        429: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error: {
-                code: string;
-                message: string;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/v1/sources/{id}': {
     parameters: {
       query?: never;
@@ -1645,6 +1879,12 @@ export interface paths {
                 capabilities: string[];
                 /** @default 由来源决定 */
                 delayLabel: string;
+                /** @default [] */
+                categories: string[];
+                /** @default false */
+                custom: boolean;
+                /** @default null */
+                feedUrl: string | null;
               };
               meta?: {
                 total: number;
@@ -3704,7 +3944,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** 通知渠道（仅配置状态） */
+    /** 通知渠道与安全配置状态 */
     get: {
       parameters: {
         query?: never;
@@ -3729,8 +3969,12 @@ export interface paths {
                 provider: 'telegram' | 'feishu' | 'bark';
                 enabled: boolean;
                 configured: boolean;
-                /** @default  */
                 description: string;
+                /** @enum {string} */
+                configOrigin: 'environment' | 'database';
+                chatId: string;
+                botTokenConfigured: boolean;
+                webhookConfigured: boolean;
               }[];
               meta?: {
                 total: number;
@@ -3827,7 +4071,7 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** 启用或禁用通知渠道 */
+    /** 保存通知渠道配置 */
     patch: {
       parameters: {
         query?: never;
@@ -3840,7 +4084,13 @@ export interface paths {
       requestBody: {
         content: {
           'application/json': {
-            enabled: boolean;
+            name?: string;
+            enabled?: boolean;
+            botToken?: string;
+            chatId?: string;
+            webhookUrl?: '' | string;
+            serverUrl?: '' | string;
+            clearCredentials?: boolean;
           };
         };
       };
@@ -3855,7 +4105,17 @@ export interface paths {
               data: {
                 /** Format: uuid */
                 id: string;
+                name: string;
+                /** @enum {string} */
+                provider: 'telegram' | 'feishu' | 'bark';
                 enabled: boolean;
+                configured: boolean;
+                description: string;
+                /** @enum {string} */
+                configOrigin: 'environment' | 'database';
+                chatId: string;
+                botTokenConfigured: boolean;
+                webhookConfigured: boolean;
               };
               meta?: {
                 total: number;
@@ -5102,6 +5362,360 @@ export interface paths {
           content: {
             'application/json': {
               data?: unknown;
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/integrations/ai': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** AI 服务配置（不回显密钥） */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                name: string;
+                enabled: boolean;
+                /** Format: uri */
+                baseUrl: string;
+                model: string;
+                timeoutMs: number;
+                jsonMode: boolean;
+                dailyBudgetUsd: number;
+                maxCallCostUsd: number;
+                apiKeyConfigured: boolean;
+                /** @enum {string} */
+                configOrigin: 'environment' | 'database';
+                hasOverride: boolean;
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** 保存 AI 服务配置 */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            name?: string;
+            enabled?: boolean;
+            /** Format: uri */
+            baseUrl?: string;
+            model?: string;
+            timeoutMs?: number;
+            jsonMode?: boolean;
+            dailyBudgetUsd?: number;
+            maxCallCostUsd?: number;
+            apiKey?: string;
+            clearApiKey?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                name: string;
+                enabled: boolean;
+                /** Format: uri */
+                baseUrl: string;
+                model: string;
+                timeoutMs: number;
+                jsonMode: boolean;
+                dailyBudgetUsd: number;
+                maxCallCostUsd: number;
+                apiKeyConfigured: boolean;
+                /** @enum {string} */
+                configOrigin: 'environment' | 'database';
+                hasOverride: boolean;
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/integrations/ai/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** 测试已保存的 AI 模型连接 */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                /** @enum {string} */
+                status: 'connected' | 'skipped';
+                message: string;
+                model: string;
+              };
               meta?: {
                 total: number;
                 page: number;

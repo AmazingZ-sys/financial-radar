@@ -120,10 +120,15 @@ try {
   };
   const baseline = await counts();
   assert.equal(Number(baseline.raw), 5);
-  assert.equal(Number(baseline.events), 5);
+  // The fixed Fixture participation window can expire as wall time advances.
+  // Keep checking every original event, while accounting only for explicit clock signals.
+  const clockEvents = (
+    await database.sql`SELECT count(*)::int AS n FROM events WHERE event_type IN ('PARTICIPATION_WINDOW_EXPIRING','PARTICIPATION_WINDOW_EXPIRED') AND external_id LIKE 'history:%'`
+  )[0]!.n;
+  assert.equal(Number(baseline.events), 5 + Number(clockEvents));
   record(
     'baseline',
-    `独立PG:${pgPort}/Redis:${redisPort}；raw=5 events=5 projects=${baseline.projects} signals=${baseline.signals}`,
+    `独立PG:${pgPort}/Redis:${redisPort}；raw=5 events=${baseline.events}（窗口时钟信号${clockEvents}） projects=${baseline.projects} signals=${baseline.signals}`,
   );
 
   await redisServer.stop();

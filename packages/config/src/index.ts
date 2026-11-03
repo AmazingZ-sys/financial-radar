@@ -1,5 +1,6 @@
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+export * from './outbound.js';
 loadDotenv({ quiet: true });
 const boolean = z.enum(['true', 'false']).transform((s) => s === 'true');
 const csv = (value: string) =>
@@ -67,6 +68,10 @@ const schema = z.object({
   AI_MODEL: z.string().default(''),
   AI_DAILY_BUDGET_USD: z.coerce.number().min(0).default(1),
   AI_MAX_CALL_COST_USD: z.coerce.number().min(0).default(0.1),
+  INTEGRATION_ENCRYPTION_KEY: z
+    .string()
+    .refine((value) => !value || value.length >= 32, '集成加密密钥至少 32 个字符')
+    .default(''),
   GITHUB_TOKEN: z.string().default(''),
   GITHUB_REPOSITORIES: githubRepositories,
   DEX_CHAIN: z
@@ -141,6 +146,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     aiModel: v.AI_MODEL,
     aiDailyBudgetUsd: v.AI_DAILY_BUDGET_USD,
     aiMaxCallCostUsd: v.AI_MAX_CALL_COST_USD,
+    integrationEncryptionKey: v.INTEGRATION_ENCRYPTION_KEY,
     githubToken: v.GITHUB_TOKEN,
     githubRepositories: v.GITHUB_REPOSITORIES,
     dexChain: v.DEX_CHAIN,

@@ -4,7 +4,13 @@ import { Redis } from 'ioredis';
 import { config } from '@radar/config';
 import { sql } from '@radar/database';
 import { createLogger } from '@radar/observability';
-import { initializeSources, registry, runIngestion, scanParticipationWindows } from './pipeline.js';
+import {
+  initializeSources,
+  registry,
+  runIngestion,
+  scanParticipationWindows,
+  synchronizeCustomSources,
+} from './pipeline.js';
 import {
   analyzeEvent,
   sendNotification,
@@ -116,6 +122,7 @@ if (process.argv.includes('--once')) {
   worker.on('error', (error) => log.error({ message: error.message }, 'worker queue error'));
   const scheduled = new Map<string, number>();
   async function synchronizeSchedules() {
+    await synchronizeCustomSources();
     const rows =
       await sql`SELECT id,enabled,interval_seconds FROM data_sources WHERE mode=${config.dataMode}`;
     const enabled = new Map(

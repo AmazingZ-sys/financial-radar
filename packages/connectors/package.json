@@ -13,6 +13,7 @@
     "build": "tsup src/index.ts --format esm --dts --clean"
   },
   "dependencies": {
+    "@radar/config": "workspace:*",
     "zod": "^4.1.13",
     "fast-xml-parser": "^5.3.0"
   }

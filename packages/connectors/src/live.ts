@@ -86,7 +86,7 @@ export class FedRssConnector extends PullConnector {
     officialUrl: 'https://www.federalreserve.gov/feeds/feeds.htm',
     transport: 'pull',
     mode: 'live',
-    categories: ['宏观', '美联储'],
+    categories: ['macro', 'finance', '宏观', '美联储'],
     trust: 0.98,
     pollIntervalSeconds: 60,
     licenseStatus: 'official-public',
@@ -176,7 +176,7 @@ export class GitHubReleasesConnector extends PullConnector {
     officialUrl: 'https://github.com/ordinals/ord',
     transport: 'pull',
     mode: 'live',
-    categories: ['Bitcoin', '协议动态'],
+    categories: ['technology', 'crypto', 'Bitcoin', '协议动态'],
     trust: 0.92,
     pollIntervalSeconds: 300,
     licenseStatus: 'official-public',
@@ -195,7 +195,10 @@ export class GitHubReleasesConnector extends PullConnector {
           : `github-releases-${this.repository.replace('/', '~')}`,
       name: `GitHub · ${this.repository} 发布`,
       officialUrl: `https://github.com/${this.repository}`,
-      categories: this.repository === 'ordinals/ord' ? ['Bitcoin', '协议动态'] : ['协议动态'],
+      categories:
+        this.repository === 'ordinals/ord'
+          ? ['technology', 'crypto', 'Bitcoin', '协议动态']
+          : ['technology', 'crypto', '协议动态'],
     };
   }
   async fetch(cursor: Cursor = {}) {
@@ -255,7 +258,7 @@ export class CoinbaseMarketsConnector extends PullConnector {
     officialUrl: 'https://docs.cdp.coinbase.com/exchange',
     transport: 'pull',
     mode: 'live',
-    categories: ['数字资产', '行情'],
+    categories: ['crypto', '数字资产', '行情'],
     trust: 0.98,
     pollIntervalSeconds: 60,
     licenseStatus: 'internal-research-only',
@@ -311,7 +314,7 @@ export class UniSatBrc20Connector extends PullConnector {
     officialUrl: 'https://unisat.io/open-api',
     transport: 'pull',
     mode: 'live',
-    categories: ['Bitcoin', 'BRC-20'],
+    categories: ['crypto', 'Bitcoin', 'BRC-20'],
     trust: 0.8,
     pollIntervalSeconds: 120,
     licenseStatus: 'authorization-required',
@@ -424,7 +427,7 @@ export class DexScreenerConnector extends PullConnector {
     officialUrl: 'https://docs.dexscreener.com/api/reference',
     transport: 'pull',
     mode: 'live',
-    categories: ['DEX', '流动性'],
+    categories: ['crypto', 'DEX', '流动性'],
     trust: 0.75,
     pollIntervalSeconds: 60,
     licenseStatus: 'authorization-required',

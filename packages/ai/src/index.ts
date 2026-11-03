@@ -47,9 +47,16 @@ export interface AIProvider {
   model: string;
   analyze(input: AnalysisInput): Promise<AnalysisResult>;
 }
-export function analysisCacheKey(input: AnalysisInput, model: string) {
+export function analysisCacheKey(input: AnalysisInput, model: string, providerIdentity?: string) {
   return createHash('sha256')
-    .update(JSON.stringify({ input, model, prompt: PROMPT_VERSION }))
+    .update(
+      JSON.stringify({
+        input,
+        model,
+        prompt: PROMPT_VERSION,
+        ...(providerIdentity ? { providerIdentity } : {}),
+      }),
+    )
     .digest('hex');
 }
 export function validateEvidence(output: unknown, input: AnalysisInput) {
@@ -111,6 +118,7 @@ export class CompatibleAIProvider implements AIProvider {
     public model: string,
     private fetcher: typeof fetch = fetch,
     private timeoutMs = 20_000,
+    private jsonMode = true,
   ) {
     const url = new URL(baseUrl);
     if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1')
@@ -126,7 +134,7 @@ export class CompatibleAIProvider implements AIProvider {
         model: this.model,
         temperature: 0,
         max_tokens: 1000,
-        response_format: { type: 'json_object' },
+        ...(this.jsonMode ? { response_format: { type: 'json_object' } } : {}),
         messages: [
           {
             role: 'system',
@@ -137,6 +145,12 @@ export class CompatibleAIProvider implements AIProvider {
       }),
     });
     if (!response.ok) throw new Error(`AI provider HTTP ${response.status}`);
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      throw new Error('AI provider 返回了无效 JSON 响应');
+    }
     const body = z
       .object({
         choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1),
@@ -147,12 +161,15 @@ export class CompatibleAIProvider implements AIProvider {
           })
           .optional(),
       })
-      .parse(await response.json());
+      .parse(responseBody);
+    let output: Record<string, unknown>;
+    try {
+      output = JSON.parse(body.choices[0]!.message.content) as Record<string, unknown>;
+    } catch {
+      throw new Error('AI completion 未返回有效 JSON');
+    }
     return {
-      result: validateEvidence(
-        { ...JSON.parse(body.choices[0]!.message.content), modelVersion: this.model },
-        input,
-      ),
+      result: validateEvidence({ ...output, modelVersion: this.model }, input),
       inputTokens: body.usage?.prompt_tokens ?? null,
       outputTokens: body.usage?.completion_tokens ?? null,
       provider: this.name,

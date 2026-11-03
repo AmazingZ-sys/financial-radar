@@ -14,6 +14,12 @@ describe('HTTP trust boundary', () => {
   it('protects event reads and rule writes without session credentials', async () => {
     for (const [path, method] of [
       ['/api/v1/events', 'GET'],
+      ['/api/v1/integrations/ai', 'GET'],
+      ['/api/v1/integrations/ai', 'PATCH'],
+      ['/api/v1/integrations/ai/test', 'POST'],
+      ['/api/v1/sources/catalog', 'GET'],
+      ['/api/v1/sources', 'POST'],
+      ['/api/v1/notification-channels', 'GET'],
       ['/api/v1/alert-rules', 'POST'],
       ['/api/v1/notifications/00000000-0000-4000-8000-000000000000/retry', 'POST'],
     ] as const) {

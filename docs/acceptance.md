@@ -92,3 +92,40 @@ GitHub Actions、GHCR与Netlify的实际发布证据见下节。目标服务器�
 根据服务器已有 3000 服务，将生产宿主映射改为 `127.0.0.1:13000:3000`，同步宿主健康 URL 与 Nginx upstream；容器内 3000 和本地开发保持一致。本轮 typecheck、lint、95 项单测、build、security:check、format:check、70 项主集成 + 35 项历史 PG + 86 项模式隔离通过，日志为 `.local/port-*.log`。Compose 实际解析确认 host_ip=127.0.0.1、published=13000、target=3000；Nginx 使用本地临时测试证书在官方容器内 `nginx -t` 通过（`.local/port-nginx/config-check.log`）。本地检查不代表已更改用户服务器。
 
 在本地用独立临时服务实际占用宿主 3000，同时运行唯一隔离 Compose 项目 `radar-acceptance-9cbbd005413f`；API 的宿主 `13000/ready` 返回成功，`compose port api 3000` 实际输出 `127.0.0.1:13000`，原 3000 服务仍正常响应。API/Worker/PostgreSQL/Redis 四服务健康，生产管理员登录、Secure/HttpOnly Cookie、CSRF 与受保护 API 验证通过。实际日志见 `.local/port-compose.log`，宿主端口证据见 `.local/docker-acceptance/radar-acceptance-9cbbd005413f/host-port.txt`；未操作用户生产环境。
+
+## 控制台集成配置与多领域新闻 · 2026-11-03
+
+本轮设计先行记录在 [25 可配置集成](25-configurable-integrations.md)、[26 新闻来源目录](26-news-source-catalog.md)。实现位于 `codex/configurable-integrations`，本轮未提交、推送或更新生产部署。
+
+- 系统管理新增 OpenAI-compatible AI 配置：中转 Base URL、模型、API Key、启停、超时、JSON 模式开关与预算；保存后供后续任务读取，测试已保存模型的一次真实 completion（Fixture 明确跳过）。缓存区分模型和服务配置；页面密钥不进入持久存储或查询缓存。
+- 通知中心可配置 Telegram Bot Token/Chat ID、飞书官方 Webhook、Bark 完整地址。凭据 AES-256-GCM 加密入库，环境变量保留初始默认；空白保留、明确清除后不回退环境密钥。API/Worker 共享服务器根密钥，不回显 Token/Webhook/设备地址，审计只记录字段名与状态。损坏密文的页面仍有修复入口，发送失败会持久化并释放租约。
+- 数据源新增分类目录、ECB 政策公告和 BBC 全球/财经/科技订阅；自定义公共 HTTPS RSS/Atom 保存后约15秒内同步注册、排程。地址不可原地替换，最短60秒轮询；XML 禁用 DTD/实体、限制响应与条目数；保存原标题、摘要、来源时间或 null、首次发现时间，重复条目幂等。新闻进入热点与规则链，编辑性新闻/自定义新闻保持 UNVERIFIED。标准分类与旧分类并存供新事件筛选，既有持久化事件不改写。
+- 动态出站地址校验 DNS 并固定实际连接地址，拒绝内网/保留地址、URL 用户信息及重定向，限制超时与2MB响应。自定义订阅目前不支持查询参数、片段、密钥订阅或私网地址；AI Base URL 不接受查询参数。密钥轮换、服务器根密钥备份与恢复语义已同步运维文档。
+- 修复仅在页面保存 AI Key 时不排分析任务的问题，以及运行模式切换后遗留 AI 任务可能跨 live/fixture 处理的问题。Fixture 分析与真实凭据解密、预算独立，不占用真实每日调用额度；确定性规则不依赖 AI 可用性。启动时不误停用并发新增订阅，无效持久化订阅明确停用且不调度。
+
+实际使用 Node 24.15.0、pnpm 10.26.2 执行：
+
+| 检查                                       | 结果与证据                                                                                                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm typecheck`、`pnpm lint`              | 全包 strict 与工具脚本通过；`.local/integrations-{typecheck,lint}.log`                                                                                      |
+| `pnpm test`                                | 16个文件、112项通过；含加密/篡改、服务端安全视图、DNS固定/私网/重定向/响应上限、AI中转契约/JSON模式、RSS/Atom/日期/标准分类；`.local/integrations-unit.log` |
+| `pnpm test:integration`                    | 本地真实 PostgreSQL + 独立 Redis：70项主检查、48项配置/API/新闻流水线检查、35项历史PG检查、86项模式隔离断言通过；`.local/integrations-pg.log`               |
+| `pnpm test:e2e`                            | Chromium 13/13通过，真实 API：AI保存刷新、凭据草稿清空、非加密分类目录与Fixture限制，以及既有页面回归；`.local/integrations-e2e.log`                        |
+| `pnpm --filter @radar/worker recovery`     | 8项真实进程恢复通过；`.local/integrations-recovery.log`、`.local/recovery-latest.json`                                                                      |
+| `pnpm build`                               | API、Worker、Web及依赖构建通过；`.local/integrations-build.log`                                                                                             |
+| 编译产物启动                               | 直接Node启动编译API，PG/Redis readiness、鉴权及新路由契约通过；编译Worker `--once`通过；`.local/integrations-compiled-{api,worker}.log`                     |
+| `pnpm api:types`                           | 实际新路由生成OpenAPI和前端类型；`.local/integrations-api-types.log`                                                                                        |
+| `pnpm format:check`、`pnpm security:check` | 通过；`.local/integrations-{format,security}.log`                                                                                                           |
+| 视觉检查                                   | AI配置与来源目录1440px/390px无横向溢出，已查看截图；`.local/integrations-ui-{ai,sources}-{1440,390}.png`                                                    |
+
+新增配置集成检查使用明确命名的合成新闻传输和占位凭据，仅在非生产测试库短暂构造live路径并清理，不是实际新闻采集或供应商联通证据。覆盖空环境Key下热读取、加密恢复/清除、损坏通知租约、CSRF/SSRF、目录模式、来源创建幂等/动态注册/禁用、未知发布时间、实际PG热点写入/重复采集、AI模式隔离。反复本地登录触发原有限流后，最终套件使用独立测试Redis完成，未降低登录保护。
+
+恢复演练首次发现既有固定Fixture窗口在2026-11-03到期后产生第6条合法事件，原脚本将事件总数固定为5导致失败。脚本现在严格校验5条原始项和5条基础事件，只额外计入已标识的窗口时钟事件；恢复前后仍比较完整事实计数及去重，未放宽业务处理断言。
+
+外部只读验证：ECB 使用本轮 Node HTTPS采集/解析链实际读到15条；BBC 三个公开 Feed 经代理路径读取HTTP200，但本机 Node 直连DNS路径遭拒/超时，已在来源目录文档区分，不能声称BBC生产Worker已可用。没有使用真实 AI/IM 凭据测试，也没有修改用户线上配置；真实中转站计费/通知接受状态和部署网络仍须在更新后的环境测试。本轮没有数据库结构迁移或破坏性DDL。
+
+## v1.1 发布准备 · 2026-11-03
+
+用户明确授权前端生产发布和 API/Worker 最新镜像发布。复核现有版本为 v1.0.3，发布路径为 main 推送 → verify → semantic-release → GHCR 两个镜像 → 镜像清单 → Netlify。服务器更新步骤已写入 [v1.1.0 指南](27-v1.1-server-update.md)，不把镜像发布等同于用户服务器已更新。
+
+发布复核修复动态出站只固定首个 DNS 地址的问题：现在向 Node24 提供全部已校验的固定地址，支持 IPv6 失败后回退 IPv4，单地址回调优先IPv4，仍在请求前拒绝混合私网DNS。新增回归断言验证多地址固定与不重复解析，5项出站测试、config 类型和 lint 已通过。`deploy.env` 已加入忽略规则，防止服务器部署凭据误提交。

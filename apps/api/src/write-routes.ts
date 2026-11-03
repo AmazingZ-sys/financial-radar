@@ -1,13 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { sql } from '@radar/database';
-import { config } from '@radar/config';
+import {
+  sql,
+  notificationConfigView,
+  saveNotificationConfig,
+  readNotificationConfig,
+} from '@radar/database';
+import { config, assertPublicHttpsUrl } from '@radar/config';
 import {
   RuleSchema,
   RuleInputSchema,
   RuleConditionsSchema,
   SettingsSchema,
   NotificationSchema,
-  ChannelSchema,
+  NotificationConfigViewSchema,
+  NotificationConfigPatchSchema,
   PaginationSchema,
   SourceIdSchema,
 } from '@radar/shared';
@@ -24,15 +30,6 @@ async function ruleById(c: ApiContext, id: string) {
   >`SELECT data FROM alert_rules WHERE id=${id} AND owner_id=${c.get('actor').id}`;
   if (!rows[0]) fail(404, '规则不存在');
   return RuleSchema.parse(rows[0].data);
-}
-function configured(provider: string) {
-  return provider === 'telegram'
-    ? !!config.telegramBotToken && !!config.telegramChatId
-    : provider === 'feishu'
-      ? !!config.feishuWebhookUrl
-      : provider === 'bark'
-        ? !!config.barkServerUrl
-        : false;
 }
 export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
   addRoute(app, 'get', '/api/v1/alert-rules', '规则列表', z.array(RuleSchema), async (c) => {
@@ -206,6 +203,15 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
       const existing =
         await sql`SELECT * FROM data_sources WHERE id=${id} AND mode=${config.dataMode}`;
       if (!existing[0]) fail(404, '数据源不存在');
+      if (
+        input.intervalSeconds !== undefined &&
+        input.intervalSeconds < 60 &&
+        (existing[0].data?.custom === true ||
+          existing[0].data?.feedUrl ||
+          /rss/i.test(id) ||
+          /rss|atom/i.test(String(existing[0].connector_type)))
+      )
+        fail(400, 'RSS/Atom 订阅的轮询间隔不能低于 60 秒');
       await sql`UPDATE data_sources SET enabled=${input.enabled ?? existing[0].enabled},interval_seconds=${input.intervalSeconds ?? existing[0].interval_seconds},updated_at=now() WHERE id=${id}`;
       await audit(c, c.get('actor').id, 'UPDATE', 'source', id, input);
       return { data: (await sources()).find((s) => s.id === id) };
@@ -223,23 +229,22 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
     app,
     'get',
     '/api/v1/notification-channels',
-    '通知渠道（仅配置状态）',
-    z.array(ChannelSchema),
+    '通知渠道与安全配置状态',
+    z.array(NotificationConfigViewSchema),
     async (c) => {
       const rows =
-        await sql`SELECT id,name,provider,enabled FROM notification_channels WHERE owner_id=${c.get('actor').id} ORDER BY provider`;
+        await sql`SELECT id,name,provider,enabled,data FROM notification_channels WHERE owner_id=${c.get('actor').id} ORDER BY provider`;
       return {
-        data: rows.map((r) => ({
-          id: r.id,
-          name: r.name,
-          provider: r.provider,
-          enabled: r.enabled,
-          configured: configured(r.provider),
-          description:
-            r.provider === 'telegram'
-              ? '服务端配置 Telegram Bot Token 与 Chat ID'
-              : '密钥由服务器环境注入',
-        })),
+        data: rows.map((row) =>
+          notificationConfigView({
+            id: String(row.id),
+            name: String(row.name),
+            provider: String(row.provider),
+            enabled: Boolean(row.enabled),
+            data: row.data,
+          }),
+        ),
+        meta: meta(rows.length, 1, 100),
       };
     },
   );
@@ -247,18 +252,50 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
     app,
     'patch',
     '/api/v1/notification-channels/{id}',
-    '启用或禁用通知渠道',
-    z.object({ id: z.uuid(), enabled: z.boolean() }),
+    '保存通知渠道配置',
+    NotificationConfigViewSchema,
     async (c) => {
+      await rateLimit(c, 'integration-config', 30, 300);
       const id = idParam(c);
-      const input = await body(c, z.object({ enabled: z.boolean() }).strict());
-      const rows =
-        await sql`UPDATE notification_channels SET enabled=${input.enabled} WHERE id=${id} AND owner_id=${c.get('actor').id} RETURNING id`;
-      if (!rows[0]) fail(404, '渠道不存在');
-      await audit(c, c.get('actor').id, 'UPDATE', 'notification_channel', id, input);
-      return { data: { id, enabled: input.enabled } };
+      const input = await body(c, NotificationConfigPatchSchema);
+      const row = (
+        await sql`SELECT provider FROM notification_channels WHERE id=${id} AND owner_id=${c.get('actor').id}`
+      )[0];
+      if (!row) fail(404, '渠道不存在');
+      if (
+        (row.provider !== 'telegram' && (input.botToken || input.chatId)) ||
+        (row.provider !== 'feishu' && input.webhookUrl) ||
+        (row.provider !== 'bark' && input.serverUrl)
+      )
+        fail(400, '凭据字段与通知渠道类型不匹配');
+      if (input.botToken && !/^[a-zA-Z0-9:_-]+$/.test(input.botToken))
+        fail(400, 'Telegram Bot Token 格式无效');
+      if (
+        input.webhookUrl &&
+        !/^https:\/\/open\.feishu\.cn\/open-apis\/bot\/v2\/hook\/[a-zA-Z0-9-]+$/.test(
+          input.webhookUrl,
+        )
+      )
+        fail(400, '飞书需要官方机器人 Webhook 地址');
+      if (input.serverUrl && new URL(input.serverUrl).pathname === '/')
+        fail(400, 'Bark 需要包含设备 Key 的完整 HTTPS 地址');
+      for (const endpoint of [input.webhookUrl, input.serverUrl])
+        if (endpoint) {
+          try {
+            await assertPublicHttpsUrl(endpoint);
+          } catch {
+            fail(400, '通知地址必须是可解析的公开 HTTPS 地址');
+          }
+        }
+      const data = await saveNotificationConfig(c.get('actor').id, id, input);
+      if (!data) fail(404, '渠道不存在');
+      await audit(c, c.get('actor').id, 'UPDATE', 'notification_channel', id, {
+        fields: Object.keys(input),
+        enabled: data.enabled,
+      });
+      return { data };
     },
-    { body: z.object({ enabled: z.boolean() }).strict() },
+    { body: NotificationConfigPatchSchema },
   );
   addRoute(
     app,
@@ -274,8 +311,11 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
       const channel = channels[0];
       if (!channel) fail(404, '渠道不存在');
       if (!channel.enabled) fail(409, '渠道已禁用');
-      if (config.dataMode !== 'fixture' && !configured(channel.provider))
-        fail(409, '渠道密钥未在服务端配置');
+      if (
+        config.dataMode !== 'fixture' &&
+        !readNotificationConfig(String(channel.provider), channel.data).configured
+      )
+        fail(409, '渠道凭据尚未配置，请先保存渠道配置');
       const id = randomUUID();
       const now = new Date().toISOString();
       const data = {

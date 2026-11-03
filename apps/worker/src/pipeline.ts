@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type postgres from 'postgres';
 import type { TransactionSql } from 'postgres';
-import { sql, ensureAdmin } from '@radar/database';
+import { sql, ensureAdmin, readAIConfig } from '@radar/database';
 import { config } from '@radar/config';
 import { createLogger } from '@radar/observability';
 import {
@@ -11,6 +11,8 @@ import {
   type NormalizedEvent,
   type Cursor,
   ConnectorError,
+  NewsRssConnector,
+  categoriesForSource,
 } from '@radar/connectors';
 import {
   fingerprint,
@@ -34,17 +36,78 @@ import {
   ProjectSchema,
   type AlertRule,
   type UserSettings,
+  SourceInputSchema,
 } from '@radar/shared';
 const log = createLogger('worker.pipeline');
 export const registry = createRegistry(config);
 const json = (data: unknown) => sql.json(data as postgres.JSONValue);
 type Tx = TransactionSql;
 
+async function initialAnalysisStatus(): Promise<'PENDING' | 'DISABLED'> {
+  if (config.dataMode === 'fixture') return 'PENDING';
+  try {
+    const ai = await readAIConfig();
+    return ai.enabled && ai.apiKey && ai.model ? 'PENDING' : 'DISABLED';
+  } catch {
+    // Invalid integration secrets must never prevent deterministic event/alert persistence.
+    log.warn('AI configuration unavailable; deterministic ingestion continues');
+    return 'DISABLED';
+  }
+}
+
+let sourceSync: Promise<void> | undefined;
+/** Register durable custom sources before schedules are reconciled, without touching evidence rows. */
+export async function synchronizeCustomSources() {
+  if (config.dataMode !== 'live') return;
+  if (sourceSync) return sourceSync;
+  sourceSync = (async () => {
+    const rows =
+      await sql`SELECT id,name,interval_seconds,data FROM data_sources WHERE mode='live' AND data->>'custom'='true'`;
+    const retained = new Set<string>();
+    for (const row of rows) {
+      const id = String(row.id);
+      const data = row.data as Record<string, unknown>;
+      const input = SourceInputSchema.safeParse(data.feedConfig);
+      if (!input.success) {
+        await sql`UPDATE data_sources SET enabled=false,last_error='保存的 RSS/Atom 配置无效，请重新添加来源',data=data || '{"status":"unconfigured"}'::jsonb WHERE id=${id} AND mode='live'`;
+        log.warn({ sourceId: id }, 'invalid saved feed configuration; source not registered');
+        continue;
+      }
+      retained.add(id);
+      if (registry.get(id)) continue;
+      const connector = new NewsRssConnector({
+        id,
+        name: String(row.name),
+        feedUrl: input.data.feedUrl,
+        categories: input.data.categories,
+        pollIntervalSeconds: Math.max(60, Number(row.interval_seconds)),
+      });
+      await connector.initialize();
+      registry.register(connector);
+    }
+    for (const connector of registry.list()) {
+      const id = connector.metadata.id;
+      if (id.startsWith('custom-rss-') && !retained.has(id)) {
+        await connector.shutdown();
+        registry.remove(id);
+      }
+    }
+  })();
+  try {
+    await sourceSync;
+  } finally {
+    sourceSync = undefined;
+  }
+}
+
 export async function initializeSources() {
   const ownerId = await ensureAdmin();
+  await synchronizeCustomSources();
   const registered = registry.list().map((connector) => connector.metadata.id);
-  // Keep historical source rows/evidence, but never schedule a removed adapter.
-  await sql`UPDATE data_sources SET enabled=false WHERE mode<>${config.dataMode} OR NOT(id=ANY(${registered}::text[]))`;
+  // A custom feed can be created after synchronization's SELECT; preserve its requested
+  // enabled state until the next reconcile registers it. Malformed feeds are disabled
+  // by synchronizeCustomSources, while old built-in adapters remain unscheduled.
+  await sql`UPDATE data_sources SET enabled=false WHERE mode<>${config.dataMode} OR (NOT(id=ANY(${registered}::text[])) AND coalesce(data->>'custom','false')<>'true')`;
   for (const connector of registry.list()) {
     await connector.initialize();
     const health = await connector.healthCheck();
@@ -57,6 +120,8 @@ export async function initializeSources() {
       status: health.status === 'unconfigured' ? 'unconfigured' : 'pending',
       delayLabel: `${meta.pollIntervalSeconds}s轮询；来源延迟未知`,
       licenseStatus: meta.licenseStatus,
+      categories: categoriesForSource(meta.id, meta.categories),
+      ...(connector instanceof NewsRssConnector ? { feedUrl: connector.feed.feedUrl } : {}),
     };
     await sql`INSERT INTO data_sources(id,name,enabled,connector_type,mode,interval_seconds,data) VALUES(${meta.id},${meta.name},${health.status !== 'unconfigured'},${meta.transport},${meta.mode},${meta.pollIntervalSeconds},${json(data)}) ON CONFLICT(id) DO UPDATE SET name=excluded.name,mode=excluded.mode,data=data_sources.data || excluded.data`;
   }
@@ -178,7 +243,7 @@ async function persistHistoricalSignal(
     detectedAt: at,
     rawDataReference: historical.evidenceIds.at(-1)!,
     fingerprint: `history:${historical.stableKey}`,
-    analysisStatus: config.dataMode === 'fixture' || config.aiApiKey ? 'PENDING' : 'DISABLED',
+    analysisStatus: await initialAnalysisStatus(),
     opportunityScore: opportunity.score,
     riskScore: risk.score,
     opportunityBreakdown: opportunity,
@@ -462,7 +527,7 @@ export async function persistEvent(
     detectedAt: now,
     rawDataReference: rawId,
     fingerprint: hash,
-    analysisStatus: config.dataMode === 'fixture' || config.aiApiKey ? 'PENDING' : 'DISABLED',
+    analysisStatus: await initialAnalysisStatus(),
     opportunityScore: opportunity.score,
     riskScore: risk.score,
     riskWarnings: [...risk.flags, ...risk.unknowns.map((key) => `${key}未知`)],
@@ -742,11 +807,12 @@ export async function runIngestion(sourceId: string) {
   }
 }
 async function runIngestionUnlocked(sourceId: string) {
-  const connector = registry.get(sourceId);
-  if (!connector) throw new Error('未知 Connector');
   const source = (await sql`SELECT enabled,mode,data FROM data_sources WHERE id=${sourceId}`)[0];
   if (!source?.enabled || source.mode !== config.dataMode)
     return { fetched: 0, inserted: 0, skipped: true };
+  const connector = registry.get(sourceId);
+  // Old queue entries may outlive a disabled/removed/malformed source configuration.
+  if (!connector) return { fetched: 0, inserted: 0, skipped: true };
   const cooldownUntil = (source.data as Record<string, unknown>)?.cooldownUntil;
   if (typeof cooldownUntil === 'string' && Date.parse(cooldownUntil) > Date.now())
     return { fetched: 0, inserted: 0, skipped: true };

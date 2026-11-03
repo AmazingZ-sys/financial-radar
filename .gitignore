@@ -1,6 +1,7 @@
 node_modules/
 .pnpm-store/
 .env
+deploy.env
 .env.*
 !.env.example
 !deploy.example.env

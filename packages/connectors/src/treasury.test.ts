@@ -21,6 +21,9 @@ describe('Treasury daily yields retain source periods without fabricated publica
     expect(event.eventOccurredAt).toBeNull();
     expect(event.metrics?.precision).toBe(2);
     expect(event.metrics?.delayLabel).toContain('日度');
+    expect(event.categories).toEqual(
+      expect.arrayContaining(['macro', 'finance', '宏观', '美国国债']),
+    );
   });
   it('does not use feed.updated or midnight data date as the announcement time', () => {
     const event = new TreasuryDailyConnector().normalize(parseTreasuryXml(xml)[0]!);

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+export * from './integrations.js';
+export * from './source-config.js';
 export const DataModeSchema = z.enum(['live', 'fixture']);
 export type DataMode = z.infer<typeof DataModeSchema>;
 export const PrioritySchema = z.enum(['P0', 'P1', 'P2', 'P3']);
@@ -152,6 +154,9 @@ export const SourceSchema = z.object({
   keyConfigured: z.boolean().default(false),
   capabilities: z.array(z.string()).default([]),
   delayLabel: z.string().default('由来源决定'),
+  categories: z.array(z.string()).default([]),
+  custom: z.boolean().default(false),
+  feedUrl: z.string().nullable().default(null),
 });
 export type DataSource = z.infer<typeof SourceSchema>;
 export const NotificationSchema = z.object({

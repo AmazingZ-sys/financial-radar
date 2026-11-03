@@ -511,7 +511,7 @@ async function test(rule: AlertRule) {
           ><input
             id="rule-categories"
             v-model="form.categories"
-            placeholder="crypto, macro, bitcoin"
+            placeholder="macro, finance, technology, world, crypto"
             maxlength="1000"
           />
         </div>

@@ -92,6 +92,9 @@ importers:
       '@radar/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@radar/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
       '@radar/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -232,6 +235,9 @@ importers:
 
   packages/connectors:
     dependencies:
+      '@radar/config':
+        specifier: workspace:*
+        version: link:../config
       fast-xml-parser:
         specifier: ^5.3.0
         version: 5.11.2

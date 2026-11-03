@@ -1,6 +1,8 @@
 import { researchRoutes } from './research-routes.js';
 import { scoringRoutes } from './scoring-routes.js';
 import { calendarRoutes } from './calendar-routes.js';
+import { integrationRoutes } from './integration-routes.js';
+import { sourceConfigRoutes } from './source-config-routes.js';
 import { randomUUID } from 'node:crypto';
 import { OpenAPIHono, z } from '@hono/zod-openapi';
 import { HTTPException } from 'hono/http-exception';
@@ -88,6 +90,11 @@ export function createApp() {
         { error: { code: 'VALIDATION_ERROR', message: '字段格式或取值无效', requestId } },
         400,
       );
+    if (error.message === '无法解密集成配置，请检查服务器加密密钥或重新保存凭据')
+      return c.json(
+        { error: { code: 'INTEGRATION_KEY_ERROR', message: error.message, requestId } },
+        503,
+      );
     if (error instanceof HTTPException) {
       const codes: Record<number, string> = {
         400: 'BAD_REQUEST',
@@ -143,8 +150,10 @@ export function createApp() {
     }
   });
   authRoutes(app);
+  sourceConfigRoutes(app);
   readRoutes(app);
   writeRoutes(app);
+  integrationRoutes(app);
   calendarRoutes(app);
   scoringRoutes(app);
   researchRoutes(app);

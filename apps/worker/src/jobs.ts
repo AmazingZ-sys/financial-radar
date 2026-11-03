@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type postgres from 'postgres';
-import { sql } from '@radar/database';
-import { config } from '@radar/config';
+import { sql, readAIConfig, readNotificationConfig } from '@radar/database';
+import { config, fetchPublicHttps } from '@radar/config';
 import { createLogger } from '@radar/observability';
 import {
   TelegramProvider,
@@ -20,6 +20,7 @@ import {
 } from '@radar/ai';
 const json = (value: unknown) => sql.json(value as postgres.JSONValue);
 const log = createLogger('worker.jobs');
+const secureFetch: typeof fetch = (input, init) => fetchPublicHttps(String(input), init);
 function safeError(error: unknown) {
   return error instanceof Error
     ? error.message.replace(/https?:\/\/\S+/g, '[endpoint]').slice(0, 250)
@@ -33,7 +34,7 @@ export async function sendNotification(id: string) {
   const attemptId = randomUUID();
   const attemptNo = Number(row.attempts);
   const channel = (
-    await sql`SELECT provider,enabled FROM notification_channels WHERE id=${String(row.channel_id)}`
+    await sql`SELECT provider,enabled,data FROM notification_channels WHERE id=${String(row.channel_id)}`
   )[0];
   const payload = row.data as NotificationMessage & {
     body?: string;
@@ -55,17 +56,27 @@ export async function sendNotification(id: string) {
       error: 'SIMULATED：Fixture模板已处理，未向真实平台发送',
     };
   else {
-    const provider =
-      channel.provider === 'telegram'
-        ? new TelegramProvider(config.telegramBotToken, config.telegramChatId)
-        : channel.provider === 'feishu'
-          ? new FeishuProvider(config.feishuWebhookUrl)
-          : channel.provider === 'bark'
-            ? new BarkProvider(config.barkServerUrl)
-            : null;
-    result = provider
-      ? await provider.send(message)
-      : { accepted: false, retryable: false, error: '不支持的通知 Provider' };
+    try {
+      const credentials = readNotificationConfig(String(channel.provider), channel.data);
+      const provider =
+        channel.provider === 'telegram'
+          ? new TelegramProvider(credentials.botToken, credentials.chatId, secureFetch)
+          : channel.provider === 'feishu'
+            ? new FeishuProvider(credentials.webhookUrl, secureFetch)
+            : channel.provider === 'bark'
+              ? new BarkProvider(credentials.serverUrl, secureFetch)
+              : null;
+      result = provider
+        ? await provider.send(message)
+        : { accepted: false, retryable: false, error: '不支持的通知 Provider' };
+    } catch {
+      // A broken encrypted configuration requires administrator repair, not an abandoned lease.
+      result = {
+        accepted: false,
+        retryable: false,
+        error: '渠道配置无法解密或无效，请重新保存凭据后手动重试',
+      };
+    }
   }
   const cancelled =
     !channel?.enabled || config.dataMode === 'fixture' || message.dataMode === 'fixture';
@@ -88,10 +99,19 @@ export async function sendNotification(id: string) {
     'notification processed; SENT means platform accepted',
   );
 }
-function providerForMode(): AIProvider | null {
+function providerForMode(
+  effective: Awaited<ReturnType<typeof readAIConfig>> | null,
+): AIProvider | null {
   if (config.dataMode === 'fixture') return new FixtureAIProvider();
-  if (!config.aiApiKey || !config.aiModel) return null;
-  return new CompatibleAIProvider(config.aiBaseUrl, config.aiApiKey, config.aiModel);
+  if (!effective?.enabled || !effective.apiKey || !effective.model) return null;
+  return new CompatibleAIProvider(
+    effective.baseUrl,
+    effective.apiKey,
+    effective.model,
+    secureFetch,
+    effective.timeoutMs,
+    effective.jsonMode,
+  );
 }
 export class DeferredWorkError extends Error {
   constructor(
@@ -106,7 +126,10 @@ export async function analyzeEvent(id: string) {
   const eventRow = (await sql`SELECT data FROM events WHERE id=${id}`)[0];
   if (!eventRow) return;
   const event = eventRow.data as Record<string, unknown>;
-  const provider = providerForMode();
+  // Durable outbox rows can survive a deployment mode switch. Never send their evidence across modes.
+  if (event.dataMode !== config.dataMode) return;
+  const effective = config.dataMode === 'fixture' ? null : await readAIConfig();
+  const provider = providerForMode(effective);
   if (!provider) {
     await sql`UPDATE events SET data=jsonb_set(data,'{analysisStatus}','"DISABLED"') WHERE id=${id}`;
     return;
@@ -124,8 +147,13 @@ export async function analyzeEvent(id: string) {
       availableAt: new Date(source.first_seen_at as string).toISOString(),
     })),
   };
-  const cacheKey = analysisCacheKey(input, provider.model);
-  const reservedCost = config.dataMode === 'fixture' ? 0 : config.aiMaxCallCostUsd;
+  const identity = !effective
+    ? undefined
+    : createHash('sha256')
+        .update(JSON.stringify([effective.baseUrl, effective.apiKey, effective.jsonMode]))
+        .digest('hex');
+  const cacheKey = analysisCacheKey(input, provider.model, identity);
+  const reservedCost = effective?.maxCallCostUsd ?? 0;
   const reserve = await sql.begin(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(hashtext('financial-radar-ai-budget'))`;
     const cached = (
@@ -144,9 +172,15 @@ export async function analyzeEvent(id: string) {
     );
     if (priorAttempts >= 3) return { state: 'exhausted', runId: String(cached!.id), data: null };
     const usage = (
-      await tx`SELECT coalesce(sum((reservation->>'cost')::numeric),0)::float AS cost,count(*)::int AS calls FROM ai_analysis_runs CROSS JOIN LATERAL jsonb_array_elements(coalesce(data->'reservations','[]'::jsonb)) AS reservation WHERE (reservation->>'at')::timestamptz>=date_trunc('day',now() AT TIME ZONE 'UTC')`
+      await tx`SELECT coalesce(sum((reservation->>'cost')::numeric),0)::float AS cost,count(*)::int AS calls FROM ai_analysis_runs CROSS JOIN LATERAL jsonb_array_elements(coalesce(data->'reservations','[]'::jsonb)) AS reservation WHERE provider<>'fixture' AND (reservation->>'at')::timestamptz>=date_trunc('day',now() AT TIME ZONE 'UTC')`
     )[0]!;
-    if (Number(usage.cost) + reservedCost > config.aiDailyBudgetUsd || Number(usage.calls) >= 500)
+    if (
+      effective &&
+      (effective.dailyBudgetUsd <= 0 ||
+        reservedCost <= 0 ||
+        Number(usage.cost) + reservedCost > effective.dailyBudgetUsd ||
+        Number(usage.calls) >= 500)
+    )
       return { state: 'budget', runId: '', data: null };
     const runId = cached ? String(cached.id) : randomUUID();
     if (cached)

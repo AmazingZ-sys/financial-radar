@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import { z } from 'zod';
-import { SourceSchema, type DataSource } from '@radar/shared';
+import {
+  SourceSchema,
+  SourceCatalogSchema,
+  SourceInputSchema,
+  type DataSource,
+} from '@radar/shared';
 import { ElMessage } from 'element-plus';
 import { api, write } from '../lib/api';
 import { date, label, number, relative, safeUrl } from '../lib/format';
@@ -21,10 +26,52 @@ const selected = ref<DataSource | null>(null);
 const healthOpen = ref(false);
 const interval = ref(60);
 const busy = ref(false);
+const addOpen = ref(false);
+const addBusy = ref(false);
+const addError = ref('');
+const category = ref('');
+const categoryLabels: Record<string, string> = {
+  macro: '宏观政策',
+  finance: '财经市场',
+  technology: '科技动态',
+  world: '全球热点',
+  crypto: '加密资产',
+};
+const feed = reactive({
+  name: '',
+  feedUrl: '',
+  categories: ['finance'],
+  intervalSeconds: 300,
+  enabled: true,
+});
 const { data, isPending, error, refetch } = useQuery({
   queryKey: ['sources'],
   queryFn: () => api('/sources', {}, z.array(SourceSchema)),
 });
+const {
+  data: catalog,
+  isPending: catalogPending,
+  error: catalogError,
+  refetch: refreshCatalog,
+} = useQuery({
+  queryKey: ['source-catalog'],
+  queryFn: () => api('/sources/catalog', {}, z.array(SourceCatalogSchema)),
+});
+const live = computed(
+  () => (data.value?.meta?.dataMode ?? catalog.value?.meta?.dataMode) === 'live',
+);
+const filteredSources = computed(
+  () =>
+    data.value?.data.filter(
+      (source) => !category.value || source.categories.includes(category.value),
+    ) ?? [],
+);
+const filteredCatalog = computed(
+  () =>
+    catalog.value?.data.filter(
+      (source) => !category.value || source.categories.includes(category.value),
+    ) ?? [],
+);
 const {
   data: health,
   isPending: healthPending,
@@ -43,9 +90,47 @@ async function toggle(source: DataSource) {
   try {
     await write(`/sources/${source.id}`, 'PATCH', { enabled: !source.enabled });
     await client.invalidateQueries({ queryKey: ['sources'] });
+    await client.invalidateQueries({ queryKey: ['source-catalog'] });
     ElMessage.success(source.enabled ? '数据源已停用' : '数据源已启用');
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '操作失败');
+  }
+}
+async function toggleCatalog(source: z.infer<typeof SourceCatalogSchema>) {
+  try {
+    await write(`/sources/${source.id}`, 'PATCH', { enabled: !source.enabled });
+    await client.invalidateQueries({ queryKey: ['sources'] });
+    await client.invalidateQueries({ queryKey: ['source-catalog'] });
+    ElMessage.success(source.enabled ? '数据源已停用' : '数据源已启用');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '操作失败');
+  }
+}
+async function addFeed() {
+  addBusy.value = true;
+  addError.value = '';
+  try {
+    const input = SourceInputSchema.safeParse(feed);
+    if (!input.success)
+      throw new Error(
+        '请填写名称、无查询参数或片段的 HTTPS 订阅地址，至少选择一个分类，轮询周期不少于 60 秒。',
+      );
+    await write('/sources', 'POST', input.data);
+    addOpen.value = false;
+    Object.assign(feed, {
+      name: '',
+      feedUrl: '',
+      categories: ['finance'],
+      intervalSeconds: 300,
+      enabled: true,
+    });
+    await client.invalidateQueries({ queryKey: ['sources'] });
+    await client.invalidateQueries({ queryKey: ['source-catalog'] });
+    ElMessage.success('新闻订阅已添加，Worker 将按轮询计划采集');
+  } catch (err) {
+    addError.value = err instanceof Error ? err.message : '添加失败';
+  } finally {
+    addBusy.value = false;
   }
 }
 function inspect(source: DataSource) {
@@ -70,15 +155,46 @@ async function saveInterval() {
 }
 </script>
 <template>
-  <div class="page">
+  <div class="page sources-page">
     <div class="page-heading">
       <div>
         <div class="eyebrow">SOURCE NETWORK</div>
         <h1>数据源<span class="title-dot">.</span></h1>
         <p>看清信息从哪里来，多久更新，以及当前是否可信可用。</p>
       </div>
-      <button class="btn" @click="refetch()">
-        <RadarIcon name="refresh" :size="15" />刷新状态
+      <div class="integration-button-group">
+        <button
+          class="btn"
+          @click="
+            refetch();
+            refreshCatalog();
+          "
+        >
+          <RadarIcon name="refresh" :size="15" />刷新状态</button
+        ><button
+          class="btn btn-primary"
+          :disabled="!live"
+          @click="
+            addError = '';
+            addOpen = true;
+          "
+        >
+          <RadarIcon name="plus" :size="15" />新增新闻订阅
+        </button>
+      </div>
+    </div>
+    <div class="source-category-filter" aria-label="数据源分类">
+      <button :class="{ active: !category }" :aria-pressed="!category" @click="category = ''">
+        全部来源
+      </button>
+      <button
+        v-for="(name, key) in categoryLabels"
+        :key="key"
+        :class="{ active: category === key }"
+        :aria-pressed="category === key"
+        @click="category = key"
+      >
+        {{ name }}
       </button>
     </div>
     <div class="summary-strip">
@@ -91,11 +207,11 @@ async function saveInterval() {
     <DataState
       :loading="isPending"
       :error="error"
-      :empty="data?.data.length === 0"
-      empty-text="尚未注册数据源"
+      :empty="filteredSources.length === 0"
+      empty-text="当前分类尚无已注册数据源，可查看下方来源目录"
       @retry="refetch()"
       ><div class="source-grid">
-        <section v-for="source in data?.data" :key="source.id" class="panel source-card">
+        <section v-for="source in filteredSources" :key="source.id" class="panel source-card">
           <div class="source-card-top">
             <span class="source-avatar"
               ><RadarIcon
@@ -125,7 +241,10 @@ async function saveInterval() {
             <StatusBadge :value="source.enabled ? source.status : 'DISABLED'" /><StatusBadge
               v-if="source.mode === 'fixture'"
               value="fixture"
-            /><span class="badge">{{ source.delayLabel }}</span>
+            /><span v-for="value in source.categories" :key="value" class="badge">{{
+              categoryLabels[value] ?? value
+            }}</span
+            ><span class="badge">{{ source.delayLabel }}</span>
           </div>
           <dl class="source-stats">
             <div>
@@ -164,12 +283,147 @@ async function saveInterval() {
           </div>
         </section></div
     ></DataState>
+    <section
+      class="panel detail-panel source-catalog-panel"
+      aria-labelledby="source-catalog-heading"
+    >
+      <div class="panel-heading">
+        <div>
+          <span class="section-number">＋</span>
+          <h2 id="source-catalog-heading">来源目录</h2>
+        </div>
+        <span class="muted text-xs">宏观 · 财经 · 科技 · 全球热点</span>
+      </div>
+      <p class="muted source-catalog-intro">
+        内置来源在 live Worker 启动后注册。你也可以添加有权使用的公共 RSS / Atom
+        订阅，新闻进入热点与规则处理流程。
+      </p>
+      <p v-if="!live" class="integration-mode-note">
+        当前为 Fixture 演练模式：可浏览真实来源目录；添加订阅与真实采集需要部署切换至
+        DATA_MODE=live。
+      </p>
+      <DataState
+        :loading="catalogPending"
+        :error="catalogError"
+        :empty="filteredCatalog.length === 0"
+        empty-text="当前分类暂无内置来源"
+        @retry="refreshCatalog()"
+      >
+        <div class="source-catalog-list">
+          <article v-for="source in filteredCatalog" :key="source.id" class="source-catalog-row">
+            <div class="source-catalog-identity">
+              <h3>{{ source.name }}</h3>
+              <div class="project-tags">
+                <span v-for="value in source.categories" :key="value" class="badge">{{
+                  categoryLabels[value] ?? value
+                }}</span
+                ><span v-if="source.requiresConfiguration" class="badge badge-unknown"
+                  >需配置凭据</span
+                >
+              </div>
+            </div>
+            <div class="source-catalog-description">
+              <p>{{ source.description }}</p>
+              <span>{{ source.licenseStatus }} · {{ source.intervalSeconds }} 秒轮询</span>
+            </div>
+            <div class="source-catalog-actions">
+              <a
+                v-if="safeUrl(source.docsUrl)"
+                class="text-link"
+                :href="safeUrl(source.docsUrl)"
+                target="_blank"
+                rel="noopener noreferrer"
+                >来源说明<RadarIcon name="external" :size="12" /></a
+              ><button
+                v-if="live && source.installed"
+                class="text-link"
+                @click="toggleCatalog(source)"
+              >
+                {{ source.enabled ? '停用来源' : '启用来源' }}</button
+              ><span v-else class="muted text-xs">{{
+                live ? '等待 Worker 注册' : 'Live 来源'
+              }}</span>
+            </div>
+          </article>
+        </div>
+      </DataState>
+    </section>
     <div class="research-notice">
       <RadarIcon name="shield" :size="17" />
       <p>
         未配置密钥的数据源不会伪装在线。限流、超时与熔断会保留错误记录，恢复后继续使用已有游标。
       </p>
     </div>
+    <el-dialog
+      v-model="addOpen"
+      title="新增新闻订阅"
+      width="640px"
+      align-center
+      :close-on-click-modal="false"
+    >
+      <form class="form-grid integration-form" @submit.prevent="addFeed">
+        <p class="muted full">
+          支持 RSS 2.0 / Atom。保存原标题、摘要、原文链接与来源时间，供个人研究使用。
+        </p>
+        <div class="form-field full">
+          <label for="feed-name">订阅名称</label
+          ><input
+            id="feed-name"
+            v-model="feed.name"
+            maxlength="100"
+            placeholder="例如：财经与政策观察"
+            required
+          />
+        </div>
+        <div class="form-field full">
+          <label for="feed-url">RSS / Atom 地址</label
+          ><input
+            id="feed-url"
+            v-model="feed.feedUrl"
+            type="url"
+            required
+            placeholder="https://news.example.com/feed.xml"
+          /><span class="field-hint"
+            >仅限不含凭据、查询参数或片段的公开 HTTPS
+            订阅；地址保存后不可替换，变更时请新建来源。</span
+          >
+        </div>
+        <fieldset class="integration-fieldset full">
+          <legend>内容分类（至少选择一项）</legend>
+          <div class="checkbox-list">
+            <label v-for="(name, key) in categoryLabels" :key="key"
+              ><input v-model="feed.categories" type="checkbox" :value="key" />{{ name }}</label
+            >
+          </div>
+        </fieldset>
+        <div class="form-field">
+          <label for="feed-interval">新闻轮询周期（秒）</label
+          ><input
+            id="feed-interval"
+            v-model.number="feed.intervalSeconds"
+            type="number"
+            min="60"
+            max="86400"
+            required
+          /><span class="field-hint">建议 300 秒或更长，遵守来源的更新周期与使用条款。</span>
+        </div>
+        <div class="form-field">
+          <label for="feed-enabled">保存后状态</label
+          ><select id="feed-enabled" v-model="feed.enabled">
+            <option :value="true">启用采集</option>
+            <option :value="false">暂不采集</option>
+          </select>
+        </div>
+        <p v-if="addError" class="form-error full" role="alert">{{ addError }}</p>
+        <div class="dialog-actions full">
+          <button class="btn" type="button" :disabled="addBusy" @click="addOpen = false">
+            取消</button
+          ><button class="btn btn-primary" type="submit" :disabled="addBusy || !live">
+            {{ addBusy ? '添加中…' : '添加订阅' }}
+          </button>
+        </div>
+      </form>
+    </el-dialog>
     <el-dialog
       v-model="healthOpen"
       :title="selected?.name ?? '数据源健康'"
@@ -183,7 +437,7 @@ async function saveInterval() {
             id="source-interval"
             v-model="interval"
             type="number"
-            min="10"
+            :min="selected.custom ? 60 : 10"
             max="86400"
           /><button class="btn btn-primary" :disabled="busy" @click="saveInterval">保存周期</button
           ><a
@@ -195,6 +449,9 @@ async function saveInterval() {
             >官方文档<RadarIcon name="external" :size="13"
           /></a>
         </div>
+        <p v-if="selected.feedUrl" class="source-feed-url muted">
+          订阅地址：{{ selected.feedUrl }}
+        </p>
         <div class="project-tags">
           <span v-for="capability in selected.capabilities" :key="capability" class="badge">{{
             label(capability)

@@ -14,6 +14,7 @@
     "@hono/zod-openapi": "^1.2.2",
     "@radar/shared": "workspace:*",
     "@radar/config": "workspace:*",
+    "@radar/connectors": "workspace:*",
     "@radar/database": "workspace:*",
     "@radar/signals": "workspace:*",
     "@radar/observability": "workspace:*",

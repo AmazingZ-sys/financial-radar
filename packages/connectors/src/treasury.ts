@@ -70,7 +70,7 @@ export class TreasuryDailyConnector implements Connector {
     officialUrl: 'https://home.treasury.gov/treasury-daily-interest-rate-xml-feed',
     transport: 'pull',
     mode: 'live',
-    categories: ['宏观', '美国国债'],
+    categories: ['macro', 'finance', '宏观', '美国国债'],
     trust: 0.99,
     pollIntervalSeconds: 3600,
     licenseStatus: 'official-public',

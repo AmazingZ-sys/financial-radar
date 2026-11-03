@@ -10,6 +10,7 @@ import { useAuth } from '../stores/auth';
 import { useUi } from '../stores/ui';
 import DataState from '../components/DataState.vue';
 import RadarIcon from '../components/RadarIcon.vue';
+import AiIntegrationPanel from '../components/AiIntegrationPanel.vue';
 interface SystemStatus {
   version: string;
   commitSha: string;
@@ -287,12 +288,13 @@ function queueTotal(value: number | Record<string, number> | null | undefined) {
               }}</span>
             </div>
             <p class="muted text-xs mt-5">
-              完整密钥只保存在服务器环境。修改与轮换后需重启对应服务。
+              AI 与通知凭据可在控制台加密保存；其他数据源凭据仍由服务器环境管理。
             </p>
           </section>
         </div></template
       ></DataState
     >
+    <AiIntegrationPanel />
     <div class="settings-grid">
       <section class="panel detail-panel">
         <div class="panel-heading">

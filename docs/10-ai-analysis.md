@@ -4,7 +4,7 @@
 
 ## 1. Provider 与输出
 
-统一 `analyze(input, options)` 抽象，支持未配置的 disabled Provider、明确标注的 Fixture Provider，以及可配置 OpenAI-compatible HTTP Provider。配置 base URL、model、timeout、最大输出 token 和预算仅服务端可读；自定义 URL 必须由运维提供，防止 API SSRF。
+统一 `analyze(input, options)` 抽象，支持未配置的 disabled Provider、明确标注的 Fixture Provider，以及可配置 OpenAI-compatible HTTP Provider。管理员可在系统页配置公开 HTTPS 中转地址、model、timeout、JSON 模式、API Key 和预算；最大输出 token 由服务端限制。密钥加密存储且不回显，环境变量作为初始默认，后续任务读取数据库覆盖配置。动态地址经过 DNS 校验与固定地址出站，阻断私网、凭据 URL 和重定向。详细契约见 [25 可配置集成](25-configurable-integrations.md)。
 
 结构化输出经 Zod 严格校验：summary、classification、relatedAssets、keyFacts（fact/inference/unsupported 标签）、evidenceIds、possibleImpact、uncertainty、riskWarnings、suggestedPriority、modelVersion、promptVersion。事实要关联输入中已给出的 evidenceIds；未知 ID、未知 URL、未提供的合约地址或参与条件拒绝或剥离并标记需人工复核。输出优先级是建议，不能覆盖确定性风险规则。
 
@@ -14,7 +14,7 @@ Prompt 版本入 Git，输入中来源正文作为不可信引用，要求禁止
 
 ## 3. 异步、缓存与降级
 
-事件持久化后以 eventId + evidence hash + model + promptVersion 为缓存键。analysis 队列指数退避、有限重试。未配置、超时、无效输出、预算超额时展示 DISABLED/FAILED/DEFERRED，核心采集/评分/通知继续。P0/P1 确定事件先发摘要，后续 AI 解读须单独遵循冷却和补充消息配置，不能反复通知。低优先级可仅分类摘要，日报异步按 UTC/用户时区窗口生成。
+事件持久化后以 eventId + evidence hash + model + promptVersion + 服务配置身份摘要为缓存键，切换中转地址或密钥不会复用原服务结果。analysis 队列指数退避、有限重试，模式不匹配的遗留任务直接跳过。未配置、超时、无效输出、预算超额时展示 DISABLED/FAILED/DEFERRED，核心采集/评分/通知继续。P0/P1 确定事件先发摘要，后续 AI 解读须单独遵循冷却和补充消息配置，不能反复通知。低优先级可仅分类摘要，日报异步按 UTC/用户时区窗口生成。
 
 ## 4. 成本与用量
 

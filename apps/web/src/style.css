@@ -4040,3 +4040,237 @@ code,
 .event-metrics-details[open] > summary > svg {
   transform: rotate(90deg);
 }
+
+/* Integration controls share the console's compact, evidence-oriented layout. */
+.integration-panel {
+  margin-top: 22px;
+  border-top: 2px solid var(--accent);
+}
+.integration-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 5px;
+  font:
+    11px 'SFMono-Regular',
+    Consolas,
+    monospace;
+}
+.integration-context {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 24px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.integration-context p {
+  margin: 0;
+}
+.integration-form {
+  align-items: start;
+}
+.field-hint {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.8;
+}
+.integration-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.integration-checkbox input,
+.integration-fieldset input {
+  accent-color: var(--accent);
+  width: 13px;
+  height: 13px;
+}
+.integration-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 19px;
+}
+.integration-actions > div,
+.integration-button-group,
+.channel-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.integration-result {
+  padding: 11px 13px;
+  background: var(--surface-raised);
+  border-left: 2px solid var(--teal);
+  color: var(--teal);
+  font-size: 11px;
+  margin: 0;
+}
+.integration-security {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin: 19px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.integration-security svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.source-category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 20px 0;
+}
+.source-category-filter button {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 12px;
+  font-size: 11px;
+}
+.source-category-filter button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.source-catalog-panel {
+  margin-top: 25px;
+}
+.source-catalog-intro {
+  font-size: 11px;
+  margin: 0 0 19px;
+}
+.integration-mode-note {
+  padding: 11px 13px;
+  margin-bottom: 18px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.source-catalog-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(180px, 1.7fr) minmax(90px, 0.5fr);
+  gap: 22px;
+  padding: 18px 0;
+  border-top: 1px solid var(--border-soft);
+  align-items: center;
+}
+.source-catalog-identity h3 {
+  font-size: 12px;
+  margin: 0 0 7px;
+}
+.source-catalog-description p {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0 0 5px;
+}
+.source-catalog-description > span {
+  font-size: 9px;
+  color: var(--muted);
+}
+.source-catalog-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+}
+.source-catalog-actions .text-link {
+  font-size: 10px;
+}
+.integration-fieldset {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.integration-fieldset legend {
+  margin-bottom: 11px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.integration-fieldset label {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.source-feed-url {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+@media (max-width: 760px) {
+  .integration-context,
+  .integration-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .integration-actions > div {
+    width: 100%;
+  }
+  .integration-actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .source-catalog-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .source-catalog-actions {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .source-category-filter {
+    gap: 6px;
+  }
+  .source-category-filter button {
+    padding: 6px 10px;
+  }
+  .integration-button-group {
+    flex-wrap: wrap;
+  }
+  .source-catalog-panel .panel-heading {
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+}
+@media (max-width: 760px) {
+  .sources-page .page-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sources-page .integration-button-group {
+    width: 100%;
+  }
+  .sources-page .integration-button-group > .btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .integration-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.integration-key-recovery {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 17px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.integration-key-recovery p {
+  margin: 0 0 13px;
+}

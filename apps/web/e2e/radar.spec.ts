@@ -89,7 +89,8 @@ test('unconfigured notification credentials are shown without exposing secrets',
   ).toBeVisible();
   await page.getByRole('link', { name: '系统管理', exact: true }).click();
   await expect(page.getByRole('heading', { name: '凭据配置状态' })).toBeVisible();
-  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'AI Provider 配置' })).toBeVisible();
+  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
 });
 
 test('calendar separates unknown values from publication confirmation', async ({ page }) => {

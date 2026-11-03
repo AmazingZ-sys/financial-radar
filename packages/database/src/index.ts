@@ -23,3 +23,4 @@ export async function closeDatabase() {
 export { schema };
 export * from './password.js';
 export * from './seed.js';
+export * from './integrations.js';
