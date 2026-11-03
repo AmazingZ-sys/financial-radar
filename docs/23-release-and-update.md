@@ -1,6 +1,6 @@
 # 自动发布与服务器更新
 
-配置更新：2026-11-03。仓库为 `AmazingZ-sys/financial-radar`；前端迁移目标为 Vercel，正式域名继续使用 <https://radar.amazingzsys.site>；API 为 <https://api.radar.amazingzsys.site>。实际版本、镜像摘要和运行结果以 [GitHub Releases](https://github.com/AmazingZ-sys/financial-radar/releases) 与 [Actions](https://github.com/AmazingZ-sys/financial-radar/actions) 为准。Vercel 项目、Secrets、真实部署和 DNS 切换均需单独完成验收，仓库配置不代表已经上线。
+配置更新：2026-11-03。仓库为 `AmazingZ-sys/financial-radar`；前端已发布至 Vercel，正式域名继续使用 <https://radar.amazingzsys.site>；API 为 <https://api.radar.amazingzsys.site>。实际版本、镜像摘要和运行结果以 [GitHub Releases](https://github.com/AmazingZ-sys/financial-radar/releases) 与 [Actions](https://github.com/AmazingZ-sys/financial-radar/actions) 为准。Vercel 项目、Secrets 与 v1.1.1 实际部署已完成，生产 [Actions run 41586393459](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41586393459) 全部成功；DNS 已由用户切换，正式域名 HTTPS 与 Vercel 静态资源验收通过。
 
 ## 原托管平台的历史发布
 
@@ -19,9 +19,9 @@ Vercel 发布失败时可重跑失败的 job，无需再造一个版本。Releas
 ## Vercel 项目配置与最终域名切换
 
 1. 在实际 Vercel 账户/团队创建或选择本项目，Root Directory 设为仓库根目录 `.`，Node.js 设为 24.x；使用根 `vercel.json` 的 Vite、`pnpm install --frozen-lockfile`、`pnpm --filter @radar/web build` 与 `apps/web/dist` 配置。关闭 Git 自动部署，由 Actions 发布。
-2. 将实际项目的组织/团队 ID、Project ID 和有权发布该项目的 Token，分别写入 GitHub production Environment 或仓库的 `VERCEL_ORG_ID`、`VERCEL_PROJECT_ID`、`VERCEL_TOKEN` Secrets。保留公开 `VITE_API_BASE_URL` Variable；不要将后端数据库、Session、AI 或通知密钥配置到 Web 构建环境。当前尚未据实际项目验证这些配置。
-3. 在包含迁移配置的新 Release 中等待 verify、镜像、清单和 vercel job 成功；检查真实部署 URL 的 `/login`、深层路由、资源加载、安全头、缓存及前端产物 API 地址/版本/SHA。临时 `vercel.app` 与生产 Origin 不同，此阶段只验静态部署。
-4. 由用户最后在 Vercel 项目添加 `radar.amazingzsys.site` 并按项目显示的实际 DNS 记录修改映射，等待域名校验和 HTTPS 生效。不要预设 DNS 目标，也不要仅凭已配置文件宣布域名迁移成功。切换完成后验证正式域名的登录、`/auth/me`、写请求与退出。
+2. 将实际项目的组织/团队 ID、Project ID 和有权发布该项目的 Token，分别写入 GitHub production Environment 或仓库的 `VERCEL_ORG_ID`、`VERCEL_PROJECT_ID`、`VERCEL_TOKEN` Secrets。保留公开 `VITE_API_BASE_URL` Variable；不要将后端数据库、Session、AI 或通知密钥配置到 Web 构建环境。2026-11-03 已实际创建 `Amazing's projects / financial-radar` 项目并配置这三项仓库 Secrets；项目使用 Node 24.x。专用 Token 经用户授权，限定当前团队，有效期至 2027-11-03，到期前需轮换。
+3. 在包含迁移配置的新 Release 中等待 verify、镜像、清单和 vercel job 成功；检查真实部署 URL 的 `/login`、深层路由、资源加载、安全头、缓存及静态产物 API 地址，并核对部署收据的版本/SHA。v1.1.1 已发布至 [financial-radar.vercel.app](https://financial-radar.vercel.app)，上述静态 HTTP 验收已通过；部署收据与 Vercel READY 状态均对应 `918f038b30e70a058864bf4600f301bf4828f41d`。临时 `vercel.app` 与生产 Origin 不同，此阶段只验静态部署。
+4. 已在 Vercel 项目将 `radar.amazingzsys.site` 绑定到 Production。2026-11-03 用户完成 DNS 切换，权威服务器 `heron.dnspod.net` 返回 `radar` 的 CNAME → `6ad0a87c00f0d82f.vercel-dns-017.com`；[Vercel Domains](https://vercel.com/amazings-projects-6f99eda0/financial-radar/settings/domains) 显示 Valid Configuration。正式域名 HTTPS、入口/深层路由/JS/favicon 返回 200，响应实际由 Vercel 提供。API 域名不变，`/health` 与 `/ready` 返回 200，匿名 `/auth/me` 按预期返回 401，凭据 CORS 允许精确正式 Origin。管理员实际登录、写请求与退出需使用用户的生产凭据另行验收，本次未执行。
 
 前端正式域名仍为 `https://radar.amazingzsys.site`；后端服务器仍为 `https://api.radar.amazingzsys.site`。前端直接请求 API，服务器保持 `WEB_ORIGIN=https://radar.amazingzsys.site`、`SECURE_COOKIE=true`、`COOKIE_SAME_SITE=Lax`。两者是同一注册域下的不同 Origin，不需要 Vercel API 代理；临时预览域名不加入生产 CORS/Origin 允许名单，不修改 CSRF/Cookie 策略。前端发布不代表后端已部署；完整首装步骤见 [api.radar.amazingzsys.site 后端部署](24-server-api-radar-amazingzsys-site.md)。
 

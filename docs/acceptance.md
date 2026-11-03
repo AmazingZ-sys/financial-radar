@@ -17,7 +17,15 @@
 - `pnpm security:check`、`pnpm audit --prod --audit-level high`、actionlint 与 `git diff --check` 均通过。
 - 使用明确标记为本地验证的临时项目设置、无云端 Token，执行 `vercel build --prod` 成功。Build Output v3 先匹配真实静态文件再回退 SPA；21 项资源、入口及 favicon 齐全，生产 API 地址正确、安全头和资源缓存保留，无 Functions 或 sourcemap。临时设置与产物移至 `.local/vercel-offline-validation`，未把本地构建描述为云端发布。
 
-日志位于忽略提交的 `.local/vercel-{install,typecheck,lint,format,unit,build,integration,security,audit,offline-build}.log`。截至本次本地验收，GitHub 仅配置旧 Netlify Secrets，尚无 Vercel 项目链接和发布凭据，未声称 Vercel 实际部署或云端 Actions 成功。需完成实际项目/Secrets 配置、首次新版本发布及静态 HTTP 验收；域名映射由用户最后修改，切换后再验证正式域名登录与写请求。此前章节的 Netlify 发布结果保留为历史证据。
+日志位于忽略提交的 `.local/vercel-{install,typecheck,lint,format,unit,build,integration,security,audit,offline-build}.log`。本地验收后，经用户明确授权创建团队范围专用 Token（有效期至 2027-11-03），并加密保存 GitHub 的 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID`。实际项目 `Amazing's projects / financial-radar` 使用 Node 24.x 和仓库根目录，Vercel Production 环境仅增加公开 API 地址。此前章节的 Netlify 发布结果保留为历史证据。
+
+[迁移 PR #1](https://github.com/AmazingZ-sys/financial-radar/pull/1) 的 [CI 41585827434](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41585827434) 全部通过后合并至 main；[正式 Actions 41586393459](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41586393459) 的 verify、release、API/Worker images、image-manifest、vercel 全部成功，发布 [v1.1.1](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.1.1)。Vercel 实际部署 `dpl_AHMLzVnhGQwzBNaB7xVinUiJo2gM` 为 READY / production，Release 与部署 metadata 对应 commit `918f038b30e70a058864bf4600f301bf4828f41d`；Actions 的 `vercel-v1.1.1` artifact 包含同一 URL/版本/SHA 收据。
+
+[生产别名](https://financial-radar.vercel.app) 的 `/login`、深层项目路由、入口 JS 和 favicon 均 HTTP 200；深层路由与入口返回同一 HTML，JS 为正确 MIME、immutable 一年缓存，HTML 含原 CSP/nosniff/referrer 头，实际 JS 使用生产 API 地址。HTTP 与云端收据保存在 `.local/vercel-http-receipt.json`、`.local/vercel-cloud-receipt.json` 和 `.local/vercel-ci-receipt/`。浏览器另行只读验证登录页，未登录或修改生产数据。
+
+Vercel 已绑定 `radar.amazingzsys.site` 到 Production。用户随后完成 DNS 切换：权威服务器 `heron.dnspod.net` 实际返回 `radar` 的 CNAME → `6ad0a87c00f0d82f.vercel-dns-017.com`，Vercel 页面显示 Valid Configuration。正式域名 `/login`、深层项目路由、入口 JS 与 favicon 经有效 HTTPS 返回 200，响应 `Server: Vercel` 与 `X-Vercel-Id` 确认已由新托管提供；SPA、安全头、哈希缓存和生产 API 地址检查通过。API `/health`、`/ready` 返回 200；匿名 `/api/v1/auth/me` 返回预期 401，均允许精确正式 Origin 和 credentials CORS。收据为 `.local/vercel-http-receipt.json`、`.local/vercel-domain-api-receipt.json`，Vercel 别名静态收据另存 `.local/vercel-alias-http-receipt.json`。
+
+临时 Vercel 域名未加入生产 Origin；本次未使用管理员生产凭据登录、写入或退出，不声称完整生产会话验收已完成。镜像发布亦不表示用户服务器已更新。专用发布 Token 的本地中转文件在 Secrets 配置和部署验收后删除，不提交或留在浏览器业务存储。
 
 ## 交付范围
 
@@ -34,7 +42,7 @@
 | AI        | Provider、JSON/证据校验、预算预留/UTC日限额、缓存/退避/降级、人工复核                                        | 未配置真实模型密钥；费用是保守预留与估算；语义真实性仍需来源核验与人工研究                               |
 | 日历/日报 | PG日历、可靠来源管理员导入、未知值/发布确认、UTC日摘要接口                                                   | Live没有自动官方日历源时为空；日报从已存事实/已有分析生成，无自动每日外发订阅                            |
 | 通知      | Telegram/飞书/Bark，渠道测试、启停、重试、模板、冷却/时段、尝试审计                                          | Fixture永不外发；SENT只表示平台接受；响应丢失时不能保证第三方exactly-once或用户已读                      |
-| 运维      | Compose、宿主Nginx模板、版本/摘要部署、备份/新库恢复/应用回滚、GHCR+Netlify同workflow发布链                  | 目标生产服务器与TLS由用户配置；GHCR/Netlify发布已完成                                                    |
+| 运维      | Compose、宿主Nginx模板、版本/摘要部署、备份/新库恢复/应用回滚、GHCR+Vercel同workflow发布链                   | 目标生产服务器与TLS由用户配置；GHCR/Vercel发布已完成，前端DNS已由用户切换并验证                          |
 
 ## 已执行质量门禁
 

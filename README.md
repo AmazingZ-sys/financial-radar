@@ -2,7 +2,7 @@
 
 面向早期金融与链上信号的研究工作台。保存“当时看到了什么”的原始证据，分别计算机会和风险，依照可解释规则预警。**默认运行明确标记的 Fixture 模式**，不把合成项目、未知行情或日度数据描述成实时投资机会。
 
-生产域名配置：前端 `https://radar.amazingzsys.site`，API `https://api.radar.amazingzsys.site/api/v1`。前端迁移目标为 Vercel，项目与 Secrets 的配置、实际部署验收和用户最后执行的域名映射见 [发布说明](docs/23-release-and-update.md)；旧 Netlify 上线记录不代表 Vercel 已发布。Ubuntu 22.04/24.04 服务器首次安装、DNS、HTTPS、生产配置与更新步骤见 [实际域名部署指南](docs/24-server-api-radar-amazingzsys-site.md)。
+生产域名配置：前端 `https://radar.amazingzsys.site`，API `https://api.radar.amazingzsys.site/api/v1`。前端 v1.1.1 已发布至 [Vercel](https://financial-radar.vercel.app)，Actions 与静态部署验收通过；正式域名 DNS 已由用户切换并验证，项目配置及迁移记录见 [发布说明](docs/23-release-and-update.md)。Ubuntu 22.04/24.04 服务器首次安装、DNS、HTTPS、生产配置与更新步骤见 [实际域名部署指南](docs/24-server-api-radar-amazingzsys-site.md)。
 
 已经运行的服务器升级到本轮 AI/通知可配置与多领域新闻版本，见 [v1.1.0 更新步骤](docs/27-v1.1-server-update.md)。
 
