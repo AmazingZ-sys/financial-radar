@@ -6,11 +6,11 @@
 
 采用 pnpm workspace 模块化单体：Vue 3 + TypeScript Strict + Vite 管理端，Hono HTTP API，独立 Node.js LTS Worker。PostgreSQL 是业务事实来源，Drizzle 管理模式与版本迁移；Redis 用于 BullMQ 队列、定时协调、限流及短期状态。API 与 Worker 使用同一版本领域包，可以独立部署和扩容。禁止在 API 入口堆积业务逻辑。
 
-前端托管 Netlify，API/Worker/PostgreSQL/Redis 在 Docker Compose，宿主机 Nginx 代理 API。Web 不接触第三方密钥，所有采集、AI、通知均在服务端。默认单管理员，实体预留 ownerId，鉴权与查询不能跨用户。
+前端托管 Vercel，由同一 GitHub Actions 发布质量链上传预构建静态资源；API/Worker/PostgreSQL/Redis 在 Docker Compose，宿主机 Nginx 代理 API。Web 通过原 API 域名直接请求后端，不接触第三方密钥，所有采集、AI、通知均在服务端。前端域名沿用 `radar.amazingzsys.site`，最终 DNS 映射由用户完成。默认单管理员，实体预留 ownerId，鉴权与查询不能跨用户。
 
 ```mermaid
 flowchart LR
-  Web[Vue / Netlify] --> Nginx[宿主机 Nginx]
+  Web[Vue / Vercel] --> Nginx[宿主机 Nginx]
   Nginx --> API[Hono API]
   API --> PG[(PostgreSQL)]
   API --> Redis[(Redis / BullMQ)]

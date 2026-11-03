@@ -2,7 +2,7 @@
 
 面向早期金融与链上信号的研究工作台。保存“当时看到了什么”的原始证据，分别计算机会和风险，依照可解释规则预警。**默认运行明确标记的 Fixture 模式**，不把合成项目、未知行情或日度数据描述成实时投资机会。
 
-生产域名配置：前端 `https://radar.amazingzsys.site`，API `https://api.radar.amazingzsys.site/api/v1`。Ubuntu 22.04/24.04 服务器首次安装、DNS、HTTPS、生产配置与更新步骤见 [实际域名部署指南](docs/24-server-api-radar-amazingzsys-site.md)。
+生产域名配置：前端 `https://radar.amazingzsys.site`，API `https://api.radar.amazingzsys.site/api/v1`。前端迁移目标为 Vercel，项目与 Secrets 的配置、实际部署验收和用户最后执行的域名映射见 [发布说明](docs/23-release-and-update.md)；旧 Netlify 上线记录不代表 Vercel 已发布。Ubuntu 22.04/24.04 服务器首次安装、DNS、HTTPS、生产配置与更新步骤见 [实际域名部署指南](docs/24-server-api-radar-amazingzsys-site.md)。
 
 已经运行的服务器升级到本轮 AI/通知可配置与多领域新闻版本，见 [v1.1.0 更新步骤](docs/27-v1.1-server-update.md)。
 
@@ -17,7 +17,7 @@
 - 资产身份去重、相似文本聚合、项目阶段、独立机会/风险评分及权重版本、历史指标差分信号、已核验参与窗口时钟告警、规则冷却/静默时段、按可知时间回放。
 - AI Provider 抽象、结构/证据验证、预算预留、缓存、重试/降级、人工复核；每日摘要接口只汇总已存事实与已有分析，不等待同步 AI。
 - Telegram、飞书、Bark 统一渠道，持久化尝试和失败重试。`SENT` 表示平台接受；Fixture 处理记录为模拟取消，绝不发送真实通知。
-- GHCR/semantic-release/Netlify 工作流，独立 API/Worker 镜像、生产 Compose、宿主机 Nginx、备份/恢复/更新/回滚脚本。
+- GHCR/semantic-release/Vercel 工作流，独立 API/Worker 镜像、生产 Compose、宿主机 Nginx、备份/恢复/更新/回滚脚本。
 
 真实 Telegram/LLM/付费数据仍需凭据与授权，不能把本地测试视为这些外部服务已开通。前端发布和自动更新说明见 [自动发布与服务器更新](docs/23-release-and-update.md)。全链无遗漏扫描、付费黄金/原油实时数据、真实 ORDI 历史收益回测也不是本次验证结论；逐项边界见 [风险与依赖](docs/18-risks-and-dependencies.md)。
 
@@ -108,7 +108,7 @@ node apps/worker/dist/health.js
 
 ## 发布与生产部署
 
-提交遵循 Conventional Commits：`fix` → patch、`feat` → minor、breaking change → major。`.github/workflows/ci-release.yml` 在同一工作流内按依赖运行验证、semantic-release、GHCR 镜像和 Netlify，不依赖 GITHUB_TOKEN 创建的 Tag/Release 触发第二个普通工作流。发布状态和配置见 [自动发布与服务器更新](docs/23-release-and-update.md)。真实 API/Worker 镜像及独立生产 Compose 已在本地验收通过，包含四服务健康、迁移/采集幂等、容器替换后持久化与备份恢复；目标服务器由运维独立部署。
+提交遵循 Conventional Commits：`fix` → patch、`feat` → minor、breaking change → major。`.github/workflows/ci-release.yml` 在同一工作流内按依赖运行验证、semantic-release、GHCR 镜像、Release 镜像清单和 Vercel，不依赖 GITHUB_TOKEN 创建的 Tag/Release 触发第二个普通工作流。前端 job 检出同一 Release commit，通过锁定版本的 Vercel CLI pull/build 后上传预构建产物；项目使用仓库根目录、Node 24，关闭 Git 自动部署。需要 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` Secrets，前端仅注入公开 API 地址和版本/SHA。发布状态、配置及用户最后执行的域名映射见 [自动发布与服务器更新](docs/23-release-and-update.md)。真实 API/Worker 镜像及独立生产 Compose 已在本地验收通过，包含四服务健康、迁移/采集幂等、容器替换后持久化与备份恢复；目标服务器由运维独立部署。
 
 1. 配置安全的生产 `.env`，参考 `infra/scripts/deploy.example.env` 创建 `deploy.env`。
 2. 在宿主机安装 Nginx，替换 `infra/nginx/financial-radar.conf` 中域名与证书；配置同站子域或合适的 Secure/SameSite Cookie、精确 CORS Origin。

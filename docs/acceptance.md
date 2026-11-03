@@ -2,6 +2,23 @@
 
 日期：2026-11-02，Asia/Shanghai。此文件描述实际执行结果，不把设计、Fixture、外部服务和生产部署混为一项。原始需求末尾截断，已收到部分作为实现基线。
 
+## 2026-11-03 · 前端迁移 Vercel
+
+将前端发布从 Netlify 改为 Vercel；根 `vercel.json` 使用仓库根目录、Vite、冻结 pnpm 安装、`@radar/web` 构建及 `apps/web/dist` 输出，保留 SPA 路由回退、哈希资源长期缓存和原安全响应头。固定 Vercel CLI 65.10.0，删除 Netlify CLI 与旧托管配置。`.vercel` 项目状态、下载的环境文件和产物均忽略提交及 Docker 上下文。
+
+同一 workflow 保留 verify → release → API/Worker images → image-manifest → vercel 依赖，前端检出 Release commit，执行 `vercel pull`、`vercel build --prod`、`vercel deploy --prebuilt --prod`。三个 Vercel Secrets 缺失时明确失败；实际部署后保存 URL/版本/commit 收据至 Actions artifact 与 job summary。关闭 Vercel Git 自动部署以防绕过质量门禁。生产 API 地址、正式 Web Origin、SameSite=Lax 和 CSRF 契约保持现有部署约定，临时 Vercel 域名仅可验收静态托管。
+
+本地 Node 24.15.0 实际验证：
+
+- `pnpm install --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、`pnpm format:check`、`pnpm build` 均通过。
+- `pnpm test`：16 个文件、113 项测试通过。
+- `pnpm test:integration`：隔离真实 PostgreSQL 17 / Redis 7.4，70 项主集成、35 项历史流水线、48 项配置/API 检查和 86 项 live/fixture 隔离断言通过。
+- `CI=true pnpm test:e2e`：Chromium 13/13 通过；Fixture 不外发通知。测试仅清理本次隔离容器，无本地 API/Web 残留监听。
+- `pnpm security:check`、`pnpm audit --prod --audit-level high`、actionlint 与 `git diff --check` 均通过。
+- 使用明确标记为本地验证的临时项目设置、无云端 Token，执行 `vercel build --prod` 成功。Build Output v3 先匹配真实静态文件再回退 SPA；21 项资源、入口及 favicon 齐全，生产 API 地址正确、安全头和资源缓存保留，无 Functions 或 sourcemap。临时设置与产物移至 `.local/vercel-offline-validation`，未把本地构建描述为云端发布。
+
+日志位于忽略提交的 `.local/vercel-{install,typecheck,lint,format,unit,build,integration,security,audit,offline-build}.log`。截至本次本地验收，GitHub 仅配置旧 Netlify Secrets，尚无 Vercel 项目链接和发布凭据，未声称 Vercel 实际部署或云端 Actions 成功。需完成实际项目/Secrets 配置、首次新版本发布及静态 HTTP 验收；域名映射由用户最后修改，切换后再验证正式域名登录与写请求。此前章节的 Netlify 发布结果保留为历史证据。
+
 ## 交付范围
 
 | 领域      | 已实现并可运行                                                                                               | 边界                                                                                                     |

@@ -13,7 +13,7 @@
 | Cookie            | `SECURE_COOKIE=true`、`COOKIE_SAME_SITE=Lax`            |
 | API 端口映射      | 宿主 `127.0.0.1:13000` → 容器 `3000`，仅宿主 Nginx 访问 |
 
-域名分工：`radar.amazingzsys.site` 是 Netlify 前端，Netlify站点已配置该自定义域名；请检查DNS是否也按 Netlify 域名管理页面给出的记录绑定（子域通常为指向 `financial-radar-amazingz.netlify.app` 的 CNAME），不应继续指向后端服务器。`api.radar.amazingzsys.site` 才是服务器 API，在 DNS 服务商新增该子域的 A 记录，指向你确认的服务器公网 IPv4。仅在服务器 IPv6、80/443 路由与 Nginx 都已配置时添加 AAAA；错误 AAAA 会导致浏览器或证书验证访问错误地址。首次申请证书时让该域名直接解析到服务器，不要先使用另一个来源站的代理或跳转。
+域名分工：`radar.amazingzsys.site` 是前端，托管迁移目标为 Vercel。先完成 [Vercel 项目配置和静态部署验证](23-release-and-update.md#vercel-项目配置与最终域名切换)，再由用户最后按实际 Vercel 项目给出的 DNS 记录修改该前端域名映射；不要预设 DNS 目标或把前端指向后端服务器。`api.radar.amazingzsys.site` 才是服务器 API，在 DNS 服务商新增该子域的 A 记录，指向你确认的服务器公网 IPv4。仅在服务器 IPv6、80/443 路由与 Nginx 都已配置时添加 AAAA；错误 AAAA 会导致浏览器或证书验证访问错误地址。首次申请证书时让该域名直接解析到服务器，不要先使用另一个来源站的代理或跳转。
 
 2026-11-02 首次只读检查时，前端 `radar.amazingzsys.site` 和后端 `api.radar.amazingzsys.site` 的 A 记录都指向 `49.51.38.38`，未得到 AAAA 记录；当时 API 的 HTTPS `/health` 证书与主机名不匹配，curl 返回60。同日稍后已验证前端域名由 Netlify 通过 HTTPS 返回200，且 v1.0.2 线上产物使用正确 API 地址。以上均为当日历史观察，不代表当前 DNS、证书或后端部署状态。部署前请重新核对 API 解析确为你的服务器公网IP，并按第5步配置 API 证书；不能通过 `curl -k` 或关闭前端TLS校验绕过证书错误。
 
@@ -285,7 +285,7 @@ curl --silent --show-error --include --request OPTIONS \
 
 应返回允许预检的成功状态，并包含 `Access-Control-Allow-Origin: https://radar.amazingzsys.site` 和 `Access-Control-Allow-Credentials: true`。若Origin不匹配，检查 `.env` 的 `WEB_ORIGIN` 并重建应用；不要把允许源改为 `*`。
 
-确认 Netlify 控制台已添加 `radar.amazingzsys.site` 自定义域、DNS记录按要求配置并已签发前端HTTPS证书，再打开 [前端登录页](https://radar.amazingzsys.site/login)，使用你在第4步设置的生产管理员邮箱和密码。开发默认账号不会用于本次生产初始化。浏览器网络面板中登录/会话请求应发送到 `https://api.radar.amazingzsys.site/api/v1`，成功后 Cookie 具有 Secure / HttpOnly / SameSite=Lax。后端 `WEB_ORIGIN` 是 `https://radar.amazingzsys.site`，不能设置成 API 自己的 Origin。前后端是不同 Origin、同一注册域，API允许该精确前端Origin并支持凭据Cookie；无需改为SameSite=None。临时的 netlify.app 地址与此配置的Origin不同，不作为生产登录入口。
+在 Vercel 部署与静态验收完成、用户最后配置 `radar.amazingzsys.site` 域名映射且前端 HTTPS 生效后，再打开 [前端登录页](https://radar.amazingzsys.site/login)，使用你在第4步设置的生产管理员邮箱和密码。开发默认账号不会用于本次生产初始化。浏览器网络面板中登录/会话请求应发送到 `https://api.radar.amazingzsys.site/api/v1`，成功后 Cookie 具有 Secure / HttpOnly / SameSite=Lax。后端 `WEB_ORIGIN` 是 `https://radar.amazingzsys.site`，不能设置成 API 自己的 Origin。前后端是不同 Origin、同一注册域，API允许该精确前端Origin并支持凭据Cookie；迁移托管无需改为SameSite=None，也不放宽 CSRF。临时的 `vercel.app` 地址与此配置的 Origin 不同，仅验静态页面，不加入生产允许名单或用作生产登录入口。
 
 如果以后把前端绑定到另一个域名，更新服务器 `.env` 的 `WEB_ORIGIN` 为该实际 HTTPS 前端 Origin，再运行部署命令重建应用容器；前端的 `VITE_API_BASE_URL` 继续指向 API 域名。不要改成逗号分隔多个Origin，当前配置只接受一个精确Origin。
 

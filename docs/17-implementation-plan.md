@@ -8,7 +8,7 @@
 | S1 工程与数据 | S0         | pnpm/Turbo、strict TS、共享 Schema、Drizzle 迁移、配置、日志             | 安装可重现、类型检查、迁移可重复、无真密钥                         |
 | S2 API 与引擎 | S1         | auth/CSRF/限流、读写 API、原始采集、去重、信号、评分/风险、回放、通知/AI | 单元与 PG/Redis 集成覆盖幂等、拒绝未授权、证据/时间约束、故障恢复  |
 | S3 管理控制台 | S1/S2 契约 | Vue 所有主要页面、详情/筛选/规则/通知/主题/观察列表                      | 构建通过、浏览器验证真实 API 读写、桌面/移动无溢出、Fixture 标识   |
-| S4 部署交付   | S2/S3      | API/Worker Docker、Compose、nginx-host、发布/Netlify、更新回滚备份       | Compose 可解析、脚本检查、同工作流发布依赖、版本不可变、无删卷命令 |
+| S4 部署交付   | S2/S3      | API/Worker Docker、Compose、nginx-host、发布/Vercel、更新回滚备份        | Compose 可解析、脚本检查、同工作流发布依赖、版本不可变、无删卷命令 |
 | S5 验收与交接 | S1–S4      | unit/integration/E2E/security/build、实际记录、README                    | 报告区分通过/未执行/外部阻塞；列出启动与生产前置条件               |
 
 ## 依赖与并行边界
@@ -17,7 +17,7 @@
 
 ## 外部条件的处理
 
-无 API Key → 禁用相应源并提供 Fixture；无生产服务器/GHCR/Netlify 权限 → 交付脚本与配置并记录未执行；没有历史链上/价格证据 → 只验通用回放框架，不声称 ORDI 真实回测。全链高成本索引分适配器后续接入，保留 cursor/reorg/dedup 能力边界。
+无 API Key → 禁用相应源并提供 Fixture；无生产服务器/GHCR/Vercel 权限或项目配置 → 交付脚本与配置并记录未执行；没有历史链上/价格证据 → 只验通用回放框架，不声称 ORDI 真实回测。前端由 Netlify 迁移到 Vercel 时先完成项目/凭据、Actions 与静态部署验证，域名映射由用户最后处理；历史 Netlify 验收不能替代 Vercel 验收。全链高成本索引分适配器后续接入，保留 cursor/reorg/dedup 能力边界。
 
 ## 完成标准
 
