@@ -11,7 +11,7 @@ cd "$DEPLOY_ROOT"
 export APP_ENV_FILE="${APP_ENV_FILE:-.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 BACKUP_DIR="${BACKUP_DIR:-$DEPLOY_ROOT/backups}"
-HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/ready}"
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:13000/ready}"
 STATE_DIR="$DEPLOY_ROOT/.deploy"
 umask 077
 mkdir -p "$STATE_DIR/images"

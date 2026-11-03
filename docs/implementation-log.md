@@ -31,3 +31,7 @@ Dockerfile/Compose、宿主Nginx、GHCR语义发布/Netlify同workflow needs链�
 ## S7 · 实际域名与服务器首装交接
 
 用户明确前端 `radar.amazingzsys.site`、后端 `api.radar.amazingzsys.site`，服务器为Ubuntu 22.04/24.04。生产Web API前缀和CI/Netlify配置同步到API子域；Nginx模板采用实际API域名及证书路径，保留HTTP ACME续期。补充专用首装指南，覆盖DNS分工、Docker apt源、交互式生产配置、HTTP签证书到HTTPS切换、首次部署、检查、更新、备份和回滚。本地95项单测及70+35+86集成检查通过，Nginx在隔离容器中语法验证通过；域名DNS和生产证书/服务器由用户完成，未声称业务登录已联通。
+
+## S8 · 生产宿主端口避让
+
+2026-11-03 用户反馈服务器 3000 已被占用。先更新部署设计，再将生产映射改为 `127.0.0.1:13000:3000`，同步 Nginx upstream、部署健康检查默认值及配置示例。容器内端口和本地开发仍为 3000。专用指南增加已安装环境的迁移步骤，明确需更新宿主 Compose、旧 `deploy.env` 和项目 Nginx 站点；保留生产密钥、部署记录、数据卷与其他站点。服务器操作由用户执行，实际验收证据见 acceptance。

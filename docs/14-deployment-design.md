@@ -1,10 +1,10 @@
 # 14 · 部署与发布设计
 
-设计日期：2026-11-02。确定采用 GHCR、semantic-release、Netlify、Docker Compose 与 nginx-host；部署产物和外部实际发布分别记录。
+设计日期：2026-11-02；宿主端口更新：2026-11-03。确定采用 GHCR、semantic-release、Netlify、Docker Compose 与 nginx-host；部署产物和外部实际发布分别记录。
 
 ## 1. 拓扑和配置
 
-前端静态资源发布 Netlify。宿主机 Nginx 终止 TLS，把 `/api/`、`/health`、`/ready` 转发到 `127.0.0.1:3000`。API/Worker 使用同仓库构建但独立镜像，连接内网 PostgreSQL 和 Redis。数据库/Redis 无公网端口；开发 Compose 可仅向 loopback 映射端口。
+前端静态资源发布 Netlify。宿主机 Nginx 终止 TLS，把 `/api/`、`/health`、`/ready` 转发到 `127.0.0.1:13000`。生产 Docker 映射为 `127.0.0.1:13000:3000`，宿主健康检查使用 `http://127.0.0.1:13000/ready`；API 容器仍监听 3000，容器内健康检查与本地开发端口不变。此分工避免占用服务器已有的 3000 服务。API/Worker 使用同仓库构建但独立镜像，连接内网 PostgreSQL 和 Redis。数据库/Redis 无公网端口；开发 Compose 可仅向 loopback 映射端口。
 
 生产 Compose 包含 api、worker、postgres、redis，所有服务有 restart、healthcheck、日志轮转、持久化卷或无状态约束。依赖 `service_healthy` 仅负责启动顺序，应用仍需运行时重连和退避。Worker 健康检查以更新到 Redis/数据库的心跳为依据，不能仅检查进程存在。
 
@@ -46,7 +46,7 @@ Netlify 使用环境 Secret 中的 token 与 site id，发布固定本次构建�
 
 ## 5. Nginx、Netlify 与运维验收
 
-Nginx 模板设置 Host/X-Forwarded-Proto/X-Request-ID，限制 body，配置 10s connect 与合理 read timeout、安全响应头和访问日志。无实际 WebSocket 时无需伪造 upgrade 支持。模板中域名、证书路径均为占位，`check-nginx.sh` 进行语法检查，不能自动覆盖现有网站配置。
+Nginx 模板设置 Host/X-Forwarded-Proto/X-Request-ID，限制 body，配置 10s connect 与合理 read timeout、安全响应头和访问日志。无实际 WebSocket 时无需伪造 upgrade 支持。模板已填写 API 域名 `api.radar.amazingzsys.site` 和对应证书路径，首次需由操作者安装项目独立站点并申请证书。`deploy.sh` 不安装站点、不申请证书，只在允许时执行语法检查与平滑 reload。已有部署迁移到 13000 时需同步更新宿主 Compose、`deploy.env` 的健康 URL 和本项目 Nginx upstream；保留生产配置、`.deploy`、数据卷及其他网站配置。
 
 Netlify 添加 SPA fallback，静态资源使用内容哈希缓存，index.html 不长时间缓存。认证前后端建议使用同注册域自定义域名，CORS origin 精确列举；预览域名不能自动加入生产允许名单。
 

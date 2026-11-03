@@ -1,6 +1,6 @@
 # 部署、发布与恢复操作手册
 
-更新：2026-11-02。本文与 `infra/scripts`、Compose、GitHub workflow 一起维护。脚本测试使用 fake executables，不代表在真实服务器执行成功。
+更新：2026-11-03。本文与 `infra/scripts`、Compose、GitHub workflow 一起维护。脚本测试使用 fake executables，不代表在真实服务器执行成功。
 
 当前生产域名为前端 `radar.amazingzsys.site`、后端 `api.radar.amazingzsys.site`。按实际域名执行首次部署，请阅读 [Ubuntu 22.04/24.04 详细步骤](24-server-api-radar-amazingzsys-site.md)；本文继续说明通用部署、持久状态与恢复机制。
 
@@ -18,7 +18,7 @@ Docker Desktop 启动后，已在 Docker Engine 29.9.2 上实际构建 API/Worke
 
 将工程的 Compose、迁移文件、infra/scripts 和受信任配置放在 `/opt/financial-radar`。复制 `infra/scripts/deploy.example.env` 为 `deploy.env`，其为**可执行 Shell 配置**，只允许运维用户写入，建议权限 0600。应用 `.env` 也设 0600，不提交或复制进镜像；`.dockerignore` 排除了 `.env*`、`deploy.env`、备份与本地状态。
 
-从 `.env.example` 创建生产配置，替换管理员密码、Session Secret、PG/Redis 密码与 HTTPS Web Origin。Compose 强制 `NODE_ENV=production`、`SECURE_COOKIE=true`、PORT=3000；config 会拒绝示例管理员/数据库凭据。建议 Web `radar.example.com`、API `api.radar.example.com` 使用同注册域，`COOKIE_SAME_SITE=Lax`。若使用 netlify.app 与另一个域且需要跨站 Cookie，必须明确 `COOKIE_SAME_SITE=None`、Secure HTTPS；浏览器第三方 Cookie 限制仍可能要求同站自定义域。
+从 `.env.example` 创建生产配置，替换管理员密码、Session Secret、PG/Redis 密码与 HTTPS Web Origin。Compose 强制 `NODE_ENV=production`、`SECURE_COOKIE=true`、容器 `PORT=3000`；宿主仅映射 `127.0.0.1:13000:3000`，Nginx upstream 与部署健康 URL 使用宿主 13000。容器内端口和本地开发仍为 3000，config 会拒绝示例管理员/数据库凭据。建议 Web `radar.example.com`、API `api.radar.example.com` 使用同注册域，`COOKIE_SAME_SITE=Lax`。若使用 netlify.app 与另一个域且需要跨站 Cookie，必须明确 `COOKIE_SAME_SITE=None`、Secure HTTPS；浏览器第三方 Cookie 限制仍可能要求同站自定义域。
 
 **Compose 不拼接密码 URL。** 同时提供原始 `POSTGRES_PASSWORD` / `REDIS_PASSWORD` 给服务，以及带 URL 编码凭据的完整连接串：
 
@@ -55,10 +55,15 @@ sudo bash /opt/financial-radar/infra/scripts/deploy.sh
 首次在服务器检出本仓库、配置 `.env` / `deploy.env` 与Nginx后即可运行。日常应用镜像更新不要求 `git pull`。若某个Release修改了宿主Compose或部署脚本，先更新服务器仓库到目标Release；以下命令不会强制覆盖本地改动，已忽略的生产配置和 `.deploy` 状态保留：
 
 ```bash
-cd /opt/financial-radar && git fetch --tags origin && git switch --detach vX.Y.Z && sudo bash infra/scripts/deploy.sh --version vX.Y.Z
+cd /opt/financial-radar
+sudo git fetch --tags origin
+sudo git switch --detach vX.Y.Z
+sudo bash infra/scripts/deploy.sh --version vX.Y.Z
 ```
 
 将两处 `vX.Y.Z` 替换为同一已完成Release。检出因本地改动而被Git拒绝时先检查并保留改动，不能用强制reset绕过。脚本不远程下载并执行未知bootstrap代码，也不会自动更新宿主Nginx配置、证书或生产密钥。
+
+从旧宿主 3000 端口迁移时，先确认 13000 空闲：`sudo ss -ltnp 'sport = :13000'`；若显示监听进程，应先查明占用并停止此次迁移。取得包含新映射的 v1.0.3 部署文件后，保留已有 `.env`、`deploy.env`、`.deploy` 与卷，手工将旧 `deploy.env` 中的 `HEALTH_URL` 改为 `http://127.0.0.1:13000/ready`，并将本项目已安装的 Nginx `proxy_pass` 改为 `http://127.0.0.1:13000`。先备份本项目站点、执行 `nginx -t`，然后运行部署脚本；脚本会在新端口健康后重载 Nginx。不要提前重载至尚未启动的新端口。具体迁移命令见 [实际域名指南第 9 节](24-server-api-radar-amazingzsys-site.md#9-已有部署从宿主-3000-迁移到-13000)。首次尚未部署时，直接采用新配置即可。
 
 ## 3. 应用更新事务与持久状态
 

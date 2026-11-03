@@ -86,3 +86,9 @@ GitHub Actions、GHCR与Netlify的实际发布证据见下节。目标服务器�
 本轮 `typecheck`、`lint`、95项单测、build、70项主集成+35项历史PG+86项模式隔离通过；OpenAPI契约无漂移。生产模式Web构建另核对编译产物中的实际API地址。Nginx模板填入API子域与证书路径，80端口保留ACME webroot；在官方Nginx容器中使用本地临时测试证书执行 `nginx -t` 通过，日志 `.local/domain-nginx/config-check.log`。这不代表生产证书或用户服务器部署已完成。
 
 本轮DNS检查时，前端和API两个域名均返回A记录 `49.51.38.38`，API HTTPS证书不匹配主机名；Netlify站点已登记前端custom domain。用户需要按Netlify要求调整前端DNS，并在API服务器完成对应证书与后端部署。Ubuntu 22.04/24.04具体操作见 [实际域名首装指南](24-server-api-radar-amazingzsys-site.md)，服务器操作由用户执行，最终网络状态以实时检查为准。
+
+## 生产宿主端口调整 · 2026-11-03
+
+根据服务器已有 3000 服务，将生产宿主映射改为 `127.0.0.1:13000:3000`，同步宿主健康 URL 与 Nginx upstream；容器内 3000 和本地开发保持一致。本轮 typecheck、lint、95 项单测、build、security:check、format:check、70 项主集成 + 35 项历史 PG + 86 项模式隔离通过，日志为 `.local/port-*.log`。Compose 实际解析确认 host_ip=127.0.0.1、published=13000、target=3000；Nginx 使用本地临时测试证书在官方容器内 `nginx -t` 通过（`.local/port-nginx/config-check.log`）。本地检查不代表已更改用户服务器。
+
+在本地用独立临时服务实际占用宿主 3000，同时运行唯一隔离 Compose 项目 `radar-acceptance-9cbbd005413f`；API 的宿主 `13000/ready` 返回成功，`compose port api 3000` 实际输出 `127.0.0.1:13000`，原 3000 服务仍正常响应。API/Worker/PostgreSQL/Redis 四服务健康，生产管理员登录、Secure/HttpOnly Cookie、CSRF 与受保护 API 验证通过。实际日志见 `.local/port-compose.log`，宿主端口证据见 `.local/docker-acceptance/radar-acceptance-9cbbd005413f/host-port.txt`；未操作用户生产环境。

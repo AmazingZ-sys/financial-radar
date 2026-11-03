@@ -28,7 +28,7 @@ services:
     environment:
       <<: *environment
       SERVICE_NAME: api
-    ports: ['127.0.0.1:3000:3000']
+    ports: ['127.0.0.1:13000:3000']
     healthcheck:
       test:
         [

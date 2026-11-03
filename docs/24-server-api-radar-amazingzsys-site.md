@@ -1,32 +1,33 @@
 # api.radar.amazingzsys.site 后端部署步骤
 
-更新日期：2026-11-02。以下步骤由你在服务器执行；我们尚未登录或部署这台服务器。主流程适用于一台新安装的 Ubuntu 24.04 / 22.04 LTS、systemd、Linux amd64 服务器，建议至少 2 vCPU、4 GB 内存和 30 GB 可用磁盘。当前发布镜像为 linux/amd64，ARM64 服务器不能直接按本指南运行。
+更新日期：2026-11-03。以下步骤由你在服务器执行；我们尚未登录或部署这台服务器。主流程适用于 Ubuntu 24.04 / 22.04 LTS、systemd、Linux amd64 服务器，建议至少 2 vCPU、4 GB 内存和 30 GB 可用磁盘。已有可工作的 Docker/Nginx 可继续复用；已按旧指南部署到宿主 3000 的情况见第 9 节。当前发布镜像为 linux/amd64，ARM64 服务器不能直接按本指南运行。
 
 ## 1. 确认地址和网络
 
-| 用途              | 地址或配置                                             |
-| ----------------- | ------------------------------------------------------ |
-| 浏览器前端        | `https://radar.amazingzsys.site`                       |
-| 服务器 API        | `https://api.radar.amazingzsys.site`                   |
-| 前端请求          | 直接请求 `https://api.radar.amazingzsys.site/api/v1/*` |
-| 后端 `WEB_ORIGIN` | `https://radar.amazingzsys.site`                       |
-| Cookie            | `SECURE_COOKIE=true`、`COOKIE_SAME_SITE=Lax`           |
-| API 容器监听映射  | `127.0.0.1:3000`，仅宿主 Nginx 访问                    |
+| 用途              | 地址或配置                                              |
+| ----------------- | ------------------------------------------------------- |
+| 浏览器前端        | `https://radar.amazingzsys.site`                        |
+| 服务器 API        | `https://api.radar.amazingzsys.site`                    |
+| 前端请求          | 直接请求 `https://api.radar.amazingzsys.site/api/v1/*`  |
+| 后端 `WEB_ORIGIN` | `https://radar.amazingzsys.site`                        |
+| Cookie            | `SECURE_COOKIE=true`、`COOKIE_SAME_SITE=Lax`            |
+| API 端口映射      | 宿主 `127.0.0.1:13000` → 容器 `3000`，仅宿主 Nginx 访问 |
 
 域名分工：`radar.amazingzsys.site` 是 Netlify 前端，Netlify站点已配置该自定义域名；请检查DNS是否也按 Netlify 域名管理页面给出的记录绑定（子域通常为指向 `financial-radar-amazingz.netlify.app` 的 CNAME），不应继续指向后端服务器。`api.radar.amazingzsys.site` 才是服务器 API，在 DNS 服务商新增该子域的 A 记录，指向你确认的服务器公网 IPv4。仅在服务器 IPv6、80/443 路由与 Nginx 都已配置时添加 AAAA；错误 AAAA 会导致浏览器或证书验证访问错误地址。首次申请证书时让该域名直接解析到服务器，不要先使用另一个来源站的代理或跳转。
 
-本次只读检查时，前端 `radar.amazingzsys.site` 和后端 `api.radar.amazingzsys.site` 的 A 记录都指向 `49.51.38.38`，未得到 AAAA 记录。前端记录需按 Netlify 要求调整，后端记录请核对确为你分配的服务器公网IP。API 的 HTTPS `/health` 当前证书与 `api.radar.amazingzsys.site` 不匹配，curl 返回60，TLS尚未就绪；请按第5步为 API 域名签发并安装证书，不能通过 `curl -k` 或关闭前端TLS校验来绕过。这些结果仅代表检查当时的状态，不代表已部署后端。
+2026-11-02 首次只读检查时，前端 `radar.amazingzsys.site` 和后端 `api.radar.amazingzsys.site` 的 A 记录都指向 `49.51.38.38`，未得到 AAAA 记录；当时 API 的 HTTPS `/health` 证书与主机名不匹配，curl 返回60。同日稍后已验证前端域名由 Netlify 通过 HTTPS 返回200，且 v1.0.2 线上产物使用正确 API 地址。以上均为当日历史观察，不代表当前 DNS、证书或后端部署状态。部署前请重新核对 API 解析确为你的服务器公网IP，并按第5步配置 API 证书；不能通过 `curl -k` 或关闭前端TLS校验绕过证书错误。
 
-云安全组及宿主防火墙放行 TCP 80、443；SSH 端口只对你的管理 IP 放行。不要开放 3000、5432、6379。若已有防火墙，先确认当前 SSH 连接和规则，再调整；本指南不直接启用或清空防火墙。
+云安全组及宿主防火墙放行 TCP 80、443；SSH 端口只对你的管理 IP 放行。本项目无需对公网开放 13000、5432、6379。若已有防火墙，先确认当前 SSH 连接和规则，再调整；本指南不直接启用或清空防火墙。
 
 登录服务器后检查：
 
 ```bash
 uname -m
 cat /etc/os-release
+sudo ss -ltnp 'sport = :13000'
 ```
 
-`uname -m` 应为 `x86_64`。下文使用 `/opt/financial-radar`，不会在服务器安装 Node.js 或 pnpm，应用运行于已构建的 Docker 镜像中。
+`uname -m` 应为 `x86_64`。`ss` 除表头外应没有监听记录；若 13000 已被占用，先查明占用并停止此次部署。生产仅使用宿主 13000，不占用服务器现有的 3000 服务；容器内部 `PORT=3000` 不需要修改。下文使用 `/opt/financial-radar`，不会在服务器安装 Node.js 或 pnpm，应用运行于已构建的 Docker 镜像中。
 
 ## 2. 安装 Docker、Nginx 和工具
 
@@ -178,7 +179,7 @@ sudo docker compose --env-file .env config --quiet
 
 ## 5. 先配置 HTTP，再申请 HTTPS 证书
 
-先不要直接安装仓库里的完整 HTTPS 配置，因为首次申请前证书文件还不存在。创建 ACME webroot：
+`deploy.sh` 不会自动安装或修改 Nginx 站点，也不会首次申请证书；它仅在应用健康且 `NGINX_RELOAD=true` 时检查配置并平滑 reload。已有 Nginx 可以直接复用，本节只添加本项目的独立站点。先不要直接安装仓库里的完整 HTTPS 配置，因为首次申请前证书文件还不存在。创建 ACME webroot：
 
 ```bash
 sudo install -m 0755 -d /var/www/letsencrypt/.well-known/acme-challenge
@@ -319,4 +320,58 @@ sudo bash /opt/financial-radar/infra/scripts/rollback.sh
 
 备份位于 `/var/backups/financial-radar`，需另行加密复制到异地。回滚只适用于已有上一已验证版本的部署，不恢复数据库；新库恢复操作见 [完整部署手册](20-deployment-runbook.md)。保留生产 `.env`、`deploy.env`、`.deploy` 和卷，不执行 `docker compose down --volumes`。
 
-本次将 Nginx 模板和部署说明改为实际域名。服务器必须使用包含该变更的仓库版本。以后发行说明若更改宿主 Compose/脚本，再按完整手册先检出同一目标 Release tag，保留本地生产配置后部署；单纯应用镜像更新无需 git pull。
+本次 Nginx 模板与生产 Compose 使用宿主 13000。服务器必须使用包含该变更的仓库版本。以后发行说明若更改宿主 Compose/脚本，再按完整手册先检出同一目标 Release tag，保留本地生产配置后部署；单纯应用镜像更新无需 git pull。
+
+## 9. 已有部署从宿主 3000 迁移到 13000
+
+若还未部署本项目，按前面的新配置首装即可。若已按旧指南配置或启动过，本节同步更新宿主文件和端口；不重新生成 `.env` 或数据库密码，不删除 `.deploy`、数据库、Redis 卷，也不修改占用 3000 的其他服务。
+
+先等待 v1.0.3 的 Release 镜像与清单发布完成，确认新端口空闲并检查现有仓库状态：
+
+```bash
+sudo ss -ltnp 'sport = :13000'
+cd /opt/financial-radar
+sudo git status --short
+sudo git fetch --tags origin
+sudo git switch --detach v1.0.3
+```
+
+`ss` 有监听记录时停止后续操作。Git 因本地修改拒绝切换时，先检查并保留修改，不能使用 `reset --hard` 或删除目录重装。Git 切换会更新受版本管理的 Compose、脚本与模板；被忽略的 `.env`、`deploy.env`、`.deploy` 和 Docker 卷保留。
+
+旧 `deploy.env` 会覆盖脚本的新默认值，因此需要编辑该文件中的健康地址：
+
+```bash
+sudoedit /opt/financial-radar/deploy.env
+```
+
+保留其他设置，将对应行改为：
+
+```dotenv
+HEALTH_URL=http://127.0.0.1:13000/ready
+NGINX_RELOAD=true
+```
+
+已安装的 Nginx 站点也不会随 Git 更新。以下路径适用于按本指南安装的项目站点；如果你使用了自定义配置路径，请操作 `api.radar.amazingzsys.site` 所在的实际站点文件。先备份并只编辑本项目的 upstream，保留证书与其他定制配置：
+
+```bash
+sudo cp --no-clobber /etc/nginx/sites-available/financial-radar /etc/nginx/sites-available/financial-radar.before-13000
+sudoedit /etc/nginx/sites-available/financial-radar
+```
+
+将本项目的 `proxy_pass http://127.0.0.1:3000;` 改为：
+
+```nginx
+proxy_pass http://127.0.0.1:13000;
+```
+
+若还未安装本项目 Nginx 站点或签发 API 证书，先完成第 5 节。其他网站配置不做修改。先检查新配置，暂不手工 reload；部署脚本会在 13000 上的应用健康后重载 Nginx：
+
+```bash
+sudo nginx -t
+sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.0.3
+sudo bash /opt/financial-radar/infra/scripts/check-health.sh
+curl --fail --silent --show-error http://127.0.0.1:13000/ready | jq
+curl --fail --silent --show-error https://api.radar.amazingzsys.site/ready | jq
+```
+
+只有 `nginx -t` 成功才继续部署。容器重建期间 API 可能短暂不可用；证书域名没有变化，无需仅因端口调整重新签发。部署成功后，日常仍运行不带版本参数的 `deploy.sh`，它会选择已完整发布的最新稳定版本。
