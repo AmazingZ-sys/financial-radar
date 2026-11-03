@@ -3,6 +3,7 @@ node_modules
 dist
 .local
 .netlify
+.vercel
 coverage
 playwright-report
 test-results

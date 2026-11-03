@@ -179,12 +179,28 @@ jobs:
         run: |
           jq -s '{images:.}' image-api.json image-worker.json > image-manifest.json
           gh release upload "$RELEASE_VERSION" image-manifest.json --clobber
-  netlify:
+  vercel:
     needs: [release, images, image-manifest]
     if: needs.release.outputs.version != ''
     runs-on: ubuntu-latest
-    environment: production
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
+      - name: Check Vercel configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Configure $name in the repository or production environment secrets."
+              exit 1
+            fi
+          done
       - uses: actions/checkout@v4
         with: { ref: '${{ needs.release.outputs.commit }}' }
       - uses: pnpm/action-setup@v4
@@ -192,15 +208,29 @@ jobs:
         with: { node-version: '24', cache: pnpm }
       - run: pnpm install --frozen-lockfile
         env: { REDISMS_DISABLE_POSTINSTALL: 'true' }
-      - run: pnpm --filter @radar/web build
+      - name: Pull Vercel production settings
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: pnpm exec vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Build Vercel production artifacts
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.radar.amazingzsys.site/api/v1' }}
           VITE_APP_VERSION: ${{ needs.release.outputs.version }}
           VITE_COMMIT_SHA: ${{ needs.release.outputs.commit }}
-      - name: Publish Netlify deploy
+        run: pnpm exec vercel build --prod --token "$VERCEL_TOKEN"
+      - name: Publish Vercel deployment
+        id: deploy
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.release.outputs.commit }}
         run: |
-          test -n "$NETLIFY_AUTH_TOKEN" && test -n "$NETLIFY_SITE_ID"
-          pnpm exec netlify deploy --filter @radar/web --prod --no-build --dir apps/web/dist --message "${{ needs.release.outputs.version }} ${{ needs.release.outputs.commit }}"
+          url=$(pnpm exec vercel deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" --meta "releaseVersion=$RELEASE_VERSION" --meta "commitSha=$RELEASE_COMMIT")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          jq -n --arg url "$url" --arg version "$RELEASE_VERSION" --arg commit "$RELEASE_COMMIT" '{url:$url,version:$version,commit:$commit}' > vercel-deployment.json
+          printf 'Vercel production: [%s](%s)\n\nVersion: `%s` · Commit: `%s`\n' "$url" "$url" "$RELEASE_VERSION" "$RELEASE_COMMIT" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vercel-${{ needs.release.outputs.version }}
+          path: vercel-deployment.json

@@ -1,20 +1,29 @@
 # 自动发布与服务器更新
 
-配置日期：2026-11-02。仓库为 `AmazingZ-sys/financial-radar`；前端正式域名为 <https://radar.amazingzsys.site>，对应 Netlify 站点 <https://financial-radar-amazingz.netlify.app>；API 为 <https://api.radar.amazingzsys.site>。实际版本、镜像摘要和运行结果以 [GitHub Releases](https://github.com/AmazingZ-sys/financial-radar/releases) 与 [Actions](https://github.com/AmazingZ-sys/financial-radar/actions) 为准。
+配置更新：2026-11-03。仓库为 `AmazingZ-sys/financial-radar`；前端迁移目标为 Vercel，正式域名继续使用 <https://radar.amazingzsys.site>；API 为 <https://api.radar.amazingzsys.site>。实际版本、镜像摘要和运行结果以 [GitHub Releases](https://github.com/AmazingZ-sys/financial-radar/releases) 与 [Actions](https://github.com/AmazingZ-sys/financial-radar/actions) 为准。Vercel 项目、Secrets、真实部署和 DNS 切换均需单独完成验收，仓库配置不代表已经上线。
 
-## 已完成的首次发布
+## 原托管平台的历史发布
 
-[自动发布 run 41405313336](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41405313336) 已全部成功，生成 [v1.0.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.0.0)，API/Worker镜像、Release清单与Netlify生产站点均实际验证。后续版本以仓库Releases为准。[Netlify管理入口](https://app.netlify.com/projects/financial-radar-amazingz) 可进行域名绑定；前端公开页面由应用自己的管理员认证保护业务数据。
+[自动发布 run 41405313336](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41405313336) 已全部成功，生成 [v1.0.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.0.0)，API/Worker镜像、Release清单与Netlify生产站点均实际验证。原站点为 <https://financial-radar-amazingz.netlify.app>。这是迁移前的历史证据，不表示 Vercel 已部署；后续版本以仓库 Releases 与实际 Actions 记录为准。前端公开页面由应用自己的管理员认证保护业务数据。
 
 ## 开发者发布
 
-向 main 推送 Conventional Commit 后，单一 GitHub Actions 工作流依次执行：完整校验 → semantic-release → API/Worker GHCR 镜像 → Release 镜像清单 → Netlify 生产发布。首次功能提交生成 v1.0.0；以后 feat 增加 minor、fix 增加 patch，纯 docs/chore 提交无版本变化时不重复发布。
+向 main 推送 Conventional Commit 后，单一 GitHub Actions 工作流依次执行：完整校验 → semantic-release → API/Worker GHCR 镜像 → Release 镜像清单 → Vercel 生产发布。前端 job 依赖 `release`、`images` 和 `image-manifest`，检出与镜像相同的 Release commit。首次功能提交生成 v1.0.0；以后 feat 增加 minor、fix 增加 patch，纯 docs/chore 提交无版本变化时不重复发布。
 
-仓库已配置加密的 `NETLIFY_AUTH_TOKEN`、`NETLIFY_SITE_ID` Secrets，以及公开的 `VITE_API_BASE_URL` Variable；密钥不保存在工程文件。Netlify CLI 显式选择 `@radar/web`，使用 `--no-build` 上传 CI 已按版本/SHA/API地址构建的产物。域名在 Netlify 站点设置中绑定。
+根工程锁定 Vercel CLI 版本，Actions 在 production Environment 中使用 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` Secrets。公开 Variable `VITE_API_BASE_URL` 使用 `https://api.radar.amazingzsys.site/api/v1`；build 步骤同时注入 `VITE_APP_VERSION` 和 `VITE_COMMIT_SHA`。密钥不保存在工程文件，也不传入前端构建变量。
 
-前端域名为 `https://radar.amazingzsys.site`，绑定 Netlify 站点；后端服务器域名为 `https://api.radar.amazingzsys.site`。前端 `VITE_API_BASE_URL=https://api.radar.amazingzsys.site/api/v1`，直接请求API；服务器 `WEB_ORIGIN=https://radar.amazingzsys.site`、`SECURE_COOKIE=true`、`COOKIE_SAME_SITE=Lax`。两者是同一注册域下的不同Origin，不需要Netlify API代理。前端发布并不代表后端已经部署；完整首装步骤见 [api.radar.amazingzsys.site 后端部署](24-server-api-radar-amazingzsys-site.md)。
+发布步骤依次为 `pnpm exec vercel pull --yes --environment=production`、`pnpm exec vercel build --prod`、`pnpm exec vercel deploy --prebuilt --prod`，各步骤使用相同项目和授权；deploy 上传本次预构建产物，不再次构建。根 `vercel.json` 负责 Vite 构建、SPA fallback、安全响应头与静态缓存，并设置 `git.deploymentEnabled=false`，避免 Git 自动部署绕过 Actions。
 
-Netlify 发布失败时可重跑失败的 job，无需再造一个版本。Release 镜像仍在构建时，服务器会保留原版并选择此前已完成镜像发布的稳定版本；没有已完成版本则安全退出。
+Vercel 发布失败时可重跑失败的 job，无需再造一个版本。Release 镜像仍在构建时，服务器会保留原版并选择此前已完成镜像发布的稳定版本；没有已完成版本则安全退出。workflow_dispatch 的部署 checkout 使用输入 tag 的文件；迁移前的历史 tag 缺少 Vercel 配置与 CLI，不能直接用于本次 Vercel 发布。首个 Vercel 发布必须包含本次迁移提交。
+
+## Vercel 项目配置与最终域名切换
+
+1. 在实际 Vercel 账户/团队创建或选择本项目，Root Directory 设为仓库根目录 `.`，Node.js 设为 24.x；使用根 `vercel.json` 的 Vite、`pnpm install --frozen-lockfile`、`pnpm --filter @radar/web build` 与 `apps/web/dist` 配置。关闭 Git 自动部署，由 Actions 发布。
+2. 将实际项目的组织/团队 ID、Project ID 和有权发布该项目的 Token，分别写入 GitHub production Environment 或仓库的 `VERCEL_ORG_ID`、`VERCEL_PROJECT_ID`、`VERCEL_TOKEN` Secrets。保留公开 `VITE_API_BASE_URL` Variable；不要将后端数据库、Session、AI 或通知密钥配置到 Web 构建环境。当前尚未据实际项目验证这些配置。
+3. 在包含迁移配置的新 Release 中等待 verify、镜像、清单和 vercel job 成功；检查真实部署 URL 的 `/login`、深层路由、资源加载、安全头、缓存及前端产物 API 地址/版本/SHA。临时 `vercel.app` 与生产 Origin 不同，此阶段只验静态部署。
+4. 由用户最后在 Vercel 项目添加 `radar.amazingzsys.site` 并按项目显示的实际 DNS 记录修改映射，等待域名校验和 HTTPS 生效。不要预设 DNS 目标，也不要仅凭已配置文件宣布域名迁移成功。切换完成后验证正式域名的登录、`/auth/me`、写请求与退出。
+
+前端正式域名仍为 `https://radar.amazingzsys.site`；后端服务器仍为 `https://api.radar.amazingzsys.site`。前端直接请求 API，服务器保持 `WEB_ORIGIN=https://radar.amazingzsys.site`、`SECURE_COOKIE=true`、`COOKIE_SAME_SITE=Lax`。两者是同一注册域下的不同 Origin，不需要 Vercel API 代理；临时预览域名不加入生产 CORS/Origin 允许名单，不修改 CSRF/Cookie 策略。前端发布不代表后端已部署；完整首装步骤见 [api.radar.amazingzsys.site 后端部署](24-server-api-radar-amazingzsys-site.md)。
 
 ## 服务器首次准备
 

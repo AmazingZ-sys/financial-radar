@@ -16,7 +16,7 @@
 - Vue 3 控制台、Hono API、BullMQ Worker、PostgreSQL、Redis；API 和 Worker 独立镜像。
 - `DATA_MODE=fixture`：明确标记的合成样本，经数据库与真实处理链验证，不产生投资回测结论。
 - `DATA_MODE=live`：仅启用已实现且已配置来源；无密钥或无授权的数据返回未知/未配置；不自动回退样本冒充真实。
-- Docker Compose 开发/生产，宿主 Nginx，GHCR 语义版本，Netlify 前端。
+- Docker Compose 开发/生产，宿主 Nginx，GHCR 语义版本，Vercel 前端；迁移部署与用户最后执行的域名映射分开验收。
 
 ## 设计索引
 

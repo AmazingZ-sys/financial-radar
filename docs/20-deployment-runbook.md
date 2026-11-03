@@ -10,7 +10,7 @@
 
 Docker Desktop 启动后，已在 Docker Engine 29.9.2 上实际构建 API/Worker 镜像，并使用唯一的 `radar-acceptance-d3556adb2c5a` 项目对最终冻结代码复用生产 Compose 验收通过：四服务 healthy、随机特殊字符密码与 URL 编码、两次迁移、两次采集幂等、5 条原始项/5 条事件/4 个项目/4 条信号、生产管理员 Session/CSRF、安全 Cookie、非 root 应用、PG/Redis 容器替换后持久化，以及真实备份恢复到独立新库。日志和 result.json 保存在 `.local/docker-acceptance`；本次测试容器、网络与卷已清理，未触碰其他项目。
 
-`infra/scripts/test-compose.sh` 将该流程作为可重复 CI gate：随机唯一项目、无主机端口、独立测试配置，只删除本次创建的资源与镜像。失败保留日志；若清理本身失败则返回非零并保留配置供定向清理。旧 test-images.sh 委托此脚本。镜像中不存在业务源码，只包含 dist、生产依赖与迁移文件。GitHub Actions、GHCR与Netlify的首次真实发布v1.0.0已完成，证据见 `23-release-and-update.md` 和 `acceptance.md`。宿主机Nginx/证书和目标服务器部署由用户另行验收，不能由容器或前端上线推断成功。
+`infra/scripts/test-compose.sh` 将该流程作为可重复 CI gate：随机唯一项目、无主机端口、独立测试配置，只删除本次创建的资源与镜像。失败保留日志；若清理本身失败则返回非零并保留配置供定向清理。旧 test-images.sh 委托此脚本。镜像中不存在业务源码，只包含 dist、生产依赖与迁移文件。GitHub Actions、GHCR与Netlify的首次真实发布v1.0.0已完成，证据见 `23-release-and-update.md` 和 `acceptance.md`；这是原托管平台的历史记录。本次 Vercel 项目、凭据、实际发布与域名切换需单独验证，不能据旧记录声称迁移成功。宿主机Nginx/证书和目标服务器部署由用户另行验收，不能由容器或前端上线推断成功。
 
 服务器需要 Linux、Docker Engine + Compose v2 或兼容版本、Bash、curl、jq、足够磁盘、可访问 GHCR/GitHub 及配置好的宿主机 Nginx。`NGINX_RELOAD=true` 时需要 `nginx -t` 与 `systemctl reload nginx` 权限。脚本不会自动安装软件、改 Nginx 配置、申请证书、删除数据库卷或重启 Nginx。
 
@@ -18,7 +18,7 @@ Docker Desktop 启动后，已在 Docker Engine 29.9.2 上实际构建 API/Worke
 
 将工程的 Compose、迁移文件、infra/scripts 和受信任配置放在 `/opt/financial-radar`。复制 `infra/scripts/deploy.example.env` 为 `deploy.env`，其为**可执行 Shell 配置**，只允许运维用户写入，建议权限 0600。应用 `.env` 也设 0600，不提交或复制进镜像；`.dockerignore` 排除了 `.env*`、`deploy.env`、备份与本地状态。
 
-从 `.env.example` 创建生产配置，替换管理员密码、Session Secret、PG/Redis 密码与 HTTPS Web Origin。Compose 强制 `NODE_ENV=production`、`SECURE_COOKIE=true`、容器 `PORT=3000`；宿主仅映射 `127.0.0.1:13000:3000`，Nginx upstream 与部署健康 URL 使用宿主 13000。容器内端口和本地开发仍为 3000，config 会拒绝示例管理员/数据库凭据。建议 Web `radar.example.com`、API `api.radar.example.com` 使用同注册域，`COOKIE_SAME_SITE=Lax`。若使用 netlify.app 与另一个域且需要跨站 Cookie，必须明确 `COOKIE_SAME_SITE=None`、Secure HTTPS；浏览器第三方 Cookie 限制仍可能要求同站自定义域。
+从 `.env.example` 创建生产配置，替换管理员密码、Session Secret、PG/Redis 密码与 HTTPS Web Origin。Compose 强制 `NODE_ENV=production`、`SECURE_COOKIE=true`、容器 `PORT=3000`；宿主仅映射 `127.0.0.1:13000:3000`，Nginx upstream 与部署健康 URL 使用宿主 13000。容器内端口和本地开发仍为 3000，config 会拒绝示例管理员/数据库凭据。建议 Web `radar.example.com`、API `api.radar.example.com` 使用同注册域，`COOKIE_SAME_SITE=Lax`。当前生产继续使用 `radar.amazingzsys.site` 与 `api.radar.amazingzsys.site`，迁移到 Vercel 不修改后端 Origin、Cookie 或 CSRF 策略。临时 `vercel.app` 地址仅供静态验收，不加入生产允许源；完整认证验证安排在用户完成自定义域名映射之后。
 
 **Compose 不拼接密码 URL。** 同时提供原始 `POSTGRES_PASSWORD` / `REDIS_PASSWORD` 给服务，以及带 URL 编码凭据的完整连接串：
 
@@ -93,10 +93,12 @@ rollback 仅更新 API/Worker，不迁移或恢复数据库。回滚版自身健
 
 ## 5. GitHub 发布与故障重试
 
-同一 workflow：verify → release → images(api/worker matrix) → image-manifest → netlify。Release job 内 semantic-release 输出版本与 commit，镜像与 Web checkout **该 commit**；不靠自动创建 tag/release 触发另一个普通 workflow。这遵循 [GitHub 的 GITHUB_TOKEN 事件限制](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)。pnpm Docker 运行依赖保留 workspace symlink 图，参考 [pnpm Docker 文档](https://pnpm.io/docker)。
+同一 workflow：verify → release → images(api/worker matrix) → image-manifest → vercel。前端 job 显式依赖 `release`、`images`、`image-manifest`。Release job 内 semantic-release 输出版本与 commit，镜像与 Web checkout **该 commit**；不靠自动创建 tag/release 触发另一个普通 workflow。这遵循 [GitHub 的 GITHUB_TOKEN 事件限制](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)。pnpm Docker 运行依赖保留 workspace symlink 图，参考 [pnpm Docker 文档](https://pnpm.io/docker)。
 
-Conventional Commits 计算版本；只在 main 发布，无语义版本变化时 images/Netlify 跳过。Release 生成 Git Tag、GitHub Release、CHANGELOG.md 和 release-metadata.json 资产。为避免机器人写 main，累计 CHANGELOG 从上次 Release 资产恢复后继续生成；仓库里的静态 CHANGELOG 不被自动提交，权威累计文件以 Release 资产为准。两镜像包含 OCI version/revision/created/source，GHCR 使用 vX.Y.Z 与 sha-commit，不依赖 latest。image-manifest.json 记录不可变摘要并附同一 Release。
+Conventional Commits 计算版本；只在 main 发布，无语义版本变化时 images/Vercel 跳过。Release 生成 Git Tag、GitHub Release、CHANGELOG.md 和 release-metadata.json 资产。为避免机器人写 main，累计 CHANGELOG 从上次 Release 资产恢复后继续生成；仓库里的静态 CHANGELOG 不被自动提交，权威累计文件以 Release 资产为准。两镜像包含 OCI version/revision/created/source，GHCR 使用 vX.Y.Z 与 sha-commit，不依赖 latest。image-manifest.json 记录不可变摘要并附同一 Release。
 
-若 Release 已创建，但镜像或 Netlify 步骤失败，先使用 GitHub“Re-run failed jobs”重试；也提供 workflow_dispatch，输入现有稳定 vX.Y.Z。该路径先检出 tag 做完整验证，再确认对应 Release 非草稿/预发布，把 tag commit 输出给镜像/Web jobs。不会再次让 semantic-release 计算新版本。GHCR 同一 tag 的重建仍可能因上游 base image/tag 更新产生新 digest；生产已保存 digest 不会自动跟随。若需要复现位级产物，应固定基础镜像 digest 并使用首次 Release receipt，当前未提供供应链签名保证。
+若 Release 已创建，但镜像或 Vercel 步骤失败，先使用 GitHub“Re-run failed jobs”重试；也提供 workflow_dispatch，输入现有稳定 vX.Y.Z。该路径先检出 tag 做完整验证，再确认对应 Release 非草稿/预发布，把 tag commit 输出给镜像/Web jobs。不会再次让 semantic-release 计算新版本。该重试会使用目标 tag 的部署文件；迁移前的旧 tag 仍包含 Netlify 配置，不能用它验证 Vercel 迁移。GHCR 同一 tag 的重建仍可能因上游 base image/tag 更新产生新 digest；生产已保存 digest 不会自动跟随。若需要复现位级产物，应固定基础镜像 digest 并使用首次 Release receipt，当前未提供供应链签名保证。
 
-仓库必须配置 Actions permissions、GHCR package 写入权限、production Environment，以及 NETLIFY_AUTH_TOKEN、NETLIFY_SITE_ID Secrets 与公开 VITE_API_BASE_URL Variable。Netlify 域名必须与 API CORS/COOKIE 策略一致。没有这些外部配置时 CI 的验证可运行，发布阶段按错误停止，不会伪称成功。Netlify 使用根 netlify.toml SPA fallback 和安全头；构建目录为 apps/web/dist。HTTPS/证书与宿主机 Nginx 配置需先实际验证。
+仓库必须配置 Actions permissions、GHCR package 写入权限、production Environment，以及 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` Secrets 与公开 `VITE_API_BASE_URL` Variable。Vercel 项目 Root Directory 使用仓库根目录 `.`，Node.js 使用 24.x。根 `vercel.json` 声明 Vite、冻结 lockfile 安装、`@radar/web` 构建、`apps/web/dist` 输出、SPA fallback、安全响应头与缓存；`git.deploymentEnabled=false` 关闭 Git 自动部署，保证 Actions 的质量门禁。
+
+固定版本的根开发依赖 Vercel CLI 依次执行 `vercel pull --yes --environment=production`、`vercel build --prod`、`vercel deploy --prebuilt --prod`。build 步骤显式注入公开 API 地址、Release 版本和 commit SHA，部署上传本次预构建产物。当前 Vercel 项目和 Secrets 尚需实际配置；缺失时发布按错误停止，不会伪称成功。具体配置与切换顺序见 [自动发布与服务器更新](23-release-and-update.md)。Vercel 部署验证后，用户最后修改前端域名映射；切换后核验 HTTPS、登录、会话与写请求。API 的 DNS、TLS 和 Nginx 仍由服务器承担。

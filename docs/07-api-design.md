@@ -12,7 +12,7 @@ API 前缀 `/api/v1`；JSON；服务端 UTC ISO-8601 时间。Zod 定义输入�
 
 ## 2. 认证
 
-`POST /api/v1/auth/login {email,password}` 使用 scrypt 校验；成功设置随机 256-bit Session cookie，数据库只保存 hash 与有效期。Cookie HttpOnly、生产 Secure、SameSite=Lax（同站部署）或明确的跨站部署策略。`GET /api/v1/auth/me` 返回无密钥用户与 CSRF token；`POST /api/v1/auth/logout` 删除 Session。写请求必须 Origin allowlist + CSRF（或等价双重提交），Netlify 与 API 分离域名时明确设置 credentials、具体 allow-origin 和 CSRF，不能 `*`。推荐生产自定义同站子域。
+`POST /api/v1/auth/login {email,password}` 使用 scrypt 校验；成功设置随机 256-bit Session cookie，数据库只保存 hash 与有效期。Cookie HttpOnly、生产 Secure、SameSite=Lax（同站部署）或明确的跨站部署策略。`GET /api/v1/auth/me` 返回无密钥用户与 CSRF token；`POST /api/v1/auth/logout` 删除 Session。写请求必须 Origin allowlist + CSRF（或等价双重提交），Vercel 前端与 API 分离 Origin 时明确设置 credentials、具体 allow-origin 和 CSRF，不能 `*`。生产使用 `radar.amazingzsys.site` 与 `api.radar.amazingzsys.site` 同站子域，迁移托管不改变此契约；临时 `vercel.app` 地址不加入生产允许名单。
 
 ## 3. 路由契约
 
