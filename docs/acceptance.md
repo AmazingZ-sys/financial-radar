@@ -25,7 +25,7 @@
 
 Vercel 已绑定 `radar.amazingzsys.site` 到 Production。用户随后完成 DNS 切换：权威服务器 `heron.dnspod.net` 实际返回 `radar` 的 CNAME → `6ad0a87c00f0d82f.vercel-dns-017.com`，Vercel 页面显示 Valid Configuration。正式域名 `/login`、深层项目路由、入口 JS 与 favicon 经有效 HTTPS 返回 200，响应 `Server: Vercel` 与 `X-Vercel-Id` 确认已由新托管提供；SPA、安全头、哈希缓存和生产 API 地址检查通过。API `/health`、`/ready` 返回 200；匿名 `/api/v1/auth/me` 返回预期 401，均允许精确正式 Origin 和 credentials CORS。收据为 `.local/vercel-http-receipt.json`、`.local/vercel-domain-api-receipt.json`，Vercel 别名静态收据另存 `.local/vercel-alias-http-receipt.json`。
 
-临时 Vercel 域名未加入生产 Origin；本次未使用管理员生产凭据登录、写入或退出，不声称完整生产会话验收已完成。镜像发布亦不表示用户服务器已更新。专用发布 Token 的本地中转文件在 Secrets 配置和部署验收后删除，不提交或留在浏览器业务存储。
+正式域名的浏览器验证沿用已有 HttpOnly 会话，从 `/login` 自动进入雷达总览，显示「系统连接正常」并加载真实 API 数据；只读截图在 `.local/vercel-production-domain.png`，Vercel Valid Configuration 截图在 `.local/vercel-domain-valid.png`。临时 Vercel 域名未加入生产 Origin；本次未重新提交管理员登录表单、写入或退出，不声称完整生产会话流程验收已完成。镜像发布亦不表示用户服务器已更新。专用发布 Token 的本地中转文件在 Secrets 配置和部署验收后删除，不提交或留在浏览器业务存储。
 
 ## 交付范围
 
