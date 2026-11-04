@@ -8,11 +8,17 @@ const HttpsUrl = z
     return url.protocol === 'https:' && !url.username && !url.password && !url.hash;
   }, '需要不含用户名、密码或片段的 HTTPS 地址');
 
+export const AIReasoningEffortSchema = z.enum(['low', 'medium', 'high', 'xhigh']);
+export type AIReasoningEffort = z.infer<typeof AIReasoningEffortSchema>;
+export const DEFAULT_AI_REASONING_EFFORT: AIReasoningEffort = 'xhigh';
+export const AI_CONNECTION_TEST_REASONING_EFFORT: AIReasoningEffort = 'low';
+
 export const AIConfigSchema = z.object({
   name: z.string().trim().min(1).max(100),
   enabled: z.boolean(),
   baseUrl: HttpsUrl.refine((value) => !new URL(value).search, 'AI Base URL 不得包含查询参数'),
   model: z.string().trim().max(150),
+  reasoningEffort: AIReasoningEffortSchema.default(DEFAULT_AI_REASONING_EFFORT),
   timeoutMs: z.number().int().min(1000).max(60000),
   jsonMode: z.boolean(),
   dailyBudgetUsd: z.number().finite().min(0).max(10000),
@@ -25,6 +31,8 @@ export const AIConfigViewSchema = AIConfigSchema.extend({
 });
 export const AIConfigPatchSchema = AIConfigSchema.partial()
   .extend({
+    // Defaults apply when reading old configurations, never to omitted PATCH fields.
+    reasoningEffort: AIReasoningEffortSchema.optional(),
     apiKey: z
       .string()
       .trim()
@@ -38,6 +46,7 @@ export const AIConnectionTestSchema = z.object({
   status: z.enum(['connected', 'skipped']),
   message: z.string(),
   model: z.string(),
+  reasoningEffort: AIReasoningEffortSchema,
 });
 export const NotificationConfigPatchSchema = z
   .object({

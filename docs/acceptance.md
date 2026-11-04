@@ -282,3 +282,40 @@ GitHub Actions、GHCR与Netlify的实际发布证据见下节。目标服务器�
 - Release `v1.1.0` 指向 `a71d6ea7aea2d4b4a5226aa3c3cf06283c1264e1`；发布 metadata 与 image-manifest 的版本及完整 commit SHA 相互一致。远端 immutable digest 和 tag digest 一致：API `sha256:6bb068d6a4cdac5c53d7a87cd0d98ae095f0ba137ddedc3635dde7235fdc7c51`、Worker `sha256:7cee351ce967156c760d76539007609896bb22cf3f5f7e26a6ae3479445b056e`；两者远端镜像均含 `linux/amd64` manifest。
 - Netlify 于03:01 UTC发布生产版。`https://radar.amazingzsys.site` 与 `https://financial-radar-amazingz.netlify.app` 均返回HTTP 200，相同的新入口JS/CSS已替换原资源；新懒加载资源含AI中转配置、Telegram/飞书/Bark配置、RSS/Atom与多分类目录功能，生产API前缀仍为 `https://api.radar.amazingzsys.site/api/v1`。仅做公开页面与静态资源核验，未登录或更改生产数据。核验收据和抓取摘要位于忽略提交的 `.local/published-v1.1.0/`。
 - 目标 API 服务器只读健康检查仍返回 `v1.0.3`。因此此证据确认前端和后端镜像已发布，不表示用户服务器已升级；服务器更新与应用验证步骤见 [v1.1.0 服务器更新指南](27-v1.1-server-update.md)。目标服务器更新、真实LLM/IM凭据联通和Feed连通性仍待服务器侧执行与核验。
+
+## AI 推理强度配置 · 2026-11-04
+
+按 [25 可配置集成](25-configurable-integrations.md) 的新增设计实现：AI 配置可选择 Low / Medium / High / XHigh，默认 XHigh；旧数据库配置缺少字段时兼容为 XHigh。`AI_REASONING_EFFORT` 提供服务器初始默认，保存的数据库选择优先；无关 PATCH 不重置档位。后台分析发送保存的 `reasoning_effort`，缓存身份包含强度，运行记录保留实际值。连接测试固定 Low 且不修改分析配置，Fixture 仍跳过真实调用。测试输出上限从 32 调整到 512 tokens，为推理和短回答保留空间；截断空输出返回明确错误。
+
+Node 24.15.0、pnpm 10.26.2，本地独立 PostgreSQL（55436）与 Redis（实际端口 56812，E2E 使用独立逻辑库）验证：
+
+| 检查                                                         | 结果与证据                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm typecheck`、`pnpm lint`                                | 全包与工具脚本通过；`.local/ai-reasoning/{typecheck,lint}.log`；连接测试最终修正后 API 类型检查另通过                                                                                                                                                                       |
+| `pnpm test`                                                  | 21 个文件、203 项通过；`.local/ai-reasoning/unit.log`。最终 provider / 连接测试定向 14 项另通过，含各档序列化、缓存隔离、Low 请求、不修改保存值、Fixture 无出站及截断错误；`ai-contract.log`                                                                                |
+| `pnpm test:integration`                                      | 70 项主检查、35 项历史、12 项 EVM、13 项交易版本、25 项 Solana 恢复、20 项商品恢复、41 项 UniSat、18 项来源配置、66 项配置/API、86 项模式隔离通过；`.local/ai-reasoning/integration.log`。包含旧 JSONB 默认、High 持久化与即时读取、非法值拒绝、部分更新保留和 Low 测试隔离 |
+| `pnpm test:e2e`                                              | Chromium 19/19 通过；真实 API 保存 High / 刷新恢复 / 丢弃未保存值，以及明确标注 mock 的旧响应默认 XHigh、Low 测试不覆盖选择、390px 无溢出；`.local/ai-reasoning/e2e.log`                                                                                                    |
+| `pnpm build`                                                 | 9 项构建任务全部通过；`.local/ai-reasoning/build.log`。连接测试最终修正后 API 编译另通过；`api-final-build.log`                                                                                                                                                             |
+| `pnpm api:types`、`pnpm format:check`、`pnpm security:check` | 生成 OpenAPI / Web 类型、格式与凭据扫描通过；`.local/ai-reasoning/{api-types,format,security}.log`                                                                                                                                                                          |
+| 视觉检查                                                     | 已查看真实本地配置页 1440px / 390px 截图，默认 XHigh、表单布局及 Low 提示可见，无横向溢出；`.local/ai-reasoning/ai-{desktop,mobile}.png`                                                                                                                                    |
+
+首次集成检查因本地 Redis 测试启动器选择了其他端口而 readiness 失败，改用实际监听端口后完整重跑通过，未修改生产依赖保护。AI 请求验证使用合成传输与占位凭据，未使用真实供应商密钥或声称真实模型联通。本轮没有数据库结构迁移、提交推送或生产部署。
+
+## 线上起步预警规则示例 · 2026-11-04
+
+用户要求直接添加合理的规则示例，解决未添加规则的初始状态。通过用户已登录的线上控制台 `https://radar.amazingzsys.site/rules` 实际创建「基础监测 · 关键变化（示例）」v1；保存时页面显示 1 条规则、1 条已启用，时间为 16:39（Asia/Shanghai）。这是线上配置写入，未部署本地尚未发布的代码。
+
+- 通知级别 P2；置信度至少 65%；机会评分下限 0、风险评分上限 100，用于研究提醒，不把低机会分的公告挡在门外，也不把未知项目认定为安全机会。
+- 事件类型：`OFFICIAL_ANNOUNCEMENT`、`PROTOCOL_RELEASE`、`PRICE_ANOMALY`、`NEW_TOKEN_DEPLOYED`、`PAIR_CREATED`、`MINT_STARTED`、`PROJECT_LAUNCHED`、`PARTICIPATION_WINDOW_EXPIRING`。排除普通 `NEWS` 与周期快照；不添加资产、分类、已验证来源、增长或铸造进度限制。
+- 检测窗口为首次发现后 3600 秒；同一规则/项目冷却 3600 秒（无项目时按事件），不是全局每小时一条的频率上限。绑定当前已配置并启用的 Telegram Bot、邮箱 SMTP 两个渠道；原通知偏好为最低 P2、未启用静默时段，未修改这些偏好。
+- 规则页面的真实测试返回 `matched: true`、`全部配置条件满足`。此测试仅评估已有事件，不生成通知或验证本次渠道投递。创建规则不回推历史事件，后续新事件命中才进入通知链。风险事故应使用独立规则，避免和普通项目提醒共用冷却。
+
+本轮仅更新线上规则配置与此记录；未修改业务代码，因此不重复执行编译及单测。验证截图位于 `.local/alert-rule-starter-enabled.png`、`.local/alert-rule-starter-test.png`；没有声称本次已收到消息、平台已接受本次新通知或用户已读。
+
+## AI 推理强度发布准备 · 2026-11-04
+
+用户明确授权提交代码、发布 Release，后端服务器由用户更新。发布前补齐新前端与旧 API 的兼容：按原始响应是否提供推理强度判断能力；旧后端下显示升级提示，禁用推理设置和连接测试，其他配置仍可保存且不提交新字段。新后端到位后刷新恢复完整功能，避免把前端补默认误当作服务器已保存 XHigh。操作指南见 [32 AI 推理强度版本更新](32-ai-reasoning-update.md)。
+
+最终本地复验：Node 24.15.0 / pnpm 10.26.2，`typecheck`、`lint`、21 文件 204 项单测、9 项构建任务、20/20 Chromium E2E 与 `format:check` 全通过，日志 `.local/ai-reasoning-release/{typecheck,lint,unit,build,e2e,format}.log`。新增 E2E 用明确的旧后端测试桩验证严格拒绝新字段时仍能保存名称/模型、未发测试请求，模拟升级后恢复 High 与连接测试；真实 API 保存/刷新与其余页面回归也通过。后端逻辑未在本次兼容修正中改变，PostgreSQL/Redis 集成证据沿用上节已执行结果，云端工作流仍须完整复验。
+
+此节记录发布准备与实际本地结果；云端发布状态以本轮 Actions、Release 资产及 Vercel 收据的后续核验为准，不据此声称已发布成功或服务器已更新。

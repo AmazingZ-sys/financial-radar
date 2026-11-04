@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { config, assertPublicHttpsUrl, fetchPublicHttps } from '@radar/config';
 import { sql, readAIConfig, aiConfigView, saveAIConfig } from '@radar/database';
-import { AIConfigPatchSchema, AIConfigViewSchema, AIConnectionTestSchema } from '@radar/shared';
+import {
+  AIConfigPatchSchema,
+  AIConfigViewSchema,
+  AIConnectionTestSchema,
+  AI_CONNECTION_TEST_REASONING_EFFORT,
+} from '@radar/shared';
 import { addRoute, body, fail, type ApiEnv } from './http.js';
 import { audit, rateLimit } from './security.js';
 
@@ -55,6 +60,7 @@ export function integrationRoutes(app: OpenAPIHono<ApiEnv>) {
             status: 'skipped',
             message: 'Fixture 模式未调用真实 AI 服务；切换 live 后可测试。',
             model: effective.model,
+            reasoningEffort: AI_CONNECTION_TEST_REASONING_EFFORT,
           },
         };
       if (!effective.enabled || !effective.apiKey || !effective.model)
@@ -75,6 +81,7 @@ export function integrationRoutes(app: OpenAPIHono<ApiEnv>) {
           return false;
         const data = {
           kind: 'connection-test',
+          reasoningEffort: AI_CONNECTION_TEST_REASONING_EFFORT,
           reservations: [{ at: new Date().toISOString(), cost: reservedCost }],
         };
         await tx`INSERT INTO ai_analysis_runs(id,status,provider,model,prompt_version,cache_key,estimated_cost,data) VALUES(${id},'RUNNING','openai-compatible',${effective.model},'connection-test-v1',${`connection-test:${id}`},${reservedCost},${tx.json(data)})`;
@@ -93,7 +100,8 @@ export function integrationRoutes(app: OpenAPIHono<ApiEnv>) {
             signal: AbortSignal.timeout(effective.timeoutMs),
             body: JSON.stringify({
               model: effective.model,
-              max_tokens: 32,
+              reasoning_effort: AI_CONNECTION_TEST_REASONING_EFFORT,
+              max_tokens: 512,
               ...(effective.jsonMode ? { response_format: { type: 'json_object' } } : {}),
               messages: [
                 { role: 'user', content: 'Connection test. Reply with JSON: {"ok":true}.' },
@@ -103,26 +111,36 @@ export function integrationRoutes(app: OpenAPIHono<ApiEnv>) {
         );
         if (!response.ok) throw new Error(`AI 服务返回 HTTP ${response.status}`);
         const payload = (await response.json()) as {
-          choices?: { message?: { content?: unknown } }[];
+          choices?: { message?: { content?: unknown }; finish_reason?: unknown }[];
         };
+        const completion = payload.choices?.[0];
         if (
-          typeof payload.choices?.[0]?.message?.content !== 'string' ||
-          !payload.choices[0].message.content.trim()
-        )
+          typeof completion?.message?.content !== 'string' ||
+          !completion.message.content.trim()
+        ) {
+          if (completion?.finish_reason === 'length')
+            throw new Error('AI 服务测试输出达到 token 上限，请检查模型兼容性');
           throw new Error('AI 服务响应缺少有效 completion');
+        }
         await sql`UPDATE ai_analysis_runs SET status='COMPLETED',completed_at=now() WHERE id=${id}`;
-        await audit(c, c.get('actor').id, 'TEST', 'ai_integration', id, { status: 'connected' });
+        await audit(c, c.get('actor').id, 'TEST', 'ai_integration', id, {
+          status: 'connected',
+          reasoningEffort: AI_CONNECTION_TEST_REASONING_EFFORT,
+        });
         return {
           data: {
             status: 'connected',
             message: '模型完成了一次真实测试请求；不代表新闻分析证据校验已通过。',
             model: effective.model,
+            reasoningEffort: AI_CONNECTION_TEST_REASONING_EFFORT,
           },
         };
       } catch (error) {
         const message =
           error instanceof Error &&
-          /^AI 服务(返回 HTTP \d+|响应缺少有效 completion)$/.test(error.message)
+          /^AI 服务(返回 HTTP \d+|响应缺少有效 completion|测试输出达到 token 上限，请检查模型兼容性)$/.test(
+            error.message,
+          )
             ? error.message
             : 'AI 连接测试失败，请检查地址、模型和密钥或稍后重试';
         await sql`UPDATE ai_analysis_runs SET status='FAILED',error=${message},completed_at=now() WHERE id=${id}`;

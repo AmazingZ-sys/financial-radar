@@ -7737,6 +7737,11 @@
                         "enabled": { "type": "boolean" },
                         "baseUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
                         "model": { "type": "string", "maxLength": 150 },
+                        "reasoningEffort": {
+                          "type": "string",
+                          "enum": ["low", "medium", "high", "xhigh"],
+                          "default": "xhigh"
+                        },
                         "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
                         "jsonMode": { "type": "boolean" },
                         "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
@@ -7880,6 +7885,10 @@
                   "enabled": { "type": "boolean" },
                   "baseUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
                   "model": { "type": "string", "maxLength": 150 },
+                  "reasoningEffort": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "xhigh"]
+                  },
                   "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
                   "jsonMode": { "type": "boolean" },
                   "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
@@ -7907,6 +7916,11 @@
                         "enabled": { "type": "boolean" },
                         "baseUrl": { "type": "string", "maxLength": 2048, "format": "uri" },
                         "model": { "type": "string", "maxLength": 150 },
+                        "reasoningEffort": {
+                          "type": "string",
+                          "enum": ["low", "medium", "high", "xhigh"],
+                          "default": "xhigh"
+                        },
                         "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
                         "jsonMode": { "type": "boolean" },
                         "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
@@ -8054,9 +8068,13 @@
                       "properties": {
                         "status": { "type": "string", "enum": ["connected", "skipped"] },
                         "message": { "type": "string" },
-                        "model": { "type": "string" }
+                        "model": { "type": "string" },
+                        "reasoningEffort": {
+                          "type": "string",
+                          "enum": ["low", "medium", "high", "xhigh"]
+                        }
                       },
-                      "required": ["status", "message", "model"]
+                      "required": ["status", "message", "model", "reasoningEffort"]
                     },
                     "meta": {
                       "type": "object",

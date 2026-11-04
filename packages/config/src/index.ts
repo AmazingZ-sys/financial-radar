@@ -1,5 +1,6 @@
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+import { AIReasoningEffortSchema, DEFAULT_AI_REASONING_EFFORT } from '@radar/shared';
 export * from './outbound.js';
 loadDotenv({ quiet: true });
 const boolean = z.enum(['true', 'false']).transform((s) => s === 'true');
@@ -73,6 +74,7 @@ const schema = z.object({
   AI_BASE_URL: z.url().default('https://api.openai.com/v1'),
   AI_API_KEY: z.string().default(''),
   AI_MODEL: z.string().default(''),
+  AI_REASONING_EFFORT: AIReasoningEffortSchema.default(DEFAULT_AI_REASONING_EFFORT),
   AI_DAILY_BUDGET_USD: z.coerce.number().min(0).default(1),
   AI_MAX_CALL_COST_USD: z.coerce.number().min(0).default(0.1),
   INTEGRATION_ENCRYPTION_KEY: z
@@ -158,6 +160,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     aiBaseUrl: v.AI_BASE_URL,
     aiApiKey: v.AI_API_KEY,
     aiModel: v.AI_MODEL,
+    aiReasoningEffort: v.AI_REASONING_EFFORT,
     aiDailyBudgetUsd: v.AI_DAILY_BUDGET_USD,
     aiMaxCallCostUsd: v.AI_MAX_CALL_COST_USD,
     integrationEncryptionKey: v.INTEGRATION_ENCRYPTION_KEY,

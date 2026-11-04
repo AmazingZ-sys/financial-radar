@@ -5775,6 +5775,11 @@ export interface paths {
                 /** Format: uri */
                 baseUrl: string;
                 model: string;
+                /**
+                 * @default xhigh
+                 * @enum {string}
+                 */
+                reasoningEffort: 'low' | 'medium' | 'high' | 'xhigh';
                 timeoutMs: number;
                 jsonMode: boolean;
                 dailyBudgetUsd: number;
@@ -5879,6 +5884,8 @@ export interface paths {
             /** Format: uri */
             baseUrl?: string;
             model?: string;
+            /** @enum {string} */
+            reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh';
             timeoutMs?: number;
             jsonMode?: boolean;
             dailyBudgetUsd?: number;
@@ -5902,6 +5909,11 @@ export interface paths {
                 /** Format: uri */
                 baseUrl: string;
                 model: string;
+                /**
+                 * @default xhigh
+                 * @enum {string}
+                 */
+                reasoningEffort: 'low' | 'medium' | 'high' | 'xhigh';
                 timeoutMs: number;
                 jsonMode: boolean;
                 dailyBudgetUsd: number;
@@ -6018,6 +6030,8 @@ export interface paths {
                 status: 'connected' | 'skipped';
                 message: string;
                 model: string;
+                /** @enum {string} */
+                reasoningEffort: 'low' | 'medium' | 'high' | 'xhigh';
               };
               meta?: {
                 total: number;

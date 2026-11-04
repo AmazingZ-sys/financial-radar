@@ -17,6 +17,15 @@
 - GET /api/v1/sources/catalog：已实现来源目录与分类；POST /api/v1/sources：添加管理员授权的 RSS/Atom 公共订阅；现有 PATCH 调整启停与轮询。订阅 URL 不原地替换，避免旧证据来源混淆。
 - 系统管理提供 AI 配置表单；通知页面提供渠道配置；数据源页面提供分类、来源目录与新增 RSS/Atom。使用现有 Vue 控制台视觉体系，并明确保存、测试、失败与待配置状态。
 
+## 2026-11-04 AI 推理强度
+
+- AI 配置增加 `reasoningEffort`，提供 Low、Medium、High、XHigh 四档下拉选择，对应 `low`、`medium`、`high`、`xhigh`；新配置和缺少该字段的历史配置默认 `xhigh`。服务器环境默认值由 `AI_REASONING_EFFORT` 提供，未设置时为 `xhigh`；数据库覆盖继续优先。
+- GET/PATCH `/api/v1/integrations/ai` 的视图和 Zod 校验包含该字段；不需要破坏性迁移。后台分析读取保存的强度，向 Chat Completions 发送 `reasoning_effort`，并将强度纳入缓存身份，避免更改强度后复用旧分析。
+- 显式连接测试始终使用四档中的最低值 `low`，不修改保存的分析强度；测试响应返回本次 `reasoningEffort`，页面在测试操作旁提示 Low。测试输出上限为 512 tokens，给推理与短回答保留空间；上限耗尽且正文为空时明确提示模型兼容性，不误报成功。Fixture 继续返回 skipped，不发出真实请求。
+- 不隐式吞掉上游不支持该档位的错误或重试为另一强度；页面提示按模型能力选择。依据 [OpenAI 推理文档](https://developers.openai.com/api/docs/guides/reasoning) 与 [Codex 配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)，可用档位因模型和客户端而异；此处使用四档兼容设置，不宣称所有模型均支持 XHigh。
+- 验收覆盖默认值、历史配置兼容、PATCH 保留/拒绝非法档位、分析请求与缓存隔离、连接测试 Low 且保存值不变，以及桌面/移动端选择和持久化。
+- 分批发布兼容：前端按原始配置响应是否包含 `reasoningEffort` 判断后端能力，不能把解析时补入的默认值当作后端已经支持或保存。旧后端下显示升级提示、禁用推理选择与连接测试，保存其他配置时省略该字段；后端升级后自动启用新设置和 Low 测试，不影响既有配置编辑。
+
 ## 2026-11-04 数据源连接设置
 
 - 数据源页新增可见的连接设置入口，支持 UniSat API Key、Ethereum 主网 HTTPS RPC 与指定 V2 Factory、Solana 主网 HTTPS RPC 与 Program，以及 DEX Screener 的链和最多30个已知 token。黄金和原油由无需 Key 的独立来源提供；数据频率由 provider 适配器明确标识。

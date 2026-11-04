@@ -4,6 +4,7 @@ import {
   FixtureAIProvider,
   validateEvidence,
   analysisCacheKey,
+  compatibleAIProviderIdentity,
 } from './index.js';
 const input = {
   eventId: 'event',
@@ -46,6 +47,32 @@ describe('AI evidence contract', () => {
       analysisCacheKey(input, 'model-a', 'relay-b'),
     );
   });
+  it('isolates cached results by reasoning effort without exposing credentials', () => {
+    const config = {
+      baseUrl: 'https://relay.example/v1',
+      apiKey: 'synthetic-test-key',
+      jsonMode: true,
+      reasoningEffort: 'xhigh' as const,
+    };
+    const identity = compatibleAIProviderIdentity(config);
+    const key = analysisCacheKey(input, 'relay-model', identity);
+    expect(identity).toMatch(/^[a-f0-9]{64}$/);
+    expect(identity).not.toContain(config.apiKey);
+    expect(compatibleAIProviderIdentity({ ...config })).toBe(identity);
+    for (const changed of [
+      { reasoningEffort: 'low' as const },
+      { baseUrl: 'https://another-relay.example/v1' },
+      { apiKey: 'another-synthetic-test-key' },
+      { jsonMode: false },
+    ])
+      expect(
+        analysisCacheKey(
+          input,
+          'relay-model',
+          compatibleAIProviderIdentity({ ...config, ...changed }),
+        ),
+      ).not.toBe(key);
+  });
   it('uses a configured relay root/model and can omit unsupported JSON mode', async () => {
     const output = (await new FixtureAIProvider().analyze(input)).result;
     let requestUrl = '';
@@ -68,9 +95,34 @@ describe('AI evidence contract', () => {
     ).analyze(input);
     expect(requestUrl).toBe('https://relay.example/custom/v1/chat/completions');
     expect(requestBody.model).toBe('relay-model');
+    expect(requestBody.reasoning_effort).toBe('xhigh');
     expect(requestBody).not.toHaveProperty('response_format');
     expect(result.model).toBe('relay-model');
   });
+  it.each(['low', 'medium', 'high', 'xhigh'] as const)(
+    'sends the configured %s reasoning effort to the analysis provider',
+    async (reasoningEffort) => {
+      const output = (await new FixtureAIProvider().analyze(input)).result;
+      let requestBody: Record<string, unknown> = {};
+      const fetcher: typeof fetch = async (_url, options) => {
+        requestBody = JSON.parse(String(options?.body));
+        return Response.json({
+          choices: [{ message: { content: JSON.stringify(output) } }],
+        });
+      };
+      await new CompatibleAIProvider(
+        'https://relay.example/v1',
+        'synthetic-test-key',
+        'relay-model',
+        fetcher,
+        1000,
+        true,
+        reasoningEffort,
+      ).analyze(input);
+      expect(requestBody.reasoning_effort).toBe(reasoningEffort);
+      expect(requestBody.response_format).toEqual({ type: 'json_object' });
+    },
+  );
   it('keeps untrusted malformed completion bodies out of persisted error messages', async () => {
     const fetcher: typeof fetch = async () =>
       new Response(

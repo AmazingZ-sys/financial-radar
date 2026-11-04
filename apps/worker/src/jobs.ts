@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type postgres from 'postgres';
 import { sql, readAIConfig, readNotificationConfig } from '@radar/database';
 import { config, fetchPublicHttps } from '@radar/config';
@@ -15,6 +15,7 @@ import {
   CompatibleAIProvider,
   FixtureAIProvider,
   analysisCacheKey,
+  compatibleAIProviderIdentity,
   PROMPT_VERSION,
   type AnalysisInput,
   type AIProvider,
@@ -122,6 +123,7 @@ function providerForMode(
     secureFetch,
     effective.timeoutMs,
     effective.jsonMode,
+    effective.reasoningEffort,
   );
 }
 export class DeferredWorkError extends Error {
@@ -158,11 +160,7 @@ export async function analyzeEvent(id: string) {
       availableAt: new Date(source.first_seen_at as string).toISOString(),
     })),
   };
-  const identity = !effective
-    ? undefined
-    : createHash('sha256')
-        .update(JSON.stringify([effective.baseUrl, effective.apiKey, effective.jsonMode]))
-        .digest('hex');
+  const identity = effective ? compatibleAIProviderIdentity(effective) : undefined;
   const cacheKey = analysisCacheKey(input, provider.model, identity);
   const reservedCost = effective?.maxCallCostUsd ?? 0;
   const reserve = await sql.begin(async (tx) => {
@@ -197,7 +195,7 @@ export async function analyzeEvent(id: string) {
     if (cached)
       await tx`UPDATE ai_analysis_runs SET status='RUNNING',estimated_cost=coalesce(estimated_cost,0)+${reservedCost},data=(data || ${json({ attempts: priorAttempts + 1, lastReservation: reservedCost, leaseStartedAt: new Date().toISOString() })}::jsonb) || jsonb_build_object('reservations',coalesce(data->'reservations','[]'::jsonb) || ${json([{ at: new Date().toISOString(), cost: reservedCost }])}::jsonb) WHERE id=${runId}`;
     else
-      await tx`INSERT INTO ai_analysis_runs(id,event_id,status,provider,model,prompt_version,cache_key,estimated_cost,data) VALUES(${runId},${id},'RUNNING',${provider.name},${provider.model},${PROMPT_VERSION},${cacheKey},${reservedCost},${json({ reviewStatus: 'UNREVIEWED', reservation: reservedCost, inputHash: cacheKey, costBasis: 'conservative-per-call-reservation', attempts: 1, leaseStartedAt: new Date().toISOString(), reservations: [{ at: new Date().toISOString(), cost: reservedCost }] })})`;
+      await tx`INSERT INTO ai_analysis_runs(id,event_id,status,provider,model,prompt_version,cache_key,estimated_cost,data) VALUES(${runId},${id},'RUNNING',${provider.name},${provider.model},${PROMPT_VERSION},${cacheKey},${reservedCost},${json({ reviewStatus: 'UNREVIEWED', reservation: reservedCost, inputHash: cacheKey, ...(effective ? { reasoningEffort: effective.reasoningEffort } : {}), costBasis: 'conservative-per-call-reservation', attempts: 1, leaseStartedAt: new Date().toISOString(), reservations: [{ at: new Date().toISOString(), cost: reservedCost }] })})`;
     return { state: 'allowed', runId, data: null };
   });
   if (reserve.state === 'cached') {

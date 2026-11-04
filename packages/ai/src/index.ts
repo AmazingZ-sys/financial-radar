@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { DEFAULT_AI_REASONING_EFFORT, type AIReasoningEffort } from '@radar/shared';
 import { z } from 'zod';
 export const PROMPT_VERSION = 'evidence-summary-v1';
 export const AnalysisSchema = z
@@ -56,6 +57,18 @@ export function analysisCacheKey(input: AnalysisInput, model: string, providerId
         prompt: PROMPT_VERSION,
         ...(providerIdentity ? { providerIdentity } : {}),
       }),
+    )
+    .digest('hex');
+}
+export function compatibleAIProviderIdentity(config: {
+  baseUrl: string;
+  apiKey: string;
+  jsonMode: boolean;
+  reasoningEffort: AIReasoningEffort;
+}) {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([config.baseUrl, config.apiKey, config.jsonMode, config.reasoningEffort]),
     )
     .digest('hex');
 }
@@ -119,6 +132,7 @@ export class CompatibleAIProvider implements AIProvider {
     private fetcher: typeof fetch = fetch,
     private timeoutMs = 20_000,
     private jsonMode = true,
+    private reasoningEffort: AIReasoningEffort = DEFAULT_AI_REASONING_EFFORT,
   ) {
     const url = new URL(baseUrl);
     if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1')
@@ -132,6 +146,7 @@ export class CompatibleAIProvider implements AIProvider {
       redirect: 'error',
       body: JSON.stringify({
         model: this.model,
+        reasoning_effort: this.reasoningEffort,
         temperature: 0,
         max_tokens: 1000,
         ...(this.jsonMode ? { response_format: { type: 'json_object' } } : {}),

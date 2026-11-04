@@ -47,6 +47,7 @@ function envAIConfig() {
     enabled: true,
     baseUrl: config.aiBaseUrl,
     model: config.aiModel,
+    reasoningEffort: config.aiReasoningEffort,
     timeoutMs: 20000,
     jsonMode: true,
     dailyBudgetUsd: config.aiDailyBudgetUsd,

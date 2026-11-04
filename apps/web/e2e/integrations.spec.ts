@@ -32,6 +32,7 @@ test('AI relay configuration saves through the API and reloads without returning
     enabled: await page.getByLabel('AI 分析', { exact: true }).inputValue(),
     baseUrl: await page.getByLabel('API Base URL').inputValue(),
     model: await page.getByLabel('模型名称').inputValue(),
+    reasoningEffort: await page.getByLabel('推理强度', { exact: true }).inputValue(),
   };
   const name = `UI relay ${Date.now()}`;
   try {
@@ -39,6 +40,7 @@ test('AI relay configuration saves through the API and reloads without returning
     await page.getByLabel('AI 分析', { exact: true }).selectOption('false');
     await page.getByLabel('API Base URL').fill('https://example.com/relay/v1');
     await page.getByLabel('模型名称').fill('ui-model');
+    await page.getByLabel('推理强度', { exact: true }).selectOption('high');
     await expect(panel.getByRole('button', { name: '测试 AI 连接' })).toBeDisabled();
     const responsePromise = page.waitForResponse(
       (response) =>
@@ -47,7 +49,10 @@ test('AI relay configuration saves through the API and reloads without returning
     await panel.getByRole('button', { name: '保存 AI 配置' }).click();
     const response = await responsePromise;
     expect(response.ok()).toBe(true);
-    expect(JSON.stringify(await response.json())).not.toContain('"apiKey":');
+    const savedBody = await response.json();
+    expect(savedBody.data.reasoningEffort).toBe('high');
+    expect(response.request().postDataJSON()).toMatchObject({ reasoningEffort: 'high' });
+    expect(JSON.stringify(savedBody)).not.toContain('"apiKey":');
     await expect(
       page.getByText('AI 配置已保存，后续分析使用新配置', { exact: true }),
     ).toBeVisible();
@@ -55,16 +60,178 @@ test('AI relay configuration saves through the API and reloads without returning
     await expect(page.getByLabel('Provider 名称')).toHaveValue(name);
     await expect(page.getByLabel('API Base URL')).toHaveValue('https://example.com/relay/v1');
     await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
+    await expect(page.getByLabel('推理强度', { exact: true })).toHaveValue('high');
+    await expect(panel.getByText('已保存推理 · High', { exact: true })).toBeVisible();
+    await page.getByLabel('推理强度', { exact: true }).selectOption('low');
+    await expect(panel.getByRole('button', { name: '测试 AI 连接' })).toBeDisabled();
+    await page.reload();
+    await expect(page.getByLabel('推理强度', { exact: true })).toHaveValue('high');
   } finally {
     await page.getByLabel('Provider 名称').fill(original.name);
     await page.getByLabel('AI 分析', { exact: true }).selectOption(original.enabled);
     await page.getByLabel('API Base URL').fill(original.baseUrl);
     await page.getByLabel('模型名称').fill(original.model);
+    await page.getByLabel('推理强度', { exact: true }).selectOption(original.reasoningEffort);
     await panel.getByRole('button', { name: '保存 AI 配置' }).click();
     await expect(
       page.getByText('AI 配置已保存，后续分析使用新配置', { exact: true }),
     ).toBeVisible();
   }
+});
+
+test('AI reasoning UI shows saved XHigh and Low test responses preserve the selection (mock transport)', async ({
+  page,
+}) => {
+  // This exercises UI state only; no real AI provider is contacted.
+  await page.route('**/api/v1/integrations/ai', async (route) => {
+    expect(route.request().method()).toBe('GET');
+    await route.fulfill({
+      json: {
+        data: {
+          name: 'Synthetic UI provider',
+          enabled: true,
+          baseUrl: 'https://example.com/v1',
+          model: 'synthetic-ui-model',
+          reasoningEffort: 'xhigh',
+          timeoutMs: 20000,
+          jsonMode: true,
+          dailyBudgetUsd: 1,
+          maxCallCostUsd: 0.1,
+          apiKeyConfigured: true,
+          configOrigin: 'database',
+          hasOverride: true,
+        },
+      },
+    });
+  });
+  let tests = 0;
+  await page.route('**/api/v1/integrations/ai/test', async (route) => {
+    expect(route.request().method()).toBe('POST');
+    tests++;
+    await route.fulfill({
+      json: {
+        data: {
+          status: 'skipped',
+          message: '测试桩：未调用真实 AI 服务（Low）',
+          model: 'synthetic-ui-model',
+          reasoningEffort: 'low',
+        },
+      },
+    });
+  });
+  await page.goto('/system');
+  const panel = page.locator('.integration-panel');
+  const reasoning = panel.getByLabel('推理强度', { exact: true });
+  await expect(reasoning).toHaveValue('xhigh');
+  await expect(reasoning.locator('option')).toHaveText(['Low', 'Medium', 'High', 'XHigh']);
+  await expect(panel.getByText('已保存推理 · XHigh', { exact: true })).toBeVisible();
+  await expect(panel.getByText('连接测试使用最低推理强度 Low', { exact: false })).toBeVisible();
+  await panel.getByRole('button', { name: '测试 AI 连接' }).click();
+  await expect(panel.getByRole('status')).toHaveText('测试桩：未调用真实 AI 服务（Low）');
+  expect(tests).toBe(1);
+  await expect(reasoning).toHaveValue('xhigh');
+  await expect(panel.getByText('已保存推理 · XHigh', { exact: true })).toBeVisible();
+  await reasoning.selectOption('medium');
+  await expect(panel.getByRole('button', { name: '测试 AI 连接' })).toBeDisabled();
+  await page.reload();
+  await expect(reasoning).toHaveValue('xhigh');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await reasoning.scrollIntoViewIfNeeded();
+  await expect(reasoning).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
+test('AI settings stay editable with an older backend until reasoning support is available (mock transport)', async ({
+  page,
+}) => {
+  // The synthetic old server rejects new fields and never calls an AI provider.
+  let view = {
+    name: 'Synthetic old backend',
+    enabled: true,
+    baseUrl: 'https://example.com/v1',
+    model: 'synthetic-old-model',
+    timeoutMs: 20000,
+    jsonMode: true,
+    dailyBudgetUsd: 1,
+    maxCallCostUsd: 0.1,
+    apiKeyConfigured: true,
+    configOrigin: 'database',
+    hasOverride: true,
+  };
+  let upgraded = false;
+  let patchCount = 0;
+  let testCount = 0;
+  await page.route('**/api/v1/integrations/ai', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      const patch = route.request().postDataJSON() as Record<string, unknown>;
+      if ('reasoningEffort' in patch || 'supportsReasoningEffort' in patch) {
+        await route.fulfill({
+          status: 400,
+          json: {
+            error: { code: 'INVALID_INPUT', message: 'Synthetic old server: unknown field' },
+          },
+        });
+        return;
+      }
+      expect(patch).toMatchObject({
+        name: 'Updated legacy provider',
+        model: 'updated-legacy-model',
+      });
+      view = { ...view, name: 'Updated legacy provider', model: 'updated-legacy-model' };
+      patchCount++;
+    } else {
+      expect(route.request().method()).toBe('GET');
+    }
+    await route.fulfill({
+      json: { data: { ...view, ...(upgraded ? { reasoningEffort: 'high' } : {}) } },
+    });
+  });
+  await page.route('**/api/v1/integrations/ai/test', async (route) => {
+    testCount++;
+    await route.fulfill({
+      json: {
+        data: { status: 'skipped', message: 'Synthetic old response', model: view.model },
+      },
+    });
+  });
+  await page.goto('/system');
+  const panel = page.locator('.integration-panel');
+  const reasoning = panel.getByLabel('推理强度', { exact: true });
+  const connectionTest = panel.getByRole('button', { name: '测试 AI 连接' });
+  await expect(reasoning).toBeDisabled();
+  await expect(reasoning.locator('option:checked')).toHaveText('等待服务器升级');
+  await expect(connectionTest).toBeDisabled();
+  await expect(panel.getByText('推理设置待升级', { exact: true })).toBeVisible();
+  await expect(panel.getByText('当前服务器尚不支持推理强度', { exact: false })).toBeVisible();
+  await expect(panel.getByText('已保存推理', { exact: false })).toHaveCount(0);
+  await page.getByLabel('Provider 名称').fill('Updated legacy provider');
+  await page.getByLabel('模型名称').fill('updated-legacy-model');
+  const patchResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/integrations/ai') && response.request().method() === 'PATCH',
+  );
+  await panel.getByRole('button', { name: '保存 AI 配置' }).click();
+  const response = await patchResponse;
+  expect(response.ok()).toBe(true);
+  expect(response.request().postDataJSON()).not.toHaveProperty('reasoningEffort');
+  expect(response.request().postDataJSON()).not.toHaveProperty('supportsReasoningEffort');
+  await expect(page.getByText('AI 配置已保存，后续分析使用新配置', { exact: true })).toBeVisible();
+  expect(patchCount).toBe(1);
+  await page.reload();
+  await expect(page.getByLabel('Provider 名称')).toHaveValue('Updated legacy provider');
+  await expect(page.getByLabel('模型名称')).toHaveValue('updated-legacy-model');
+  await expect(reasoning).toBeDisabled();
+  await expect(connectionTest).toBeDisabled();
+  expect(testCount).toBe(0);
+  upgraded = true;
+  await page.reload();
+  await expect(reasoning).toBeEnabled();
+  await expect(reasoning).toHaveValue('high');
+  await expect(panel.getByText('已保存推理 · High', { exact: true })).toBeVisible();
+  await expect(connectionTest).toBeEnabled();
+  await expect(panel.getByText('推理设置待升级', { exact: true })).toHaveCount(0);
 });
 
 test('notification credential drafts clear when the configuration dialog closes', async ({

@@ -27,6 +27,7 @@ describe('integration credential storage', () => {
       baseUrl: 'https://relay.example/v1',
       apiKey: 'only-server-knows',
       model: 'model-a',
+      reasoningEffort: 'high',
       timeoutMs: 20000,
       jsonMode: true,
       dailyBudgetUsd: 1,
@@ -35,6 +36,7 @@ describe('integration credential storage', () => {
       hasOverride: true,
     });
     expect(view.apiKeyConfigured).toBe(true);
+    expect(view.reasoningEffort).toBe('high');
     expect(JSON.stringify(view)).not.toContain('only-server-knows');
     expect(view).not.toHaveProperty('apiKey');
   });

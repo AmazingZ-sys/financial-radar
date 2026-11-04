@@ -27,6 +27,7 @@ export async function verifyConfiguration(
   const rootKeyBefore = config.integrationEncryptionKey;
   const modeBefore = config.dataMode;
   const apiKeyBefore = config.aiApiKey;
+  const reasoningEffortBefore = config.aiReasoningEffort;
   const oldAI = (await sql`SELECT data FROM system_settings WHERE key='integrations:ai'`)[0];
   const channels = await sql`SELECT * FROM notification_channels ORDER BY provider`;
   const telegram = channels.find((row) => row.provider === 'telegram')!;
@@ -80,6 +81,15 @@ export async function verifyConfiguration(
         'Unsafe or query-credential AI endpoint rejected',
       );
     }
+    config.aiReasoningEffort = 'xhigh';
+    await sql`DELETE FROM system_settings WHERE key='integrations:ai'`;
+    const defaults = await app.request('/api/v1/integrations/ai', { headers });
+    check(
+      defaults.status === 200 &&
+        (await defaults.json()).data.reasoningEffort === 'xhigh' &&
+        (await readAIConfig()).reasoningEffort === 'xhigh',
+      'New AI configuration defaults to XHigh for the API and worker',
+    );
     const saved = await request('/integrations/ai', {
       name: 'Integration relay',
       enabled: true,
@@ -97,11 +107,36 @@ export async function verifyConfiguration(
       view.data.apiKeyConfigured &&
         view.data.configOrigin === 'database' &&
         view.data.jsonMode === false &&
+        view.data.reasoningEffort === 'xhigh' &&
         !JSON.stringify(view).includes(secret),
       'Config view reports saved state without returning API key',
     );
     const stored = (await sql`SELECT data FROM system_settings WHERE key='integrations:ai'`)[0]!;
     check(!JSON.stringify(stored).includes(secret), 'AI API key encrypted at rest');
+    await sql`UPDATE system_settings SET data=data-'reasoningEffort' WHERE key='integrations:ai'`;
+    const legacy = await app.request('/api/v1/integrations/ai', { headers });
+    check(
+      legacy.status === 200 &&
+        (await legacy.json()).data.reasoningEffort === 'xhigh' &&
+        (await readAIConfig()).reasoningEffort === 'xhigh',
+      'Legacy stored AI configuration without reasoning effort remains readable as XHigh',
+    );
+    const high = await request('/integrations/ai', { reasoningEffort: 'high' });
+    const highView = await high.json();
+    check(
+      high.status === 200 &&
+        highView.data.reasoningEffort === 'high' &&
+        (await readAIConfig()).reasoningEffort === 'high' &&
+        (
+          await sql`SELECT data->>'reasoningEffort' effort FROM system_settings WHERE key='integrations:ai'`
+        )[0]?.effort === 'high',
+      'Changing reasoning effort persists in PostgreSQL and is immediately visible to the worker',
+    );
+    const invalidEffort = await request('/integrations/ai', { reasoningEffort: 'unsupported' });
+    check(
+      invalidEffort.status === 400 && (await readAIConfig()).reasoningEffort === 'high',
+      'Invalid reasoning effort is rejected without changing the saved selection',
+    );
     config.aiApiKey = '';
     check(
       (await readAIConfig()).apiKey === secret,
@@ -109,13 +144,17 @@ export async function verifyConfiguration(
     );
     await request('/integrations/ai', { apiKey: '', name: 'Integration updated' });
     check(
-      (await readAIConfig()).apiKey === secret,
-      'Blank API key preserves existing encrypted key',
+      (await readAIConfig()).apiKey === secret && (await readAIConfig()).reasoningEffort === 'high',
+      'Partial configuration updates preserve the encrypted key and selected reasoning effort',
     );
     const test = await request('/integrations/ai/test', undefined, 'POST');
+    const tested = await test.json();
     check(
-      test.status === 200 && (await test.json()).data.status === 'skipped',
-      'Fixture AI test never calls a real provider',
+      test.status === 200 &&
+        tested.data.status === 'skipped' &&
+        tested.data.reasoningEffort === 'low' &&
+        (await readAIConfig()).reasoningEffort === 'high',
+      'Fixture AI test reports Low without an external call or changing saved analysis effort',
     );
 
     const notification = await request(`/notification-channels/${telegram.id}`, {
@@ -419,6 +458,7 @@ export async function verifyConfiguration(
     config.integrationEncryptionKey = rootKeyBefore;
     config.dataMode = modeBefore;
     config.aiApiKey = apiKeyBefore;
+    config.aiReasoningEffort = reasoningEffortBefore;
     await sql`DELETE FROM notification_attempts WHERE notification_id=${brokenNoticeId}`;
     await sql`DELETE FROM notifications WHERE id=${brokenNoticeId}`;
     if (sourceId) {

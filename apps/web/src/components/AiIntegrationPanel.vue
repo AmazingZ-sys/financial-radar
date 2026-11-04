@@ -1,22 +1,39 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
-import { AIConfigViewSchema, AIConnectionTestSchema } from '@radar/shared';
+import {
+  AIConfigViewSchema,
+  AIConnectionTestSchema,
+  AIReasoningEffortSchema,
+  DEFAULT_AI_REASONING_EFFORT,
+  type AIConfigView,
+  type AIReasoningEffort,
+} from '@radar/shared';
 import { ElMessage } from 'element-plus';
 import { api, ApiError, write } from '../lib/api';
 import DataState from './DataState.vue';
 import RadarIcon from './RadarIcon.vue';
 
+// Detect support before applying the default used by historical stored configurations.
+const AIConfigResponseSchema = AIConfigViewSchema.extend({
+  reasoningEffort: AIReasoningEffortSchema.optional(),
+}).transform((value) => ({
+  ...value,
+  reasoningEffort: value.reasoningEffort ?? DEFAULT_AI_REASONING_EFFORT,
+  supportsReasoningEffort: value.reasoningEffort !== undefined,
+}));
 const client = useQueryClient();
 const { data, isPending, error, refetch } = useQuery({
   queryKey: ['ai-integration'],
-  queryFn: () => api('/integrations/ai', {}, AIConfigViewSchema),
+  queryFn: () => api('/integrations/ai', {}, AIConfigResponseSchema),
 });
+const reasoningSupported = computed(() => data.value?.data.supportsReasoningEffort === true);
 const form = reactive({
   name: '',
   enabled: false,
   baseUrl: '',
   model: '',
+  reasoningEffort: DEFAULT_AI_REASONING_EFFORT as AIReasoningEffort,
   timeoutMs: 20000,
   jsonMode: true,
   dailyBudgetUsd: 1,
@@ -37,22 +54,36 @@ const saved = ref('');
 const dirty = computed(
   () => JSON.stringify(form) !== saved.value || !!apiKey.value || clearApiKey.value,
 );
+const reasoningOptions: { value: AIReasoningEffort; label: string }[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'XHigh' },
+];
+const savedReasoningLabel = computed(
+  () => reasoningOptions.find((option) => option.value === data.value?.data.reasoningEffort)?.label,
+);
+function resetForm(value: AIConfigView) {
+  Object.assign(form, {
+    name: value.name,
+    enabled: value.enabled,
+    baseUrl: value.baseUrl,
+    model: value.model,
+    reasoningEffort: value.reasoningEffort,
+    timeoutMs: value.timeoutMs,
+    jsonMode: value.jsonMode,
+    dailyBudgetUsd: value.dailyBudgetUsd,
+    maxCallCostUsd: value.maxCallCostUsd,
+  });
+  apiKey.value = '';
+  clearApiKey.value = false;
+  saved.value = JSON.stringify(form);
+}
 watch(
   data,
   (value) => {
     if (!value || (saved.value && dirty.value)) return;
-    const v = value.data;
-    Object.assign(form, {
-      name: v.name,
-      enabled: v.enabled,
-      baseUrl: v.baseUrl,
-      model: v.model,
-      timeoutMs: v.timeoutMs,
-      jsonMode: v.jsonMode,
-      dailyBudgetUsd: v.dailyBudgetUsd,
-      maxCallCostUsd: v.maxCallCostUsd,
-    });
-    saved.value = JSON.stringify(form);
+    resetForm(value.data);
   },
   { immediate: true },
 );
@@ -67,9 +98,11 @@ async function save() {
   saveError.value = '';
   testMessage.value = '';
   const submitted = { ...form };
+  const { reasoningEffort, ...legacyFields } = submitted;
   try {
     await write('/integrations/ai', 'PATCH', {
-      ...submitted,
+      ...legacyFields,
+      ...(reasoningSupported.value ? { reasoningEffort } : {}),
       ...(apiKey.value ? { apiKey: apiKey.value } : {}),
       ...(clearApiKey.value ? { clearApiKey: true } : {}),
     });
@@ -87,6 +120,7 @@ async function save() {
   }
 }
 async function test() {
+  if (!reasoningSupported.value) return;
   testing.value = true;
   testMessage.value = '';
   testFailed.value = false;
@@ -144,6 +178,10 @@ async function clearUnavailableKey() {
           <span class="badge">{{
             data.data.configOrigin === 'database' ? '控制台配置' : '环境变量默认值'
           }}</span>
+          <span v-if="reasoningSupported" class="badge"
+            >已保存推理 · {{ savedReasoningLabel }}</span
+          >
+          <span v-else class="badge">推理设置待升级</span>
           <p>连接官方服务或兼容 Chat Completions 的中转站。保存后对后续任务生效。</p>
         </div>
         <form class="form-grid integration-form" autocomplete="off" @submit.prevent="save">
@@ -187,6 +225,31 @@ async function clearUnavailableKey() {
             />
           </div>
           <div class="form-field">
+            <label for="ai-reasoning-effort">推理强度</label>
+            <select
+              id="ai-reasoning-effort"
+              v-model="form.reasoningEffort"
+              :disabled="!reasoningSupported"
+              aria-describedby="ai-reasoning-hint"
+            >
+              <template v-if="reasoningSupported">
+                <option
+                  v-for="option in reasoningOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </template>
+              <option v-else :value="form.reasoningEffort">等待服务器升级</option>
+            </select>
+            <span id="ai-reasoning-hint" class="field-hint">{{
+              reasoningSupported
+                ? '默认 XHigh。强度越高，推理通常越充分、耗时越长；请按模型支持选择。'
+                : '当前服务器尚不支持推理强度，请更新 API 和 Worker 后刷新页面。其他 AI 配置仍可保存。'
+            }}</span>
+          </div>
+          <div class="form-field full">
             <label for="ai-api-key">API Key</label>
             <input
               id="ai-api-key"
@@ -257,9 +320,11 @@ async function clearUnavailableKey() {
           </p>
           <div class="integration-actions full">
             <span class="field-hint">{{
-              dirty
-                ? '有未保存的修改，请先保存再测试'
-                : '仅测试已保存的配置；真实模式下可能产生调用费用'
+              !reasoningSupported
+                ? '更新服务器后即可设置推理强度并以 Low 测试；其他配置可正常保存'
+                : dirty
+                  ? '有未保存的修改，请先保存再测试'
+                  : '连接测试使用最低推理强度 Low，不改变已保存的分析强度；真实模式下可能产生调用费用'
             }}</span>
             <div>
               <button
@@ -268,6 +333,7 @@ async function clearUnavailableKey() {
                 :disabled="
                   saving ||
                   testing ||
+                  !reasoningSupported ||
                   dirty ||
                   !(data.data.apiKeyConfigured && !!data.data.model) ||
                   !data.data.enabled

@@ -38,4 +38,12 @@ describe('configuration security', () => {
     ).toThrow();
     expect(() => loadConfig({ DEX_TOKEN_ADDRESSES: '0OIl' })).toThrow();
   });
+  it('defaults to XHigh and validates configured AI reasoning effort', () => {
+    expect(loadConfig({}).aiReasoningEffort).toBe('xhigh');
+    for (const reasoningEffort of ['low', 'medium', 'high', 'xhigh'])
+      expect(loadConfig({ AI_REASONING_EFFORT: reasoningEffort }).aiReasoningEffort).toBe(
+        reasoningEffort,
+      );
+    expect(() => loadConfig({ AI_REASONING_EFFORT: 'invalid' })).toThrow();
+  });
 });

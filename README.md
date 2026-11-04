@@ -62,8 +62,10 @@ pnpm dev
 - `DEX_CHAIN` + `DEX_TOKEN_ADDRESSES`：仅跟踪最多30个已知 token；空地址列表为未配置，不代表新币全量发现。
 - UniSat：`UNISAT_API_KEY`。EVM：`EVM_RPC_URL` + 已核验 `EVM_FACTORY_ADDRESS`；Solana：`SOLANA_RPC_URL` + `SOLANA_PROGRAM_ID`。范围型监控不能解释为全链覆盖。
 - Telegram：`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`。飞书：官方 `FEISHU_WEBHOOK_URL`。Bark：完整 HTTPS 设备推送 `BARK_SERVER_URL`。邮箱可用服务器端 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURITY`、`SMTP_USERNAME`、`SMTP_PASSWORD`、`SMTP_FROM_EMAIL`、`SMTP_TO_EMAILS` 作为默认值，也可在「通知中心」配置自定义 SMTP 主机、端口、TLS/STARTTLS、可选认证、发件人与多个收件人；密码只在服务端加密保存。
-- AI：在「系统管理 → AI 服务配置」填写 OpenAI-compatible 服务或中转站的 API 根地址（例如 `https://relay.example/v1`）、模型、API Key、超时、JSON 模式和预算。`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` 等环境变量保留为初始默认值；页面保存后覆盖，后续 Worker 任务直接读取，无需重启。成本为保守预算预留/估算，不能替代供应商账单；未配置时规则链继续工作。
+- AI：在「系统管理 → AI 服务配置」填写 OpenAI-compatible 服务或中转站的 API 根地址（例如 `https://relay.example/v1`）、模型、API Key、推理强度、超时、JSON 模式和预算。推理强度可选 Low / Medium / High / XHigh，默认 XHigh；连接测试固定使用最低档 Low，不改变已保存的分析强度，具体支持范围取决于模型。`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL`、`AI_REASONING_EFFORT` 等环境变量保留为初始默认值；页面保存后覆盖，后续 Worker 任务直接读取，无需重启。成本为保守预算预留/估算，不能替代供应商账单；未配置时规则链继续工作。
 - FRED 因已发现的 AI/存储条款冲突默认不接入；Coinbase 等许可按私有研究范围审查，公开再分发前须确认授权。具体官方链接均在数据源文档中。
+
+前端先发布、后端稍后更新时，推理设置会显示待升级，其他 AI 配置仍可保存；更新 API 与 Worker 后刷新即可启用。操作步骤见 [AI 推理强度版本更新](docs/32-ai-reasoning-update.md)。
 
 「通知中心」支持保存 Telegram、飞书、Bark 和 SMTP 邮箱的渠道凭据与启停；「数据源」展示宏观政策、财经市场、科技动态、全球热点与加密资产分类及来源目录，并支持新增已获授权的公开 HTTPS RSS/Atom 订阅。新闻保存标题、摘要、来源和实际发布时间，不抓取付费全文。Fixture 可查看 Live 目录，但不采集真实订阅、不实际调用 AI 或发送通知；启用真实采集需在服务器设置 `DATA_MODE=live`。
 
