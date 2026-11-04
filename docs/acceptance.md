@@ -2,6 +2,19 @@
 
 日期：2026-11-02，Asia/Shanghai。此文件描述实际执行结果，不把设计、Fixture、外部服务和生产部署混为一项。原始需求末尾截断，已收到部分作为实现基线。
 
+## 2026-11-04 · v1.3.1 发布与前端部署
+
+用户明确授权发布Release与部署，并指定后端由其自行更新。下方两节为发布前本地回归，本节记录随后实际完成的正式发布。
+
+- [Actions 41782757585](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41782757585) 的 verify、release、API/Worker images、image-manifest、vercel 全部成功。云端重新验证17个文件146项单元测试，70/35/62/18/86项既有集成以及EVM分页12项、Solana版本13项集成；18个Chromium E2E全部通过。服务端构建语法、隔离生产Compose启动/持久化/备份恢复、安全扫描与依赖审计均通过。
+- [Release v1.3.1](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.3.1) 已正式发布，tag与release-metadata均对应 `313793d1db3bd3f0b494703ab016a80f15ea402c`，CHANGELOG、release-metadata、image-manifest三项附件均已上传。包含Ethereum每次最多10块分页及Solana legacy/v0/v1兼容两项修复。
+- GHCR只读核验版本与SHA标签、镜像清单、OCI标签及运行环境：API digest为 `sha256:cc8c82814fec0781b32533063755ba8c5a9069c5c4d0d2d353a246a2a05aae3a`，Worker为 `sha256:9c32c3d645fbb9ce017f002800f7e9fe39ae6497631932e84b678d236e50c7e1`。两者均为linux/amd64、Node 24.22.2、非root用户，版本和commit与Release一致；未启动生产应用容器。
+- Vercel production [部署](https://financial-radar-87ppedfk9-amazings-projects-6f99eda0.vercel.app) 与GitHub production deployment状态均为success；工作流artifact绑定同一v1.3.1/commit，GitHub deployment ID为 `7539299222`。Release与镜像只读收据保存在忽略提交的 `.local/rpc-release/v1.3.1/`，CI完整验收日志为 `.local/rpc-release/verify-clean.log`。
+- [正式域名](https://radar.amazingzsys.site) 完成8项HTTP读取、39项断言：`/login`、`/sources`、入口JS、SourcesPage与CSS均返回200，SPA深层路由、生产API前缀、链配置字段、安全头与一年immutable资源缓存通过。唯一vercel.app部署地址受Vercel SSO保护，未登录或绕过，未进行其资源hash比对；版本身份由工作流artifact、GitHub deployment success及Vercel job `126420689266` 的正式域名alias日志共同绑定。最终收据为 `.local/rpc-release/v1.3.1/frontend-20261104T061638Z/frontend-http-receipt.json`。
+- 只读检查时，生产API `/health` 返回200且版本仍为v1.3.0，`/ready` 返回200/ready；未登录或写入生产业务数据。
+
+后端服务器由用户执行 `sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.3.1` 更新API/Worker；本次未操作该服务器，链上采集修复需服务器更新后生效。
+
 ## 2026-11-04 · Solana 交易版本兼容与 -32015 错误
 
 用户反馈配置 Solana RPC/Program 后出现 `RPC -32015（参数/额度/历史覆盖需核查）`。核对[Solana 官方迁移说明](https://solana.com/docs/core/transactions/versioned-transactions#preparing-for-v1)与[jsonParsed 结构](https://solana.com/docs/rpc/json-structures)：-32015 表示请求客户端不支持交易版本，固定 maxSupportedTransactionVersion=0 的请求会在读取 v1 交易时失败。先更新数据源设计，再将 getTransaction 的版本上限改为数值1，保留 finalized/jsonParsed 与外层/内部 SPL Token 初始化解析。legacy/v0 继续兼容，v1 新增 transactionConfig 不用于推断资源或费用。残余 -32015 单独显示固定中文版本提示并归类 PERMANENT，响应高于v1的版本也拒绝处理；失败不跳过交易、不推进检查点，不回显供应商原始错误中的地址或凭据。
