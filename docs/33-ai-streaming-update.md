@@ -1,6 +1,6 @@
 # AI 流式接收版本更新
 
-本轮修复 AI 分析持续输出时仍被 60 秒总计时取消的问题。发布版本及镜像以 [GitHub Releases](https://github.com/AmazingZ-sys/financial-radar/releases) 的实际 tag、`release-metadata.json` 与 `image-manifest.json` 为准。
+本轮修复 AI 分析持续输出时仍被 60 秒总计时取消的问题。[v1.4.1 Release](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.4.1) 已发布，完整 [Actions 41849399736](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41849399736) 全部成功。Release、API/Worker 镜像清单与 Vercel 收据均对应 `62045b3f1e779a41c28429e2d68fdfdd080f0ce6`；服务器更新仍由管理员执行。
 
 ## 生效范围
 
@@ -15,10 +15,10 @@ AI 使用独立队列，采集和通知继续使用原队列；旧 Redis 队列�
 等待目标 Release 的 API、Worker 镜像及镜像清单发布完成后执行：
 
 ```bash
-sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version vX.Y.Z
+sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.4.1
 ```
 
-将 `vX.Y.Z` 替换为目标实际 tag。日常镜像更新无需 git pull，不需要重设服务器密钥或删除任何数据卷。部署脚本校验不可变镜像摘要、备份、迁移并检查应用健康。
+日常镜像更新无需 git pull，不需要重设服务器密钥或删除任何数据卷。部署脚本校验不可变镜像摘要、备份、迁移并检查应用健康。
 
 更新后核对 `/health` 的版本/SHA 与 `/ready`，刷新系统管理页面。已保存的 60000 毫秒表示最多等待 60 秒首包或连续无数据；上游若一直没有字节返回仍会超时，达到现有分析 1000 token 输出上限也会失败，流式不能恢复供应商中断的同一次生成。
 

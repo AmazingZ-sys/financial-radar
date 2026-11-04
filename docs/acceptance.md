@@ -343,3 +343,14 @@ Node 24.15.0 / pnpm 10.26.2 实际验证，日志位于忽略提交的 `.local/a
 | `pnpm format:check`、`git diff --check`                     | 通过；`format.log`                                                                                                                                                                                                |
 
 边界：未调用真实付费 AI、未测试真实中转服务能力、未发布或修改线上配置。上游在首包前完全无字节超过配置值时仍会超时；现有分析 1000 token 输出上限保留，达到上限会明确失败。进程仍沿用 30 秒退出上限及部署停止宽限，重启可能中断在途长流，之后依靠持久租约恢复，不能承诺同一次生成续传或不再次计费。
+
+## v1.4.1 AI 流式修复发布核验 · 2026-11-04
+
+用户授权提交、推送并发布 Release，后端服务器由用户更新。修复提交 `62045b3f1e779a41c28429e2d68fdfdd080f0ce6` 已推送 `codex/ai-streaming-release` 与 main，触发 [Actions 41849399736](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41849399736)。verify、release、API image、Worker image、image-manifest 和 Vercel 全部成功；verify 包含契约生成、typecheck、lint、格式、234 项单测、真实 PostgreSQL/Redis 集成、构建、运行时语法、隔离生产 Compose、安全扫描、高危依赖审计与 20 项浏览器回归。
+
+- [v1.4.1 Release](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.4.1) 的实际 tag、`release-metadata.json` 和 `image-manifest.json` 的版本、完整 SHA 一致，三个 Release 资产（含累计 CHANGELOG）均已上传。
+- API 镜像 digest 为 `sha256:3009dd08d9407f07a34f0c4863b39cc25a426e51d7ec771bdd2ef0cf71e8d003`；Worker 为 `sha256:68bb7c789a66372fa6cf6673311f75286337df5c51056c54716485938b055267`。远端版本 tag 与 SHA tag 均匹配清单；两者均存在 linux/amd64 manifest，镜像 label、版本/SHA 环境、Node 24.22.2 和非 root `node` 用户已只读核对，没有拉镜像层或运行生产容器。
+- Vercel 部署收据为 [financial-radar-b9fwdvzfp-amazings-projects-6f99eda0.vercel.app](https://financial-radar-b9fwdvzfp-amazings-projects-6f99eda0.vercel.app)，版本/SHA 与 Release 一致。正式站点 `/login`、`/system`、入口 JS、新 SystemPage chunk、favicon 全部 HTTP 200；新入口为 `/assets/index-DxQq62NY.js`，已包含首包/空闲超时说明，静态 API 前缀、安全头与不可变资源缓存符合配置。
+- 发布前后公开健康检查均为后端 v1.4.0，`/ready=200`；没有登录、修改线上配置或发起真实 AI 调用。新流式与超时策略需用户更新 API/Worker 后生效，更新命令见 [33 流式版本更新](33-ai-streaming-update.md)。
+
+实际收据保存在忽略提交的 `.local/ai-streaming-release/`：`baseline.json`、`v1.4.1/{actions,release,git-tag,release-metadata,image-manifest,verification-summary}.json`、镜像 manifest/config、`vercel-v1.4.1/vercel-deployment.json` 与 `http-verification.json`。首次 SSH 推送连接失败后以现有 GitHub 登录凭据通过 HTTPS 成功推送；首次 Vercel artifact 下载网络 EOF，经有界重试成功读取，不以中间失败冒充发布失败或验收成功。
