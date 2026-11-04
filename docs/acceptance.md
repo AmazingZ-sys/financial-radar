@@ -8,14 +8,21 @@
 
 SMTP 连接/空闲超时各 10 秒，总投递上限 25 秒并销毁底层 socket；保留证书校验和强制 STARTTLS。4xx（含 AUTH 454 临时认证故障）可重试，认证配置/证书/永久拒绝停止自动重试。部分收件人被接受时保留数量提示，停止自动重试以免重复发给已接受者。`fixture` 模式不创建 SMTP 连接，也不伪造 SENT；SENT 只表示服务器至少接受一个收件人，不能证明进入收件箱或已读。
 
-Node 24.15.0 本地验收日志位于忽略提交的 `.local/email-test/`。主机默认 Node 20 的初步检查已由 Node 24 正式检查取代。回环模拟 SMTP 协议烟测使用临时 CA 和有效证书验证：隐式 TLS、STARTTLS 各捕获一封合成测试邮件；不支持 STARTTLS 的服务器被拒绝且未收到正文。该烟测无真实邮箱投递，收据为 `smtp-receipt.json`。发布与最终质量门禁结果在完成后追加；用户已明确后端服务器更新由其自行执行。
+Node 24.15.0 本地验收日志位于忽略提交的 `.local/email-test/`。主机默认 Node 20 的初步检查已由 Node 24 正式检查取代。回环模拟 SMTP 协议烟测使用临时 CA 和有效证书验证：隐式 TLS、STARTTLS 各捕获一封合成测试邮件；不支持 STARTTLS 的服务器被拒绝且未收到正文。该烟测无真实邮箱投递，收据为 `smtp-receipt.json`。用户已明确后端服务器更新由其自行执行。
 
 - 冻结安装、API 契约生成、`typecheck`、`lint`、`format:check`、`build`、`security:check`、生产依赖 high 等级审计与 `git diff --check` 通过。
 - `pnpm test`：16 个文件、128 项通过，覆盖 TLS 配置、Fixture 不创建传输、部分接受、空接受、暂时/永久错误、超时和敏感信息保护。
 - 隔离真实 PostgreSQL 18 / Redis 7.4：70 项主集成、35 项历史流水线、62 项配置/API 检查和 86 项模式隔离断言通过。邮箱新增检查覆盖默认禁用、幂等补种、2525 端口、加密与密码保留、清除、非法字段及密钥轮换修复。
 - Chromium E2E：14/14 通过，包含 SMTP 配置保存/重载、多收件人、密码不回显与草稿清除、Fixture 测试入队、390px 页面/弹窗无横向溢出。首次与源码写入并行的运行触发 API watch 重启，导致一个旧用例暂时连接失败；源码固定后完整重跑，无重试通过。
 
-实际外部 SMTP 邮箱尚未配置或投递；模拟协议、Fixture 和服务器接受不能视为用户已收到邮件。
+2026-11-04 09:35（Asia/Shanghai）发布验收：
+
+- [Actions 41754198134](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41754198134) 的 verify、release、API/Worker images、image-manifest 和 vercel 全部成功；云端 verify 包含生产 Compose 与浏览器验收。此前 `5ccfd3b` 的运行已在发布前取消，最终发布包含 AUTH 454 重试修复。
+- [Release v1.2.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.2.0) 对应 `fabccb65c22d84085b9fca7b83d8afd0870c4893`，`CHANGELOG.md`、`release-metadata.json` 与 `image-manifest.json` 已实际上传。API digest 为 `sha256:59e3205f407e9af24c17df1d41dd30280196c36371be631643742105f707b9d0`，Worker 为 `sha256:5890852f117793aab0ff1616c2d6c80dc500babd3e8ecbf00195d57712d578d7`；GHCR 远程 inspect 验证清单、linux/amd64、版本/revision 标签和运行环境与 Release 一致。
+- Vercel production 部署状态为 success，对应同一完整 commit；[部署地址](https://financial-radar-4hztev4mz-amazings-projects-6f99eda0.vercel.app) 已生成。[正式域名](https://radar.amazingzsys.site) 的 `/login` 与 `/notifications` 均返回 HTTP 200 和相同 SPA HTML，实际入口与通知懒加载资源包含 SMTP 配置字段、正确生产 API 地址、安全响应头及 immutable 资源缓存。
+- 只读线上核验收据保存在 `.local/email-test/{release-metadata,image-manifest,release-image-verification,deployment-status,frontend-production-receipt}.json`。本次没有操作用户后端服务器；发布前其 `/health` 返回 v1.1.1，镜像发布与静态页面核验不代表服务器已升级。
+
+用户可在服务器执行 `sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.2.0` 更新 API/Worker，再到「通知中心 → SMTP 邮箱 → 配置渠道」保存配置、启用并测试。实际外部 SMTP 邮箱尚未配置或投递；模拟协议、Fixture 和服务器接受不能视为用户已收到邮件。
 
 ## 2026-11-03 · 前端迁移 Vercel
 
@@ -56,7 +63,7 @@ Vercel 已绑定 `radar.amazingzsys.site` 到 Production。用户随后完成 DN
 | 回放      | 依发布时间/首次观察/采集的可知时间过滤，存储当时信号和分数解释                                               | 无可靠完整ORDI历史证据包，未声称重建真实历史收益                                                         |
 | AI        | Provider、JSON/证据校验、预算预留/UTC日限额、缓存/退避/降级、人工复核                                        | 未配置真实模型密钥；费用是保守预留与估算；语义真实性仍需来源核验与人工研究                               |
 | 日历/日报 | PG日历、可靠来源管理员导入、未知值/发布确认、UTC日摘要接口                                                   | Live没有自动官方日历源时为空；日报从已存事实/已有分析生成，无自动每日外发订阅                            |
-| 通知      | Telegram/飞书/Bark，渠道测试、启停、重试、模板、冷却/时段、尝试审计                                          | Fixture永不外发；SENT只表示平台接受；响应丢失时不能保证第三方exactly-once或用户已读                      |
+| 通知      | Telegram/飞书/Bark/SMTP邮箱，渠道测试、启停、重试、模板、冷却/时段、尝试审计                                 | Fixture永不外发；SENT只表示平台接受；响应丢失时不能保证第三方exactly-once或用户已读                      |
 | 运维      | Compose、宿主Nginx模板、版本/摘要部署、备份/新库恢复/应用回滚、GHCR+Vercel同workflow发布链                   | 目标生产服务器与TLS由用户配置；GHCR/Vercel发布已完成，前端DNS已由用户切换并验证                          |
 
 ## 已执行质量门禁
