@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { fetchPublicHttps } from '@radar/config';
 import { ResilientHttp, ConnectorError } from './http.js';
 import type { Connector, SourceMetadata, Cursor, RawItem, NormalizedEvent } from './types.js';
+const publicRpcFetcher: typeof fetch = (input, init) =>
+  fetchPublicHttps(input instanceof Request ? input.url : String(input), init);
 const hex = z.string().regex(/^0x[0-9a-fA-F]+$/);
 const evmAddress = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const txHash = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
@@ -18,7 +21,7 @@ abstract class RpcConnector implements Connector {
   protected http: ResilientHttp;
   constructor(
     protected rpcUrl: string,
-    fetcher: typeof fetch = fetch,
+    fetcher: typeof fetch = publicRpcFetcher,
   ) {
     this.http = new ResilientHttp(fetcher, undefined, undefined, 500);
   }
@@ -77,7 +80,7 @@ export class EvmFactoryConnector extends RpcConnector {
   constructor(
     rpcUrl = '',
     private factoryAddress = '',
-    fetcher: typeof fetch = fetch,
+    fetcher: typeof fetch = publicRpcFetcher,
   ) {
     super(rpcUrl, fetcher);
   }
@@ -238,7 +241,7 @@ export class SolanaMintConnector extends RpcConnector {
   constructor(
     rpcUrl = '',
     private programId = '',
-    fetcher: typeof fetch = fetch,
+    fetcher: typeof fetch = publicRpcFetcher,
   ) {
     super(rpcUrl, fetcher);
   }

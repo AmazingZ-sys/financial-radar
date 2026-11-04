@@ -350,6 +350,7 @@ async function test(rule: AlertRule) {
       :title="editingId ? '编辑预警规则' : '新建预警规则'"
       width="640px"
       align-center
+      append-to-body
       ><form class="form-grid" @submit.prevent="save">
         <div class="form-field full">
           <label for="rule-name">规则名称</label
@@ -548,7 +549,7 @@ async function test(rule: AlertRule) {
           </button>
         </div>
       </form></el-dialog
-    ><el-dialog v-model="testOpen" title="规则测试" width="600px" align-center
+    ><el-dialog v-model="testOpen" title="规则测试" width="600px" align-center append-to-body
       ><p class="muted">{{ testTitle }} · 测试只评估已有事件，不会实际发送通知。</p>
       <pre v-if="testResult" class="json-view">{{ JSON.stringify(testResult, null, 2) }}</pre>
       <div v-else class="empty-inline">正在评估…</div></el-dialog

@@ -16,6 +16,7 @@ import {
   NotificationConfigPatchSchema,
   PaginationSchema,
   SourceIdSchema,
+  MarketSourceMinimumIntervals,
 } from '@radar/shared';
 import { evaluateRule, replay, type RuleEvent } from '@radar/signals';
 import { z, type OpenAPIHono } from '@hono/zod-openapi';
@@ -203,6 +204,13 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
       const existing =
         await sql`SELECT * FROM data_sources WHERE id=${id} AND mode=${config.dataMode}`;
       if (!existing[0]) fail(404, '数据源不存在');
+      const minimumInterval = MarketSourceMinimumIntervals[id];
+      if (
+        input.intervalSeconds !== undefined &&
+        minimumInterval &&
+        input.intervalSeconds < minimumInterval
+      )
+        fail(400, `该行情来源的轮询间隔不能低于 ${minimumInterval} 秒`);
       if (
         input.intervalSeconds !== undefined &&
         input.intervalSeconds < 60 &&

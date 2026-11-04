@@ -18,6 +18,8 @@ describe('HTTP trust boundary', () => {
       ['/api/v1/integrations/ai', 'PATCH'],
       ['/api/v1/integrations/ai/test', 'POST'],
       ['/api/v1/sources/catalog', 'GET'],
+      ['/api/v1/integrations/sources', 'GET'],
+      ['/api/v1/integrations/sources', 'PATCH'],
       ['/api/v1/sources', 'POST'],
       ['/api/v1/notification-channels', 'GET'],
       ['/api/v1/alert-rules', 'POST'],

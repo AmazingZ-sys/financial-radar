@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type postgres from 'postgres';
 import type { TransactionSql } from 'postgres';
-import { sql, ensureAdmin, readAIConfig } from '@radar/database';
+import { sql, ensureAdmin, readAIConfig, readSourceIntegrationsConfig } from '@radar/database';
 import { config } from '@radar/config';
 import { createLogger } from '@radar/observability';
 import {
@@ -13,6 +13,10 @@ import {
   ConnectorError,
   NewsRssConnector,
   categoriesForSource,
+  UniSatBrc20Connector,
+  EvmFactoryConnector,
+  SolanaMintConnector,
+  DexScreenerConnector,
 } from '@radar/connectors';
 import {
   fingerprint,
@@ -56,6 +60,78 @@ async function initialAnalysisStatus(): Promise<'PENDING' | 'DISABLED'> {
 }
 
 let sourceSync: Promise<void> | undefined;
+let configuredSync: Promise<void> | undefined;
+const configuredVersions = new Map<string, string>();
+const configuredScopes = new Map<string, string>();
+/** Read encrypted server configuration before future tasks; never retain removed credentials. */
+export async function synchronizeConfiguredSources() {
+  if (config.dataMode !== 'live') return;
+  if (configuredSync) return configuredSync;
+  configuredSync = (async () => {
+    let effective: Awaited<ReturnType<typeof readSourceIntegrationsConfig>>;
+    try {
+      effective = await readSourceIntegrationsConfig();
+    } catch {
+      // A lost encryption key must not let stale in-memory credentials continue collecting.
+      effective = {
+        unisatApiKey: '',
+        evmRpcUrl: '',
+        solanaRpcUrl: '',
+        evmFactoryAddress: '',
+        solanaProgramId: '',
+        dexChain: 'solana',
+        dexTokenAddresses: [],
+        configOrigin: 'database',
+      };
+      log.warn(
+        'Source credentials cannot be decrypted; configured collection disabled until repaired',
+      );
+    }
+    const entries: { connector: Connector; version: unknown; scope: unknown }[] = [
+      {
+        connector: new UniSatBrc20Connector(effective.unisatApiKey),
+        version: [effective.unisatApiKey],
+        scope: ['unisat-brc20'],
+      },
+      {
+        connector: new EvmFactoryConnector(effective.evmRpcUrl, effective.evmFactoryAddress),
+        version: [effective.evmRpcUrl, effective.evmFactoryAddress],
+        scope: ['ethereum-mainnet', effective.evmFactoryAddress.toLowerCase()],
+      },
+      {
+        connector: new SolanaMintConnector(effective.solanaRpcUrl, effective.solanaProgramId),
+        version: [effective.solanaRpcUrl, effective.solanaProgramId],
+        scope: ['solana-mainnet', effective.solanaProgramId],
+      },
+      {
+        connector: new DexScreenerConnector(effective.dexChain, effective.dexTokenAddresses),
+        version: [effective.dexChain, effective.dexTokenAddresses],
+        scope: [effective.dexChain, effective.dexTokenAddresses],
+      },
+    ];
+    for (const { connector, version, scope } of entries) {
+      const id = connector.metadata.id;
+      const fingerprint = stableHash(JSON.stringify(version));
+      if (configuredVersions.get(id) === fingerprint && registry.get(id)) continue;
+      const health = await connector.healthCheck();
+      const scopeId = stableHash(JSON.stringify(scope));
+      await connector.initialize();
+      const old = registry.get(id);
+      registry.remove(id);
+      registry.register(connector);
+      if (old) await old.shutdown();
+      const configured = health.status !== 'unconfigured';
+      await sql`UPDATE data_sources SET enabled=CASE WHEN NOT ${configured} THEN false WHEN data->>'status'='unconfigured' THEN true ELSE enabled END,last_error=null,data=data || ${json({ keyConfigured: configured, description: health.detail, status: configured ? 'pending' : 'unconfigured', integrationScope: scopeId, cooldownUntil: null })}::jsonb WHERE id=${id} AND mode='live'`;
+      configuredVersions.set(id, fingerprint);
+      configuredScopes.set(id, scopeId);
+    }
+  })();
+  try {
+    await configuredSync;
+  } finally {
+    configuredSync = undefined;
+  }
+}
 /** Register durable custom sources before schedules are reconciled, without touching evidence rows. */
 export async function synchronizeCustomSources() {
   if (config.dataMode !== 'live') return;
@@ -102,6 +178,7 @@ export async function synchronizeCustomSources() {
 
 export async function initializeSources() {
   const ownerId = await ensureAdmin();
+  await synchronizeConfiguredSources();
   await synchronizeCustomSources();
   const registered = registry.list().map((connector) => connector.metadata.id);
   // A custom feed can be created after synchronization's SELECT; preserve its requested
@@ -807,10 +884,12 @@ export async function runIngestion(sourceId: string) {
   }
 }
 async function runIngestionUnlocked(sourceId: string) {
+  await synchronizeConfiguredSources();
   const source = (await sql`SELECT enabled,mode,data FROM data_sources WHERE id=${sourceId}`)[0];
   if (!source?.enabled || source.mode !== config.dataMode)
     return { fetched: 0, inserted: 0, skipped: true };
   const connector = registry.get(sourceId);
+  const integrationScope = configuredScopes.get(sourceId);
   // Old queue entries may outlive a disabled/removed/malformed source configuration.
   if (!connector) return { fetched: 0, inserted: 0, skipped: true };
   const cooldownUntil = (source.data as Record<string, unknown>)?.cooldownUntil;
@@ -823,7 +902,13 @@ async function runIngestionUnlocked(sourceId: string) {
     const checkpoint = (
       await sql`SELECT cursor FROM source_checkpoints WHERE source_id=${sourceId}`
     )[0];
-    const fetched = await connector.fetch(checkpoint?.cursor as Cursor | undefined);
+    const savedCursor = checkpoint?.cursor as Cursor | undefined;
+    const cursor =
+      integrationScope && savedCursor?._integrationScope !== integrationScope
+        ? undefined
+        : savedCursor;
+    const fetched = await connector.fetch(cursor);
+    if (integrationScope) fetched.cursor._integrationScope = integrationScope;
     let inserted = 0;
     const orderedItems = [...fetched.items].sort((a, b) => {
       const aObserved =

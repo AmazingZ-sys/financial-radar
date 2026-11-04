@@ -33,3 +33,11 @@ PENDING → SENDING → SENT；可重试失败 SENDING→RETRYING→SENDING；�
 ## 7. SMTP 配置参考
 
 配置字段参考 [QuantDinger 邮箱 SMTP 通知指南](https://github.com/OpenByteInc/QuantDinger/blob/main/docs/deployment/NOTIFICATION_EMAIL_CONFIG_CN.md)：主机、端口、认证、发件人与多收件人。实现使用 [Nodemailer SMTP transport](https://nodemailer.com/smtp)，支持隐式 TLS 和强制 STARTTLS；保持证书验证，不提供明文模式。连接及空闲超时各 10 秒、总投递上限 25 秒，并销毁底层 socket 终止超时发送。默认新邮箱渠道停用，管理员保存配置并启用后可用于规则和手动测试。密码留空保留；取消认证时先清除全部配置再按无认证 SMTP 服务器参数保存。
+
+### Gmail 设置入口（2026-11-04）
+
+邮箱渠道卡片直接提供 Gmail SMTP 官方设置说明及应用专用密码入口，配置弹窗在 SMTP 字段之前提供默认收起的 Gmail / Google Workspace 帮助和两步验证入口，避免帮助内容挤占表单空间。链接以新标签打开，带 `noopener noreferrer`，不附带渠道配置或邮箱地址。保留通用 SMTP 表单，不因打开帮助自动覆盖已有配置。
+
+常用参数：`smtp.gmail.com`，587 + STARTTLS（也支持 465 + TLS），用户名为完整邮箱地址。当前 SMTP 密码方式使用应用专用密码；创建前须启用两步验证。组织账号、安全密钥专用验证或高级保护策略可能限制应用专用密码，界面提供官方说明；不引导关闭账号安全策略。
+
+官方依据：[Gmail SMTP 说明](https://knowledge.workspace.google.com/admin/gmail/send-email-from-a-printer-scanner-or-app)、[应用专用密码与账号限制](https://support.google.com/accounts/answer/185833?hl=zh-Hans)、[创建入口](https://myaccount.google.com/apppasswords)、[两步验证设置](https://myaccount.google.com/signinoptions/two-step-verification/enroll-welcome)。已核验公开说明及账号入口跳转；账号登录后的创建过程需要用户本人操作，不视为本项目已完成配置。

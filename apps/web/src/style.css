@@ -2175,14 +2175,36 @@ code,
   padding: 25px;
   max-width: calc(100vw - 28px);
 }
+.el-overlay-dialog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 14px;
+}
+.el-overlay-dialog .el-dialog {
+  margin: 0 auto;
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 0 1 auto;
+}
 .el-dialog__header {
   padding-bottom: 23px;
+  flex-shrink: 0;
 }
 .el-dialog__title {
   font-size: 17px;
 }
 .el-dialog__body {
   color: var(--text-secondary);
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.el-dialog__footer {
+  flex-shrink: 0;
 }
 .el-dialog__headerbtn {
   top: 15px;
@@ -3128,6 +3150,15 @@ code,
   }
   .workspace {
     padding: 24px 17px 30px;
+  }
+  .el-overlay-dialog {
+    padding: 12px 10px;
+  }
+  .el-overlay-dialog .el-dialog {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    max-width: calc(100vw - 20px);
+    padding: 21px 17px;
   }
   .page-heading {
     align-items: flex-end;

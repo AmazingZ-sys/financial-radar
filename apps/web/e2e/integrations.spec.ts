@@ -244,3 +244,123 @@ test('source catalog exposes noncrypto news and fixture prevents adding live fee
     true,
   );
 });
+
+test('source health dialogs remain inside the viewport after scrolling on desktop and mobile', async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1280, height: 600 },
+    { width: 390, height: 640 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/sources');
+    const trigger = page.getByRole('button', { name: '健康记录' }).last();
+    await expect(trigger).toBeVisible();
+    await page.getByRole('heading', { name: '来源目录' }).scrollIntoViewIfNeeded();
+    await trigger.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(async () => {
+      const box = await dialog.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+    }).toPass();
+    await dialog.getByRole('button', { name: '保存周期' }).scrollIntoViewIfNeeded();
+    await expect(dialog.getByRole('button', { name: '保存周期' })).toBeInViewport();
+    await page.screenshot({ path: `.local/usability-test/source-dialog-${viewport.width}.png` });
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+  }
+});
+
+test('Gmail setup links are discoverable and long SMTP configuration stays reachable', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto('/notifications');
+  const email = page.locator('.channel-card').filter({ hasText: 'email' });
+  await expect(email.getByRole('link', { name: 'Gmail SMTP 官方说明' })).toHaveAttribute(
+    'href',
+    /google\.com/,
+  );
+  await expect(email.getByRole('link', { name: '创建应用专用密码' })).toHaveAttribute(
+    'href',
+    'https://myaccount.google.com/apppasswords',
+  );
+  await email.getByRole('button', { name: '配置渠道' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByText('Gmail / Google Workspace 设置帮助', { exact: true }).click();
+  await expect(dialog.getByRole('link', { name: '开启两步验证' })).toHaveAttribute(
+    'href',
+    /myaccount\.google\.com/,
+  );
+  const save = dialog.getByRole('button', { name: '保存渠道配置' });
+  await save.scrollIntoViewIfNeeded();
+  await expect(save).toBeInViewport();
+  const box = await dialog.boundingBox();
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(640);
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+});
+
+test('source setup exposes official portals and clears unsaved credential drafts', async ({
+  page,
+}) => {
+  await page.goto('/sources');
+  const panel = page.locator('#source-connections');
+  await expect(panel.getByRole('heading', { name: '数据源接入设置' })).toBeVisible();
+  for (const name of ['UniSat', 'Ethereum RPC', 'Solana RPC', 'DEX Screener'])
+    await expect(panel.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(panel.getByRole('link', { name: '申请 API Key' })).toHaveAttribute(
+    'href',
+    'https://developer.unisat.io',
+  );
+  await expect(panel.getByRole('link', { name: '创建 RPC 端点' })).toHaveCount(2);
+  await panel.getByRole('button', { name: '编辑连接设置' }).click();
+  await panel.getByLabel('UniSat API Key', { exact: true }).fill('synthetic-source-draft');
+  await panel
+    .getByLabel('Ethereum RPC URL', { exact: true })
+    .fill('https://example.com/synthetic-draft');
+  await panel.getByRole('button', { name: '取消', exact: true }).click();
+  await panel.getByRole('button', { name: '编辑连接设置' }).click();
+  await expect(panel.getByLabel('UniSat API Key', { exact: true })).toHaveValue('');
+  await expect(panel.getByLabel('Ethereum RPC URL', { exact: true })).toHaveValue('');
+  await expect(panel.getByLabel('DEX Token 地址')).toBeVisible();
+  expect(
+    await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage })),
+  ).not.toContain('synthetic-source-draft');
+  await page.setViewportSize({ width: 390, height: 640 });
+  await panel.getByRole('button', { name: '保存数据源配置' }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
+test('dashboard commodity cards open the matching market without inventing fixture quotes', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const panel = page.locator('.commodity-monitor');
+  await expect(panel.getByRole('heading', { name: '黄金与原油' })).toBeVisible();
+  const response = await page.request.get('/api/v1/markets/assets');
+  const assets = (await response.json()) as {
+    data: { asset: string; value: number | null; sourceId: string; dataMode: string }[];
+  };
+  for (const symbol of ['XAU', 'WTI']) {
+    const quote = assets.data.find((item) => item.asset === symbol);
+    expect(quote).toBeDefined();
+    if (quote?.value === null)
+      await expect(
+        panel.locator(`.commodity-quote[href="/markets?asset=${symbol}"]`),
+      ).toContainText('暂无观测');
+  }
+  await panel.locator('.commodity-quote[href="/markets?asset=WTI"]').click();
+  await expect(page).toHaveURL(/\/markets\?asset=WTI$/);
+  await expect(page.locator('.market-card.selected .market-symbol')).toHaveText('WTI');
+  await expect(page.locator('.segmented button.active')).toHaveText('30 天');
+});

@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+export const MarketSourceMinimumIntervals: Readonly<Record<string, number>> = {
+  'gold-api-xau': 60,
+  'eia-wti-daily': 3600,
+};
+
 export const SourceCategorySchema = z.enum(['macro', 'finance', 'technology', 'world', 'crypto']);
 export const SourceCategoryLabels: Record<z.infer<typeof SourceCategorySchema>, string> = {
   macro: '宏观政策',

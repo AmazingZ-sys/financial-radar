@@ -94,3 +94,60 @@ export type AIConfig = z.infer<typeof AIConfigSchema>;
 export type AIConfigView = z.infer<typeof AIConfigViewSchema>;
 export type AIConfigPatch = z.infer<typeof AIConfigPatchSchema>;
 export type NotificationConfigPatch = z.infer<typeof NotificationConfigPatchSchema>;
+
+const RpcUrl = z.union([z.literal(''), HttpsUrl]);
+const SourceChain = z.enum([
+  'solana',
+  'ethereum',
+  'base',
+  'arbitrum',
+  'optimism',
+  'polygon',
+  'bsc',
+]);
+export const SourceIntegrationsSchema = z.object({
+  unisatApiKeyConfigured: z.boolean(),
+  evmRpcConfigured: z.boolean(),
+  evmFactoryAddress: z.string(),
+  solanaRpcConfigured: z.boolean(),
+  solanaProgramId: z.string(),
+  dexChain: SourceChain,
+  dexTokenAddresses: z.array(z.string()).max(30),
+  configOrigin: z.enum(['environment', 'database']),
+  credentialError: z.boolean(),
+  links: z.object({
+    unisat: z.url(),
+    ethereumRpc: z.url(),
+    solanaRpc: z.url(),
+    dex: z.url(),
+  }),
+});
+export const SourceIntegrationsPatchSchema = z
+  .object({
+    unisatApiKey: z
+      .string()
+      .trim()
+      .max(4096)
+      .refine((v) => !/[\r\n]/.test(v))
+      .optional(),
+    clearUnisatApiKey: z.boolean().optional(),
+    evmRpcUrl: RpcUrl.optional(),
+    evmFactoryAddress: z
+      .string()
+      .trim()
+      .regex(/^$|^0x[0-9a-fA-F]{40}$/)
+      .optional(),
+    solanaRpcUrl: RpcUrl.optional(),
+    solanaProgramId: z
+      .string()
+      .trim()
+      .regex(/^$|^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+      .optional(),
+    dexChain: SourceChain.optional(),
+    dexTokenAddresses: z.array(z.string().trim().min(1).max(128)).max(30).optional(),
+    clearEvmRpcUrl: z.boolean().optional(),
+    clearSolanaRpcUrl: z.boolean().optional(),
+  })
+  .strict();
+export type SourceIntegrations = z.infer<typeof SourceIntegrationsSchema>;
+export type SourceIntegrationsPatch = z.infer<typeof SourceIntegrationsPatchSchema>;

@@ -17,6 +17,15 @@
 - GET /api/v1/sources/catalog：已实现来源目录与分类；POST /api/v1/sources：添加管理员授权的 RSS/Atom 公共订阅；现有 PATCH 调整启停与轮询。订阅 URL 不原地替换，避免旧证据来源混淆。
 - 系统管理提供 AI 配置表单；通知页面提供渠道配置；数据源页面提供分类、来源目录与新增 RSS/Atom。使用现有 Vue 控制台视觉体系，并明确保存、测试、失败与待配置状态。
 
+## 2026-11-04 数据源连接设置
+
+- 数据源页新增可见的连接设置入口，支持 UniSat API Key、Ethereum 主网 HTTPS RPC 与指定 V2 Factory、Solana 主网 HTTPS RPC 与 Program，以及 DEX Screener 的链和最多30个已知 token。黄金和原油由无需 Key 的独立来源提供；数据频率由 provider 适配器明确标识。
+- GET/PATCH `/api/v1/integrations/sources` 复用认证、CSRF、限流和字段级审计。所有 key 及可能含 key 的 RPC URL 在 `system_settings` 加密存储，GET 仅返回凭据配置状态与无秘密的范围参数。空白密钥/URL保留原值，显式清除不回退环境默认值；不在浏览器持久化草稿。
+- Worker 在每次采集和定时协调时读取数据库配置，替换受影响适配器；未配置时保持不可用。检查点保存范围指纹，范围变更后重新开始该范围的采集，不沿用旧范围游标，历史原始证据继续保留。配置保存不等于上游连接已通过；后续真实采集才更新健康记录。
+- 页面提供经官方文档核验的 UniSat 开发者中心、Alchemy 创建 key/端点、Helius RPC 控制台，以及 DEX Screener 文档链接。DEX Screener 当前公开 token-pairs 接口无 key 字段，输入观察链和 token 地址即可。
+
+2026-11-04 核验依据：[UniSat 获取 Key](https://docs.unisat.io/developer-support/open-api-documentation) 指向 `developer.unisat.io`；[Alchemy 创建 API Key](https://www.alchemy.com/docs/create-an-api-key) 说明控制台创建 App、在 Endpoints 复制 HTTP URL；[Helius Quickstart](https://www.helius.dev/docs/quickstart) 指向 `dashboard.helius.dev`；[DEX Screener 官方接口](https://docs.dexscreener.com/api/reference) 提供无需认证头的已知 token 查询示例和每请求最多30个地址限制。页面链接仅导航至服务商，创建账户、授权和供应商套餐由管理员自行选择。
+
 ## 多领域数据源
 
 - 保留 Fed 政策公告、美国财政部日度利率等现有非加密数据源，增加经官方资料确认的综合/财经/科技/政策 RSS 来源。具体端点与使用限制由实现时的官方核验补充。

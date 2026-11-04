@@ -1,4 +1,9 @@
-import { sql, readAIConfig, notificationConfigView } from '@radar/database';
+import {
+  sql,
+  readAIConfig,
+  notificationConfigView,
+  readSourceIntegrationsView,
+} from '@radar/database';
 import { config } from '@radar/config';
 import {
   EventSchema,
@@ -400,12 +405,13 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
       }),
     }),
     async (c) => {
-      const [hb, usage, queues, aiConfig, channels] = await Promise.all([
+      const [hb, usage, queues, aiConfig, channels, sourceConfig] = await Promise.all([
         sql`SELECT data FROM system_settings WHERE key='worker:heartbeat'`,
         sql`SELECT count(*) calls,coalesce(sum(input_tokens),0) input_tokens,coalesce(sum(output_tokens),0) output_tokens,coalesce(sum(estimated_cost),0) estimated_cost FROM ai_analysis_runs WHERE (provider='fixture')=${config.dataMode === 'fixture'} AND created_at>=date_trunc('day',now())`,
         queueCounts(),
         readAIConfig(),
         sql`SELECT id,name,enabled,provider,data FROM notification_channels WHERE owner_id=${c.get('actor').id}`,
+        readSourceIntegrationsView(),
       ]);
       const t = hb[0]?.data?.timestamp ?? hb[0]?.data?.at ?? null;
       const u = usage[0]!;
@@ -457,9 +463,10 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
             feishu: channelViews.some((row) => row.provider === 'feishu' && row.configured),
             bark: channelViews.some((row) => row.provider === 'bark' && row.configured),
             github: !!config.githubToken,
-            unisat: !!config.unisatApiKey,
-            evmRpc: !!config.evmRpcUrl,
-            solanaRpc: !!config.solanaRpcUrl,
+            unisat: sourceConfig.unisatApiKeyConfigured,
+            evmRpc: sourceConfig.evmRpcConfigured,
+            solanaRpc: sourceConfig.solanaRpcConfigured,
+            dex: sourceConfig.dexTokenAddresses.length > 0,
           },
           latency: await latencyStats(),
         },

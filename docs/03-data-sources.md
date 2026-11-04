@@ -106,4 +106,14 @@
 
 `sourcePublishedAt=null`、`eventOccurredAt=null`。`NEW_DATE`只有数据日期，保存到`sourceDate`并标记`frequency=daily`、`publicationTimeKnown=false`；不把午夜或feed.updated当精确对外发布时间。`market_observations.observed_at`是系统采样/观察时间，`delay_seconds=null`，前端显示“日度参考收益率 · 发布时间未知”。缺失期限为unknown，不补零；日度历史入库不制造实时价格异动告警。
 
-黄金实时、WTI/Brent授权实时、BLS CPI/失业/非农观测、EIA库存API本版尚未接入；目录中调研和Provider边界不代表这些来源已运行。其界面应为不可用/待配置，不能从Fixture获得实时声明。
+2026-11-02 设计基线时，黄金实时、WTI/Brent授权实时、BLS CPI/失业/非农观测、EIA库存API尚未接入；目录中调研和Provider边界不代表来源已运行。2026-11-04 补全第三方黄金报价与 EIA 日度 WTI，见下一节；其余未接入项仍显示不可用，不从Fixture获得实时声明。
+
+## 2026-11-04 黄金与原油监控补全设计
+
+- 黄金采用 Gold API 的正式 `GET https://api.gold-api.com/price/XAU` 公开接口。官方 [接口文档](https://gold-api.com/docs)、[FAQ](https://gold-api.com/faqs) 与 [条款](https://gold-api.com/terms) 已核验：最新报价无需 key，允许商业应用；价格每 30 秒更新，项目按 60 秒采样。它是第三方报价服务，并非交易所官方成交源。报价单位为 USD/金衡盎司，`updatedAt` 表示供应商最后取得数据的 UTC 时间，必须原样保留；无承诺 SLA。
+- WTI 采用 EIA 正式 [bulk download facility](https://www.eia.gov/opendata/v1/bulkfiles.php) 的 `https://www.eia.gov/opendata/bulk/PET.zip`，流式读取 `PET.txt` 的 `PET.RWTC.D` 序列，找到目标序列即终止下载。不新增 API Key，按小时、ETag/Last-Modified 条件请求。该下载来自 EIA 公布的官方批量文件，包含日期和值，不是实时交易所报价。
+- WTI 单位为 USD/桶；`sourceDate` 是数据所属日期，`sourcePublishedAt=null`、`eventOccurredAt=null`，不能把 bulk 的 Last-Modified 或系统采样时刻冒充价格发布时间。保留原始 series 元数据（含来源修订时间），最近 90 个可用日期用作日度历史；缺失、假期与非数值不补零。原始条目标识含资产/日期/值，价格修订保留新证据。
+- Gold API 60 秒、EIA 3600 秒轮询；均使用已有超时、重试和限流包装。EIA 下载流增加总读取超时、压缩字节/解压字节/单行长度上限；缺目标序列、无有效观测、坏 zip 或超限均失败并保留健康错误，不伪报成功。
+- 控制台与 API 均限制黄金轮询不少于 60 秒、EIA 不少于 3600 秒，避免通用轮询设置绕过采集频率约束。
+- [EIA reuse 规则](https://www.eia.gov/about/copyrights_reuse.php) 允许使用其数据并要求来源日期确认；WTI 原始价格由其所列市场报告源整理，界面显示 EIA 与具体日期，保留官方说明链接。项目仍为内部研究用途；未将第三方来源统一标成交易所官方。
+- Dashboard 增加黄金/WTI 的轻量入口，行情页继续展示来源、数据时间、频率与单位。Live 与 Fixture 的同资产查询严格隔离，不用 Fixture 填补缺失值。

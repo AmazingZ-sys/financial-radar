@@ -11,6 +11,7 @@ import { NewsRssConnector } from '../packages/connectors/src/index.js';
 import type { createApp } from '../apps/api/src/app.js';
 import { registry, runIngestion, synchronizeCustomSources } from '../apps/worker/src/pipeline.js';
 import { analyzeEvent, sendNotification } from '../apps/worker/src/jobs.js';
+import { verifySourceConfiguration } from './source-configuration-integration.js';
 
 /** Real PostgreSQL/API verification; synthetic feed transport never reaches the internet. */
 export async function verifyConfiguration(
@@ -51,6 +52,7 @@ export async function verifyConfiguration(
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   try {
+    await verifySourceConfiguration(app, headers);
     check(Boolean(email) && !email.enabled, 'SMTP email is seeded as a disabled channel');
     await ensureAdmin();
     await ensureAdmin();

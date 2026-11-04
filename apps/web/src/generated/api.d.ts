@@ -455,6 +455,266 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/integrations/sources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 数据源连接配置（不回显密钥与 RPC URL） */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                unisatApiKeyConfigured: boolean;
+                evmRpcConfigured: boolean;
+                evmFactoryAddress: string;
+                solanaRpcConfigured: boolean;
+                solanaProgramId: string;
+                /** @enum {string} */
+                dexChain:
+                  'solana' | 'ethereum' | 'base' | 'arbitrum' | 'optimism' | 'polygon' | 'bsc';
+                dexTokenAddresses: string[];
+                /** @enum {string} */
+                configOrigin: 'environment' | 'database';
+                credentialError: boolean;
+                links: {
+                  /** Format: uri */
+                  unisat: string;
+                  /** Format: uri */
+                  ethereumRpc: string;
+                  /** Format: uri */
+                  solanaRpc: string;
+                  /** Format: uri */
+                  dex: string;
+                };
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** 保存数据源连接配置 */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            unisatApiKey?: string;
+            clearUnisatApiKey?: boolean;
+            evmRpcUrl?: '' | string;
+            evmFactoryAddress?: string;
+            solanaRpcUrl?: '' | string;
+            solanaProgramId?: string;
+            /** @enum {string} */
+            dexChain?: 'solana' | 'ethereum' | 'base' | 'arbitrum' | 'optimism' | 'polygon' | 'bsc';
+            dexTokenAddresses?: string[];
+            clearEvmRpcUrl?: boolean;
+            clearSolanaRpcUrl?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                unisatApiKeyConfigured: boolean;
+                evmRpcConfigured: boolean;
+                evmFactoryAddress: string;
+                solanaRpcConfigured: boolean;
+                solanaProgramId: string;
+                /** @enum {string} */
+                dexChain:
+                  'solana' | 'ethereum' | 'base' | 'arbitrum' | 'optimism' | 'polygon' | 'bsc';
+                dexTokenAddresses: string[];
+                /** @enum {string} */
+                configOrigin: 'environment' | 'database';
+                credentialError: boolean;
+                links: {
+                  /** Format: uri */
+                  unisat: string;
+                  /** Format: uri */
+                  ethereumRpc: string;
+                  /** Format: uri */
+                  solanaRpc: string;
+                  /** Format: uri */
+                  dex: string;
+                };
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
   '/api/v1/sources/catalog': {
     parameters: {
       query?: never;

@@ -15,6 +15,20 @@ import RadarIcon from '../components/RadarIcon.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 const client = useQueryClient();
 const testBusy = ref('');
+const smtpGuides = [
+  {
+    label: 'Gmail SMTP 官方说明',
+    href: 'https://knowledge.workspace.google.com/admin/gmail/send-email-from-a-printer-scanner-or-app',
+  },
+  {
+    label: '创建应用专用密码',
+    href: 'https://myaccount.google.com/apppasswords',
+  },
+  {
+    label: '开启两步验证',
+    href: 'https://myaccount.google.com/signinoptions/two-step-verification/enroll-welcome',
+  },
+] as const;
 type ChannelConfig = z.infer<typeof NotificationConfigViewSchema>;
 const selected = ref<ChannelConfig | null>(null);
 const configOpen = ref(false);
@@ -225,6 +239,18 @@ async function retry(id: string) {
               channel.configOrigin === 'database' ? '使用控制台配置' : '使用环境变量默认值'
             }}
           </p>
+          <div v-if="channel.provider === 'email'" class="smtp-card-links">
+            <a
+              v-for="guide in smtpGuides.slice(0, 2)"
+              :key="guide.href"
+              class="text-link"
+              :href="guide.href"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ guide.label }}<RadarIcon name="external" :size="12" />
+            </a>
+          </div>
           <div class="channel-foot">
             <span class="badge" :class="channel.configured ? 'badge-healthy' : 'badge-unknown'"
               ><span class="status-dot" :class="{ offline: !channel.configured }" />{{
@@ -259,6 +285,7 @@ async function retry(id: string) {
       :title="`配置 ${selected?.name ?? '通知渠道'}`"
       width="620px"
       align-center
+      append-to-body
       :close-on-click-modal="false"
     >
       <form
@@ -338,6 +365,39 @@ async function retry(id: string) {
           /><span class="field-hint">填写包含设备 Key 的完整 HTTPS 推送地址。</span>
         </div>
         <template v-else>
+          <details class="smtp-guides full" aria-label="Gmail SMTP 设置入口">
+            <summary>Gmail / Google Workspace 设置帮助</summary>
+            <div class="smtp-guides-heading">
+              <div>
+                <p>
+                  常用参数为 <code>smtp.gmail.com</code>、587 + STARTTLS。用户名使用完整邮箱地址；
+                  应用专用密码需要先开启两步验证，不能填 Google 账号登录密码。
+                </p>
+              </div>
+            </div>
+            <div class="smtp-guides-links">
+              <a
+                v-for="guide in smtpGuides"
+                :key="guide.href"
+                class="text-link"
+                :href="guide.href"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ guide.label }}<RadarIcon name="external" :size="12" />
+              </a>
+            </div>
+            <p class="field-hint smtp-guides-note">
+              若找不到应用专用密码，可能受组织账号或安全策略限制，请查看
+              <a
+                class="text-link"
+                href="https://support.google.com/accounts/answer/185833?hl=zh-Hans"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Google 官方说明<RadarIcon name="external" :size="11" /></a
+              >。
+            </p>
+          </details>
           <div class="form-field">
             <label for="channel-smtp-host">SMTP 服务器</label>
             <input
@@ -509,3 +569,54 @@ async function retry(id: string) {
     </section>
   </div>
 </template>
+<style scoped>
+.smtp-card-links,
+.smtp-guides-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+.smtp-card-links {
+  margin: -8px 0 16px;
+}
+.smtp-card-links .text-link {
+  font-size: 10px;
+}
+.smtp-guides {
+  padding: 12px 15px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+}
+.smtp-guides summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.smtp-guides-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+.smtp-guides-heading p {
+  font-size: 11px;
+  line-height: 1.9;
+  margin: 12px 0 13px;
+}
+.smtp-guides code {
+  overflow-wrap: anywhere;
+}
+.smtp-guides-note {
+  margin: 12px 0 0;
+}
+.smtp-guides-note .text-link {
+  display: inline;
+  font-size: inherit;
+}
+.smtp-guides-note svg {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-left: 3px;
+}
+</style>

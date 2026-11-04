@@ -9,6 +9,7 @@ import DataState from '../components/DataState.vue';
 import EventList from '../components/EventList.vue';
 import ProjectCard from '../components/ProjectCard.vue';
 import RadarChart from '../components/RadarChart.vue';
+import CommodityMonitor from '../components/CommodityMonitor.vue';
 const { data, isPending, error, refetch, isFetching } = useQuery({
   queryKey: ['dashboard'],
   queryFn: () => api('/dashboard', {}, DashboardSchema),
@@ -205,6 +206,7 @@ const points = computed(
             </section>
           </div>
         </div>
+        <CommodityMonitor />
         <div class="research-notice">
           <RadarIcon name="shield" :size="17" />
           <p>发现信号是研究的起点。机会评分与风险评分独立计算，未知资产始终需要核验。</p>

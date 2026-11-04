@@ -6,6 +6,8 @@ export * from './chains.js';
 export * from './treasury.js';
 export * from './scope.js';
 export * from './news.js';
+export * from './commodities.js';
+import { GoldPriceConnector, EiaWtiDailyConnector } from './commodities.js';
 import { NewsRssConnector, NEWS_PRESETS } from './news.js';
 import { TreasuryDailyConnector } from './treasury.js';
 import { EvmFactoryConnector, SolanaMintConnector } from './chains.js';
@@ -57,6 +59,8 @@ export function createRegistry(config: {
     .register(new FedRssConnector())
     .register(new TreasuryDailyConnector())
     .register(new CoinbaseMarketsConnector())
+    .register(new GoldPriceConnector())
+    .register(new EiaWtiDailyConnector())
     .register(new UniSatBrc20Connector(config.unisatApiKey))
     .register(new DexScreenerConnector(config.dexChain, config.dexTokenAddresses))
     .register(new EvmFactoryConnector(config.evmRpcUrl, config.evmFactoryAddress))

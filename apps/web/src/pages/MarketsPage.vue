@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
+import { useRoute } from 'vue-router';
 import { z } from 'zod';
 import { MarketSchema } from '@radar/shared';
 import { api, queryString } from '../lib/api';
@@ -10,8 +11,12 @@ import DataState from '../components/DataState.vue';
 import RadarIcon from '../components/RadarIcon.vue';
 import RadarChart from '../components/RadarChart.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-const selected = ref('BTC');
-const range = ref('7');
+const route = useRoute();
+const selected = ref(typeof route.query.asset === 'string' ? route.query.asset : 'BTC');
+const range = ref(selected.value === 'WTI' ? '30' : '7');
+watch(selected, (symbol) => {
+  if (symbol === 'WTI') range.value = '30';
+});
 const DisplayMarketSchema = MarketSchema.extend({
   frequency: z.string().optional(),
   sourceDate: z.string().nullable().optional(),

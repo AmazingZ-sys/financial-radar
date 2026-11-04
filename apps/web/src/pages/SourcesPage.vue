@@ -6,6 +6,7 @@ import {
   SourceSchema,
   SourceCatalogSchema,
   SourceInputSchema,
+  MarketSourceMinimumIntervals,
   type DataSource,
 } from '@radar/shared';
 import { ElMessage } from 'element-plus';
@@ -14,6 +15,7 @@ import { date, label, number, relative, safeUrl } from '../lib/format';
 import DataState from '../components/DataState.vue';
 import RadarIcon from '../components/RadarIcon.vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import SourcesIntegrationPanel from '../components/SourcesIntegrationPanel.vue';
 interface HealthRecord {
   id: string;
   status: string;
@@ -183,6 +185,7 @@ async function saveInterval() {
         </button>
       </div>
     </div>
+    <SourcesIntegrationPanel />
     <div class="source-category-filter" aria-label="数据源分类">
       <button :class="{ active: !category }" :aria-pressed="!category" @click="category = ''">
         全部来源
@@ -318,7 +321,7 @@ async function saveInterval() {
                   categoryLabels[value] ?? value
                 }}</span
                 ><span v-if="source.requiresConfiguration" class="badge badge-unknown"
-                  >需配置凭据</span
+                  >需配置接入</span
                 >
               </div>
             </div>
@@ -359,6 +362,7 @@ async function saveInterval() {
       title="新增新闻订阅"
       width="640px"
       align-center
+      append-to-body
       :close-on-click-modal="false"
     >
       <form class="form-grid integration-form" @submit.prevent="addFeed">
@@ -429,6 +433,7 @@ async function saveInterval() {
       :title="selected?.name ?? '数据源健康'"
       width="720px"
       align-center
+      append-to-body
       ><template v-if="selected"
         ><p class="muted">{{ selected.description }}</p>
         <div class="source-config-row">
@@ -437,7 +442,7 @@ async function saveInterval() {
             id="source-interval"
             v-model="interval"
             type="number"
-            :min="selected.custom ? 60 : 10"
+            :min="MarketSourceMinimumIntervals[selected.id] ?? (selected.custom ? 60 : 10)"
             max="86400"
           /><button class="btn btn-primary" :disabled="busy" @click="saveInterval">保存周期</button
           ><a

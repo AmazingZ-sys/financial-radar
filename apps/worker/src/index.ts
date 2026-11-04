@@ -10,6 +10,7 @@ import {
   runIngestion,
   scanParticipationWindows,
   synchronizeCustomSources,
+  synchronizeConfiguredSources,
 } from './pipeline.js';
 import {
   analyzeEvent,
@@ -122,6 +123,7 @@ if (process.argv.includes('--once')) {
   worker.on('error', (error) => log.error({ message: error.message }, 'worker queue error'));
   const scheduled = new Map<string, number>();
   async function synchronizeSchedules() {
+    await synchronizeConfiguredSources();
     await synchronizeCustomSources();
     const rows =
       await sql`SELECT id,enabled,interval_seconds FROM data_sources WHERE mode=${config.dataMode}`;

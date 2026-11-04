@@ -537,6 +537,389 @@
         }
       }
     },
+    "/api/v1/integrations/sources": {
+      "get": {
+        "summary": "数据源连接配置（不回显密钥与 RPC URL）",
+        "tags": ["integrations"],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "unisatApiKeyConfigured": { "type": "boolean" },
+                        "evmRpcConfigured": { "type": "boolean" },
+                        "evmFactoryAddress": { "type": "string" },
+                        "solanaRpcConfigured": { "type": "boolean" },
+                        "solanaProgramId": { "type": "string" },
+                        "dexChain": {
+                          "type": "string",
+                          "enum": [
+                            "solana",
+                            "ethereum",
+                            "base",
+                            "arbitrum",
+                            "optimism",
+                            "polygon",
+                            "bsc"
+                          ]
+                        },
+                        "dexTokenAddresses": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "maxItems": 30
+                        },
+                        "configOrigin": { "type": "string", "enum": ["environment", "database"] },
+                        "credentialError": { "type": "boolean" },
+                        "links": {
+                          "type": "object",
+                          "properties": {
+                            "unisat": { "type": "string", "format": "uri" },
+                            "ethereumRpc": { "type": "string", "format": "uri" },
+                            "solanaRpc": { "type": "string", "format": "uri" },
+                            "dex": { "type": "string", "format": "uri" }
+                          },
+                          "required": ["unisat", "ethereumRpc", "solanaRpc", "dex"]
+                        }
+                      },
+                      "required": [
+                        "unisatApiKeyConfigured",
+                        "evmRpcConfigured",
+                        "evmFactoryAddress",
+                        "solanaRpcConfigured",
+                        "solanaProgramId",
+                        "dexChain",
+                        "dexTokenAddresses",
+                        "configOrigin",
+                        "credentialError",
+                        "links"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "保存数据源连接配置",
+        "tags": ["integrations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "unisatApiKey": { "type": "string", "maxLength": 4096 },
+                  "clearUnisatApiKey": { "type": "boolean" },
+                  "evmRpcUrl": {
+                    "anyOf": [
+                      { "type": "string", "enum": [""] },
+                      { "type": "string", "maxLength": 2048, "format": "uri" }
+                    ]
+                  },
+                  "evmFactoryAddress": { "type": "string", "pattern": "^$|^0x[0-9a-fA-F]{40}$" },
+                  "solanaRpcUrl": {
+                    "anyOf": [
+                      { "type": "string", "enum": [""] },
+                      { "type": "string", "maxLength": 2048, "format": "uri" }
+                    ]
+                  },
+                  "solanaProgramId": {
+                    "type": "string",
+                    "pattern": "^$|^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                  },
+                  "dexChain": {
+                    "type": "string",
+                    "enum": ["solana", "ethereum", "base", "arbitrum", "optimism", "polygon", "bsc"]
+                  },
+                  "dexTokenAddresses": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1, "maxLength": 128 },
+                    "maxItems": 30
+                  },
+                  "clearEvmRpcUrl": { "type": "boolean" },
+                  "clearSolanaRpcUrl": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "unisatApiKeyConfigured": { "type": "boolean" },
+                        "evmRpcConfigured": { "type": "boolean" },
+                        "evmFactoryAddress": { "type": "string" },
+                        "solanaRpcConfigured": { "type": "boolean" },
+                        "solanaProgramId": { "type": "string" },
+                        "dexChain": {
+                          "type": "string",
+                          "enum": [
+                            "solana",
+                            "ethereum",
+                            "base",
+                            "arbitrum",
+                            "optimism",
+                            "polygon",
+                            "bsc"
+                          ]
+                        },
+                        "dexTokenAddresses": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "maxItems": 30
+                        },
+                        "configOrigin": { "type": "string", "enum": ["environment", "database"] },
+                        "credentialError": { "type": "boolean" },
+                        "links": {
+                          "type": "object",
+                          "properties": {
+                            "unisat": { "type": "string", "format": "uri" },
+                            "ethereumRpc": { "type": "string", "format": "uri" },
+                            "solanaRpc": { "type": "string", "format": "uri" },
+                            "dex": { "type": "string", "format": "uri" }
+                          },
+                          "required": ["unisat", "ethereumRpc", "solanaRpc", "dex"]
+                        }
+                      },
+                      "required": [
+                        "unisatApiKeyConfigured",
+                        "evmRpcConfigured",
+                        "evmFactoryAddress",
+                        "solanaRpcConfigured",
+                        "solanaProgramId",
+                        "dexChain",
+                        "dexTokenAddresses",
+                        "configOrigin",
+                        "credentialError",
+                        "links"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sources/catalog": {
       "get": {
         "summary": "可接入来源目录（live 能力）",

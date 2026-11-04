@@ -1,14 +1,72 @@
 import { randomUUID } from 'node:crypto';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { z } from '@hono/zod-openapi';
-import { sql } from '@radar/database';
+import { sql, readSourceIntegrationsView, saveSourceIntegrationsConfig } from '@radar/database';
 import { config, assertPublicHttpsUrl } from '@radar/config';
-import { createRegistry, NEWS_PRESETS, categoriesForSource } from '@radar/connectors';
-import { SourceInputSchema, SourceCatalogSchema } from '@radar/shared';
+import {
+  createRegistry,
+  NEWS_PRESETS,
+  categoriesForSource,
+  normalizeDexScope,
+} from '@radar/connectors';
+import {
+  SourceInputSchema,
+  SourceCatalogSchema,
+  SourceIntegrationsSchema,
+  SourceIntegrationsPatchSchema,
+} from '@radar/shared';
 import { addRoute, body, fail, meta, type ApiEnv } from './http.js';
 import { audit, rateLimit } from './security.js';
 
 export function sourceConfigRoutes(app: OpenAPIHono<ApiEnv>) {
+  addRoute(
+    app,
+    'get',
+    '/api/v1/integrations/sources',
+    '数据源连接配置（不回显密钥与 RPC URL）',
+    SourceIntegrationsSchema,
+    async () => ({ data: await readSourceIntegrationsView() }),
+  );
+  addRoute(
+    app,
+    'patch',
+    '/api/v1/integrations/sources',
+    '保存数据源连接配置',
+    SourceIntegrationsSchema,
+    async (c) => {
+      await rateLimit(c, 'source-integration-config', 30, 300);
+      const patch = await body(c, SourceIntegrationsPatchSchema);
+      for (const value of [patch.evmRpcUrl, patch.solanaRpcUrl]) {
+        if (!value) continue;
+        try {
+          await assertPublicHttpsUrl(value);
+        } catch {
+          fail(400, 'RPC 地址必须是可解析的公开 HTTPS 地址');
+        }
+      }
+      const old = await readSourceIntegrationsView();
+      try {
+        const scope = normalizeDexScope(
+          patch.dexChain ?? old.dexChain,
+          patch.dexTokenAddresses ?? old.dexTokenAddresses,
+        );
+        if (patch.dexChain !== undefined || patch.dexTokenAddresses !== undefined) {
+          patch.dexChain = scope.chain;
+          patch.dexTokenAddresses = scope.addresses;
+        }
+        if (patch.solanaProgramId) normalizeDexScope('solana', [patch.solanaProgramId]);
+      } catch {
+        fail(400, '请填写与观察链匹配的有效 token 地址或 Solana Program ID，token 最多30个');
+      }
+      await saveSourceIntegrationsConfig(patch);
+      const data = await readSourceIntegrationsView();
+      await audit(c, c.get('actor').id, 'UPDATE', 'source_integration', null, {
+        fields: Object.keys(patch),
+      });
+      return { data };
+    },
+    { body: SourceIntegrationsPatchSchema },
+  );
   addRoute(
     app,
     'get',
