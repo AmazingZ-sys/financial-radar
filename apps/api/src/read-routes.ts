@@ -557,13 +557,23 @@ async function latencyStats() {
 async function queueCounts(): Promise<Record<string, number | null>> {
   try {
     if (redis.status === 'wait' || redis.status === 'end') await redis.connect();
-    const [waiting, active, failed, delayed] = await Promise.all([
-      redis.llen('bull:financial-radar:wait'),
-      redis.llen('bull:financial-radar:active'),
-      redis.zcard('bull:financial-radar:failed'),
-      redis.zcard('bull:financial-radar:delayed'),
-    ]);
-    return { waiting, active, failed, delayed };
+    const counts = await Promise.all(
+      ['financial-radar', 'financial-radar-ai'].map(async (queue) => {
+        const [waiting, active, failed, delayed] = await Promise.all([
+          redis.llen(`bull:${queue}:wait`),
+          redis.llen(`bull:${queue}:active`),
+          redis.zcard(`bull:${queue}:failed`),
+          redis.zcard(`bull:${queue}:delayed`),
+        ]);
+        return { waiting, active, failed, delayed };
+      }),
+    );
+    return {
+      waiting: counts.reduce((sum, item) => sum + item.waiting, 0),
+      active: counts.reduce((sum, item) => sum + item.active, 0),
+      failed: counts.reduce((sum, item) => sum + item.failed, 0),
+      delayed: counts.reduce((sum, item) => sum + item.delayed, 0),
+    };
   } catch {
     return { waiting: null, active: null, failed: null, delayed: null };
   }

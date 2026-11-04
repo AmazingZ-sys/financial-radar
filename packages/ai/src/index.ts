@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { DEFAULT_AI_REASONING_EFFORT, type AIReasoningEffort } from '@radar/shared';
 import { z } from 'zod';
+import { requestChatCompletion } from './completion.js';
+export { requestChatCompletion, AI_ANALYSIS_TOTAL_TIMEOUT_MS } from './completion.js';
+export type { ChatCompletionConfig, ChatCompletionResult } from './completion.js';
 export const PROMPT_VERSION = 'evidence-summary-v1';
 export const AnalysisSchema = z
   .object({
@@ -139,17 +142,15 @@ export class CompatibleAIProvider implements AIProvider {
       throw new Error('AI endpoint 必须 HTTPS 或本地服务');
   }
   async analyze(input: AnalysisInput): Promise<AnalysisResult> {
-    const response = await this.fetcher(`${this.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(this.timeoutMs),
-      redirect: 'error',
-      body: JSON.stringify({
+    const body = await requestChatCompletion(
+      {
+        baseUrl: this.baseUrl,
+        apiKey: this.apiKey,
         model: this.model,
-        reasoning_effort: this.reasoningEffort,
-        temperature: 0,
-        max_tokens: 1000,
-        ...(this.jsonMode ? { response_format: { type: 'json_object' } } : {}),
+        timeoutMs: this.timeoutMs,
+        jsonMode: this.jsonMode,
+        reasoningEffort: this.reasoningEffort,
+        maxTokens: 1000,
         messages: [
           {
             role: 'system',
@@ -157,36 +158,19 @@ export class CompatibleAIProvider implements AIProvider {
           },
           { role: 'user', content: JSON.stringify(input) },
         ],
-      }),
-    });
-    if (!response.ok) throw new Error(`AI provider HTTP ${response.status}`);
-    let responseBody: unknown;
-    try {
-      responseBody = await response.json();
-    } catch {
-      throw new Error('AI provider 返回了无效 JSON 响应');
-    }
-    const body = z
-      .object({
-        choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1),
-        usage: z
-          .object({
-            prompt_tokens: z.number().nonnegative(),
-            completion_tokens: z.number().nonnegative(),
-          })
-          .optional(),
-      })
-      .parse(responseBody);
+      },
+      this.fetcher,
+    );
     let output: Record<string, unknown>;
     try {
-      output = JSON.parse(body.choices[0]!.message.content) as Record<string, unknown>;
+      output = JSON.parse(body.content) as Record<string, unknown>;
     } catch {
       throw new Error('AI completion 未返回有效 JSON');
     }
     return {
       result: validateEvidence({ ...output, modelVersion: this.model }, input),
-      inputTokens: body.usage?.prompt_tokens ?? null,
-      outputTokens: body.usage?.completion_tokens ?? null,
+      inputTokens: body.inputTokens,
+      outputTokens: body.outputTokens,
       provider: this.name,
       model: this.model,
     };

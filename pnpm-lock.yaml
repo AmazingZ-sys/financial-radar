@@ -83,6 +83,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@radar/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@hono/node-server':
         specifier: ^2.1.3
         version: 2.1.5(hono@4.13.16)

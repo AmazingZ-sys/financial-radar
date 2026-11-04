@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { OpenAPIHono } from '@hono/zod-openapi';
-import { config, assertPublicHttpsUrl, fetchPublicHttps } from '@radar/config';
+import { config, assertPublicHttpsUrl, fetchPublicHttpsStream } from '@radar/config';
+import { requestChatCompletion } from '@radar/ai';
 import { sql, readAIConfig, aiConfigView, saveAIConfig } from '@radar/database';
 import {
   AIConfigPatchSchema,
@@ -89,40 +90,22 @@ export function integrationRoutes(app: OpenAPIHono<ApiEnv>) {
       });
       if (!allowed) fail(409, 'AI 每日预算或调用额度不足，请检查预算设置');
       try {
-        const response = await fetchPublicHttps(
-          `${effective.baseUrl.replace(/\/$/, '')}/chat/completions`,
+        const completion = await requestChatCompletion(
           {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${effective.apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            signal: AbortSignal.timeout(effective.timeoutMs),
-            body: JSON.stringify({
-              model: effective.model,
-              reasoning_effort: AI_CONNECTION_TEST_REASONING_EFFORT,
-              max_tokens: 512,
-              ...(effective.jsonMode ? { response_format: { type: 'json_object' } } : {}),
-              messages: [
-                { role: 'user', content: 'Connection test. Reply with JSON: {"ok":true}.' },
-              ],
-            }),
+            baseUrl: effective.baseUrl,
+            apiKey: effective.apiKey,
+            model: effective.model,
+            timeoutMs: effective.timeoutMs,
+            reasoningEffort: AI_CONNECTION_TEST_REASONING_EFFORT,
+            jsonMode: effective.jsonMode,
+            maxTokens: 512,
+            totalTimeoutMs: 60000,
+            messages: [{ role: 'user', content: 'Connection test. Reply with JSON: {"ok":true}.' }],
           },
+          (url, options) => fetchPublicHttpsStream(String(url), options),
         );
-        if (!response.ok) throw new Error(`AI 服务返回 HTTP ${response.status}`);
-        const payload = (await response.json()) as {
-          choices?: { message?: { content?: unknown }; finish_reason?: unknown }[];
-        };
-        const completion = payload.choices?.[0];
-        if (
-          typeof completion?.message?.content !== 'string' ||
-          !completion.message.content.trim()
-        ) {
-          if (completion?.finish_reason === 'length')
-            throw new Error('AI 服务测试输出达到 token 上限，请检查模型兼容性');
-          throw new Error('AI 服务响应缺少有效 completion');
-        }
-        await sql`UPDATE ai_analysis_runs SET status='COMPLETED',completed_at=now() WHERE id=${id}`;
+        if (!completion.content.trim()) throw new Error('AI 服务响应缺少有效 completion');
+        await sql`UPDATE ai_analysis_runs SET status='COMPLETED',input_tokens=${completion.inputTokens},output_tokens=${completion.outputTokens},completed_at=now() WHERE id=${id}`;
         await audit(c, c.get('actor').id, 'TEST', 'ai_integration', id, {
           status: 'connected',
           reasoningEffort: AI_CONNECTION_TEST_REASONING_EFFORT,
@@ -136,13 +119,20 @@ export function integrationRoutes(app: OpenAPIHono<ApiEnv>) {
           },
         };
       } catch (error) {
-        const message =
-          error instanceof Error &&
-          /^AI 服务(返回 HTTP \d+|响应缺少有效 completion|测试输出达到 token 上限，请检查模型兼容性)$/.test(
-            error.message,
-          )
-            ? error.message
-            : 'AI 连接测试失败，请检查地址、模型和密钥或稍后重试';
+        const safeMessages: Record<string, string> = {
+          'AI provider 输出达到 token 上限': 'AI 服务测试输出达到 token 上限，请检查模型兼容性',
+          'AI provider 流式响应未完整结束': 'AI 服务流式响应中断，未收到完整测试结果',
+          'AI provider 等待数据超时': 'AI 服务等待首包或后续数据超时，请检查服务响应速度',
+          'AI provider 请求超过总时长上限': 'AI 连接测试超过 60 秒总时长上限',
+          'AI provider 响应缺少有效 completion': 'AI 服务响应缺少有效 completion',
+          'AI 服务响应缺少有效 completion': 'AI 服务响应缺少有效 completion',
+        };
+        const httpStatus =
+          error instanceof Error ? /^AI provider HTTP (\d{3})$/.exec(error.message)?.[1] : null;
+        const message = httpStatus
+          ? `AI 服务返回 HTTP ${httpStatus}`
+          : (error instanceof Error && safeMessages[error.message]) ||
+            'AI 连接测试失败，请检查地址、模型和密钥或稍后重试';
         await sql`UPDATE ai_analysis_runs SET status='FAILED',error=${message},completed_at=now() WHERE id=${id}`;
         fail(503, message);
       }

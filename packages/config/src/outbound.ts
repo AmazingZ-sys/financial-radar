@@ -61,7 +61,22 @@ export async function assertPublicHttpsUrl(url: string): Promise<void> {
 
 /** Bounded, pinned-DNS HTTPS transport for administrator-configured integrations. */
 export async function fetchPublicHttps(value: string, init: RequestInit = {}): Promise<Response> {
+  return requestPublicHttps(value, init, false);
+}
+
+/** Returns response headers immediately; cancellation also closes the pinned HTTPS connection. */
+export async function fetchPublicHttpsStream(
+  value: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  return requestPublicHttps(value, init, true);
+}
+
+async function requestPublicHttps(value: string, init: RequestInit, streaming: boolean) {
+  const signal = init.signal ?? AbortSignal.timeout(20000);
+  signal.throwIfAborted();
   const { url, addresses } = await resolvePublic(value);
+  signal.throwIfAborted();
   const address = addresses.find((entry) => entry.family === 4) ?? addresses[0]!;
   const headers: Record<string, string> = {};
   new Headers(init.headers).forEach((value, key) => {
@@ -69,8 +84,8 @@ export async function fetchPublicHttps(value: string, init: RequestInit = {}): P
   });
   if ('host' in headers) throw new Error('不得覆盖外部请求 Host');
   if (init.body != null && typeof init.body !== 'string') throw new Error('不支持的请求正文');
-  const signal = init.signal ?? AbortSignal.timeout(20000);
   return new Promise<Response>((resolve, reject) => {
+    let streamFailure: (() => void) | undefined;
     const req = request(
       url,
       {
@@ -89,6 +104,59 @@ export async function fetchPublicHttps(value: string, init: RequestInit = {}): P
           reject(new Error('外部接口重定向已拒绝'));
           return;
         }
+        const responseHeaders = new Headers();
+        for (const [key, entry] of Object.entries(response.headers))
+          if (entry !== undefined)
+            responseHeaders.set(key, Array.isArray(entry) ? entry.join(', ') : entry);
+        if (streaming) {
+          let ended = false;
+          let bytes = 0;
+          const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+              const fail = (message: string) => {
+                if (ended) return;
+                ended = true;
+                controller.error(new Error(message));
+                response.destroy();
+              };
+              streamFailure = () => fail('外部 HTTPS 请求失败或超时');
+              response.on('data', (chunk: Buffer) => {
+                if (ended) return;
+                bytes += chunk.length;
+                if (bytes > 2 * 1024 * 1024) {
+                  fail('外部响应超过 2MB 限制');
+                  return;
+                }
+                controller.enqueue(new Uint8Array(chunk));
+                if ((controller.desiredSize ?? 0) <= 0) response.pause();
+              });
+              response.on('end', () => {
+                if (ended) return;
+                ended = true;
+                controller.close();
+              });
+              response.on('error', () => fail('外部响应读取失败'));
+              response.on('aborted', () => fail('外部响应中断'));
+              response.on('close', () => {
+                if (!ended) fail('外部响应中断');
+              });
+              response.pause();
+            },
+            pull() {
+              response.resume();
+            },
+            cancel() {
+              ended = true;
+              response.destroy();
+              req.destroy();
+            },
+          });
+          if ([204, 205, 304].includes(code)) {
+            void body.cancel();
+            resolve(new Response(null, { status: code, headers: responseHeaders }));
+          } else resolve(new Response(body, { status: code, headers: responseHeaders }));
+          return;
+        }
         const chunks: Buffer[] = [];
         let bytes = 0;
         response.on('data', (chunk: Buffer) => {
@@ -100,16 +168,15 @@ export async function fetchPublicHttps(value: string, init: RequestInit = {}): P
         });
         response.on('error', () => reject(new Error('外部响应读取失败')));
         response.on('end', () => {
-          const responseHeaders = new Headers();
-          for (const [key, entry] of Object.entries(response.headers))
-            if (entry !== undefined)
-              responseHeaders.set(key, Array.isArray(entry) ? entry.join(', ') : entry);
           const body = [204, 205, 304].includes(code) ? null : Buffer.concat(chunks);
           resolve(new Response(body, { status: code, headers: responseHeaders }));
         });
       },
     );
-    req.on('error', () => reject(new Error('外部 HTTPS 请求失败或超时')));
+    req.on('error', () => {
+      streamFailure?.();
+      reject(new Error('外部 HTTPS 请求失败或超时'));
+    });
     req.setTimeout(60000, () => req.destroy(new Error('外部请求超时')));
     if (typeof init.body === 'string') req.write(init.body);
     req.end();

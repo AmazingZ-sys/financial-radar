@@ -319,3 +319,27 @@ Node 24.15.0、pnpm 10.26.2，本地独立 PostgreSQL（55436）与 Redis（实�
 最终本地复验：Node 24.15.0 / pnpm 10.26.2，`typecheck`、`lint`、21 文件 204 项单测、9 项构建任务、20/20 Chromium E2E 与 `format:check` 全通过，日志 `.local/ai-reasoning-release/{typecheck,lint,unit,build,e2e,format}.log`。新增 E2E 用明确的旧后端测试桩验证严格拒绝新字段时仍能保存名称/模型、未发测试请求，模拟升级后恢复 High 与连接测试；真实 API 保存/刷新与其余页面回归也通过。后端逻辑未在本次兼容修正中改变，PostgreSQL/Redis 集成证据沿用上节已执行结果，云端工作流仍须完整复验。
 
 此节记录发布准备与实际本地结果；云端发布状态以本轮 Actions、Release 资产及 Vercel 收据的后续核验为准，不据此声称已发布成功或服务器已更新。
+
+## 2026-11-04 · AI 上游流式接收与超时修复
+
+先更新 `10-ai-analysis.md`，再修改 Provider、安全 HTTPS 传输、连接测试和 Worker。原调用使用总计时 `AbortSignal.timeout(timeoutMs)`，且 HTTPS 传输缓冲完整响应；本轮改为 `stream: true`，按 SSE 增量接收并拼接正文。已有 `timeoutMs` 改为首包/连续无字节等待上限，每次收到字节续期；后台分析另设 10 分钟总上限，Low 连接测试总上限仍为 60 秒。完整 JSON 兼容响应只读取一次，不自动重发收费请求。
+
+只有正常 `finish_reason: stop` 与 `[DONE]` 都到达、JSON/证据校验都通过才保存分析；中断、token 截断、无效编码、流内错误和超限不保存成功结果。支持跨块 UTF-8、CRLF、多行 SSE、注释心跳、reasoning 增量与最终用量块；reasoning 不混入正文，缺失用量保持未知。保留固定 DNS、私网/重定向拒绝、2MB 上限和底层连接取消；API 测试完成后保存已知 token 用量。
+
+新增 AI 专属 `financial-radar-ai` 队列（并发 2），采集/通知保留原队列（并发 4）；旧队列分析按稳定 outbox ID 转交。状态页与心跳合并两队列计数。AI run/outbox 租约放宽为 15 分钟，执行前刷新 outbox 租约，重试刷新 run 租约并清理旧错误；通知保持短租约，`--once` 先处理通知。无需数据库结构迁移。
+
+Node 24.15.0 / pnpm 10.26.2 实际验证，日志位于忽略提交的 `.local/ai-streaming/`：
+
+| 验证                                                        | 结果                                                                                                                                                                                                              |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile --offline --ignore-scripts` | 通过，只增加 API 对已有 AI workspace 包的依赖，无外部版本更新                                                                                                                                                     |
+| `pnpm typecheck`、`pnpm lint`                               | 全包及工具脚本通过；`typecheck.log`、`lint.log`                                                                                                                                                                   |
+| `pnpm test`                                                 | 23 文件、234 项通过；`unit.log`，覆盖持续输出超过空闲时间、首包/中途空闲/总时长取消、断流/截断拒绝、usage、脱敏及队列隔离                                                                                         |
+| `pnpm build`                                                | 9 项构建任务通过；`build.log`                                                                                                                                                                                     |
+| `pnpm test:integration`                                     | 独立 PostgreSQL（55446）/Redis（56446）通过；新增 AI 恢复 14 项，主流程 70、历史 35、EVM 12、交易版本 13、Solana 恢复 25、商品恢复 20、UniSat 41、来源配置 18、配置/API 66、模式隔离 86 项通过；`integration.log` |
+| `pnpm test:e2e`                                             | Chromium 20/20 通过；真实本地 API 配置读写、旧后端兼容和桌面/移动回归；`e2e.log`                                                                                                                                  |
+| `pnpm security:check`                                       | 凭据/eval 扫描通过；`security.log`，未执行依赖漏洞审计                                                                                                                                                            |
+| 本地真实 HTTP SSE 长流                                      | 使用回环模拟上游与真实 Node fetch，持续约 65 秒（64920ms）、空闲阈值 60 秒；单次请求完整拼接并通过证据校验，无真实模型调用。`long-stream.{ts,log,json}`                                                           |
+| `pnpm format:check`、`git diff --check`                     | 通过；`format.log`                                                                                                                                                                                                |
+
+边界：未调用真实付费 AI、未测试真实中转服务能力、未发布或修改线上配置。上游在首包前完全无字节超过配置值时仍会超时；现有分析 1000 token 输出上限保留，达到上限会明确失败。进程仍沿用 30 秒退出上限及部署停止宽限，重启可能中断在途长流，之后依靠持久租约恢复，不能承诺同一次生成续传或不再次计费。

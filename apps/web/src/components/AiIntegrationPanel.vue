@@ -264,7 +264,7 @@ async function clearUnavailableKey() {
             >
           </div>
           <div class="form-field">
-            <label for="ai-timeout">请求超时（毫秒）</label>
+            <label for="ai-timeout">首包/空闲超时（毫秒）</label>
             <input
               id="ai-timeout"
               v-model.number="form.timeoutMs"
@@ -273,7 +273,12 @@ async function clearUnavailableKey() {
               max="60000"
               step="1000"
               required
+              aria-describedby="ai-timeout-hint"
             />
+            <span id="ai-timeout-hint" class="field-hint"
+              >等待首包或连续无数据时的上限。分析流式接收，总上限 10
+              分钟；持续收到数据会重新计时，首包前完全无数据仍可能超时。</span
+            >
           </div>
           <div class="form-field">
             <label for="ai-json-mode">JSON 输出模式</label>

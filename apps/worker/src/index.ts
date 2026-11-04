@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Queue, Worker } from 'bullmq';
+import { Queue, Worker, type Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { config } from '@radar/config';
 import { sql } from '@radar/database';
@@ -19,6 +19,8 @@ import {
   runOutboxOnce,
   heartbeat,
   DeferredWorkError,
+  claimOutboxJobs,
+  extendAnalysisOutboxLease,
 } from './jobs.js';
 const log = createLogger('worker');
 export { runIngestion, initializeSources, runOutboxOnce, scanParticipationWindows };
@@ -30,13 +32,37 @@ redis.on('error', (error) =>
   ),
 );
 const queue = new Queue('financial-radar', { connection: redis });
+const aiQueue = new Queue('financial-radar-ai', { connection: redis });
 let stopping = false;
 let reconcileRunning = false;
 await initializeSources();
 async function beat() {
-  const counts = await queue.getJobCounts('waiting', 'active', 'failed', 'delayed');
+  const [coreCounts, aiCounts] = await Promise.all([
+    queue.getJobCounts('waiting', 'active', 'failed', 'delayed'),
+    aiQueue.getJobCounts('waiting', 'active', 'failed', 'delayed'),
+  ]);
+  const counts = Object.fromEntries(
+    ['waiting', 'active', 'failed', 'delayed'].map((key) => [
+      key,
+      (coreCounts[key] ?? 0) + (aiCounts[key] ?? 0),
+    ]),
+  );
   const state = await heartbeat(counts);
   await redis.set('radar:worker:heartbeat', JSON.stringify(state), 'EX', 90);
+}
+async function enqueueOutboxJob(name: 'ANALYZE' | 'NOTIFY', outboxId: string, entityId: string) {
+  // Identical IDs deduplicate transfers of legacy AI jobs and PostgreSQL recovery dispatches.
+  await (name === 'ANALYZE' ? aiQueue : queue).add(
+    name,
+    { outboxId, entityId },
+    {
+      jobId: `outbox-${outboxId}`,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: true,
+      removeOnFail: true,
+    },
+  );
 }
 if (process.argv.includes('--once')) {
   try {
@@ -59,10 +85,33 @@ if (process.argv.includes('--once')) {
   } finally {
     await registry.shutdown();
     await queue.close();
+    await aiQueue.close();
     await redis.quit();
     await sql.end();
   }
 } else {
+  async function processOutboxJob(job: Job) {
+    try {
+      const id = String(job.data.entityId);
+      if (job.name === 'NOTIFY') {
+        // Shared channel pacing across every worker replica, avoiding independent local rate limits.
+        const row = (await sql`SELECT channel_id FROM notifications WHERE id=${id}`)[0];
+        if (row && !(await redis.set(`radar:notify-rate:${row.channel_id}`, '1', 'PX', 1100, 'NX')))
+          throw new Error('渠道速率限制，稍后重试');
+        await sendNotification(id);
+      } else if (job.name === 'ANALYZE') {
+        await extendAnalysisOutboxLease(String(job.data.outboxId));
+        await analyzeEvent(id);
+      } else throw new Error('未知 Worker 任务');
+      await sql`UPDATE outbox_jobs SET status='COMPLETED',locked_until=null WHERE id=${String(job.data.outboxId)} AND NOT(status='PENDING' AND available_at>now())`;
+    } catch (error) {
+      if (error instanceof DeferredWorkError) {
+        await sql`UPDATE outbox_jobs SET status='PENDING',available_at=${error.retryAt.toISOString()},locked_until=null WHERE id=${String(job.data.outboxId)}`;
+        return;
+      }
+      throw error;
+    }
+  }
   const worker = new Worker(
     'financial-radar',
     async (job) => {
@@ -83,27 +132,13 @@ if (process.argv.includes('--once')) {
         }
         return;
       }
-      try {
-        const id = String(job.data.entityId);
-        if (job.name === 'NOTIFY') {
-          // Shared channel pacing across every worker replica, avoiding independent local rate limits.
-          const row = (await sql`SELECT channel_id FROM notifications WHERE id=${id}`)[0];
-          if (
-            row &&
-            !(await redis.set(`radar:notify-rate:${row.channel_id}`, '1', 'PX', 1100, 'NX'))
-          )
-            throw new Error('渠道速率限制，稍后重试');
-          await sendNotification(id);
-        } else if (job.name === 'ANALYZE') await analyzeEvent(id);
-        else throw new Error('未知 Worker 任务');
-        await sql`UPDATE outbox_jobs SET status='COMPLETED',locked_until=null WHERE id=${String(job.data.outboxId)} AND NOT(status='PENDING' AND available_at>now())`;
-      } catch (error) {
-        if (error instanceof DeferredWorkError) {
-          await sql`UPDATE outbox_jobs SET status='PENDING',available_at=${error.retryAt.toISOString()},locked_until=null WHERE id=${String(job.data.outboxId)}`;
-          return;
-        }
-        throw error;
+      if (job.name === 'ANALYZE') {
+        // Drain jobs created before the dedicated queue existed without holding a core slot
+        // for model inference. The AI worker alone completes the durable outbox record.
+        await enqueueOutboxJob('ANALYZE', String(job.data.outboxId), String(job.data.entityId));
+        return;
       }
+      await processOutboxJob(job);
     },
     {
       connection: redis,
@@ -113,14 +148,28 @@ if (process.argv.includes('--once')) {
       lockDuration: 90000,
     },
   );
-  worker.on('failed', async (job, error) => {
-    log.error({ jobId: job?.id, message: error.message }, 'queue job failed');
-    if (job?.data.outboxId)
-      await sql`UPDATE outbox_jobs SET status='PENDING',attempts=attempts+1,available_at=now()+interval '30 seconds',locked_until=null WHERE id=${String(job.data.outboxId)} AND attempts<5`.catch(
-        () => undefined,
-      );
+  const aiWorker = new Worker('financial-radar-ai', processOutboxJob, {
+    connection: redis,
+    concurrency: 2,
+    stalledInterval: 30000,
+    maxStalledCount: 2,
+    lockDuration: 90000,
   });
-  worker.on('error', (error) => log.error({ message: error.message }, 'worker queue error'));
+  for (const processor of [worker, aiWorker]) {
+    processor.on('failed', async (job, error) => {
+      log.error(
+        { queue: processor.name, jobId: job?.id, message: error.message },
+        'queue job failed',
+      );
+      if (job?.data.outboxId)
+        await sql`UPDATE outbox_jobs SET status='PENDING',attempts=attempts+1,available_at=now()+interval '30 seconds',locked_until=null WHERE id=${String(job.data.outboxId)} AND attempts<5`.catch(
+          () => undefined,
+        );
+    });
+    processor.on('error', (error) =>
+      log.error({ queue: processor.name, message: error.message }, 'worker queue error'),
+    );
+  }
   const scheduled = new Map<string, number>();
   async function synchronizeSchedules() {
     await synchronizeConfiguredSources();
@@ -163,23 +212,12 @@ if (process.argv.includes('--once')) {
       await synchronizeSchedules();
       await recoverLeases();
       await scanParticipationWindows();
-      const rows =
-        await sql`UPDATE outbox_jobs SET status='QUEUED',locked_until=now()+interval '2 minutes' WHERE id IN (SELECT id FROM outbox_jobs WHERE status='PENDING' AND available_at<=now() ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 100) RETURNING id,kind,entity_id`;
+      const rows = await claimOutboxJobs();
       for (const row of rows) {
         const kind = String(row.kind).toUpperCase();
         const name = ['NOTIFY', 'NOTIFICATION'].includes(kind) ? 'NOTIFY' : 'ANALYZE';
-        // Outbox ID is stable; completed jobs are removed so a recovered lease can be added after Redis loss.
-        await queue.add(
-          name,
-          { outboxId: String(row.id), entityId: String(row.entity_id) },
-          {
-            jobId: `outbox-${row.id}`,
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 2000 },
-            removeOnComplete: true,
-            removeOnFail: true,
-          },
-        );
+        // Completed jobs are removed so PostgreSQL can redispatch after Redis loss.
+        await enqueueOutboxJob(name, String(row.id), String(row.entity_id));
       }
       await beat();
     } catch (error) {
@@ -209,8 +247,9 @@ if (process.argv.includes('--once')) {
       process.exit(1);
     }, 30000);
     force.unref();
-    await worker.close();
+    await Promise.all([worker.close(), aiWorker.close()]);
     await queue.close();
+    await aiQueue.close();
     await registry.shutdown();
     await redis.quit();
     await sql.end();

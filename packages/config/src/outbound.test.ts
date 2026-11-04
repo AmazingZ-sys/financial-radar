@@ -1,9 +1,15 @@
 import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ lookup: vi.fn(), request: vi.fn() }));
 vi.mock('node:dns/promises', () => ({ lookup: mocks.lookup }));
 vi.mock('node:https', () => ({ request: mocks.request }));
-import { assertPublicHttpsUrl, fetchPublicHttps, isPublicAddress } from './outbound.js';
+import {
+  assertPublicHttpsUrl,
+  fetchPublicHttps,
+  fetchPublicHttpsStream,
+  isPublicAddress,
+} from './outbound.js';
 
 describe('public integration network boundary', () => {
   beforeEach(() => {
@@ -134,5 +140,95 @@ describe('public integration network boundary', () => {
       [null, '1.1.1.1', 4],
     ]);
     expect(mocks.lookup).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('public HTTPS streaming transport', () => {
+  function setup(statusCode = 200) {
+    mocks.lookup.mockResolvedValue([{ address: '8.8.8.8', family: 4 }]);
+    const upstream = Object.assign(new PassThrough(), {
+      statusCode,
+      headers: { 'content-type': 'text/event-stream' },
+    });
+    const req = Object.assign(new EventEmitter(), {
+      end: vi.fn(),
+      write: vi.fn(),
+      setTimeout: vi.fn(),
+      destroy: vi.fn(),
+    });
+    req.end.mockImplementation(() => {
+      const callback = mocks.request.mock.calls.at(-1)![2];
+      callback(upstream);
+    });
+    mocks.request.mockReturnValue(req);
+    return { upstream, req };
+  }
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns headers before EOF and delivers chunks while retaining DNS pinning', async () => {
+    const { upstream, req } = setup();
+    const response = await fetchPublicHttpsStream('https://example.org/v1/chat/completions', {
+      method: 'POST',
+      body: '{"stream":true}',
+    });
+    expect(upstream.readableEnded).toBe(false);
+    expect(response.headers.get('content-type')).toBe('text/event-stream');
+    expect(req.write).toHaveBeenCalledWith('{"stream":true}');
+    const reader = response.body!.getReader();
+    const first = reader.read();
+    upstream.write('data: hello\n\n');
+    expect(new TextDecoder().decode((await first).value)).toBe('data: hello\n\n');
+    const last = reader.read();
+    upstream.end('data: [DONE]\n\n');
+    expect(new TextDecoder().decode((await last).value)).toBe('data: [DONE]\n\n');
+    expect((await reader.read()).done).toBe(true);
+    const options = mocks.request.mock.calls[0]![1];
+    const pinned = vi.fn();
+    options.lookup('example.org', {}, pinned);
+    expect(pinned).toHaveBeenCalledWith(null, '8.8.8.8', 4);
+    expect(mocks.lookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the underlying response and request when the reader cancels', async () => {
+    const { upstream, req } = setup();
+    const response = await fetchPublicHttpsStream('https://example.org/v1');
+    await response.body!.cancel();
+    expect(upstream.destroyed).toBe(true);
+    expect(req.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('errors a reader on a request abort after response headers', async () => {
+    const { upstream, req } = setup();
+    const response = await fetchPublicHttpsStream('https://example.org/v1');
+    const pending = response.body!.getReader().read();
+    req.emit('error', new Error('untrusted transport error')); // Native HTTPS emits on abort.
+    await expect(pending).rejects.toThrow('外部 HTTPS 请求失败或超时');
+    expect(upstream.destroyed).toBe(true);
+  });
+
+  it('rejects premature EOF and oversized streamed bodies', async () => {
+    let { upstream } = setup();
+    let response = await fetchPublicHttpsStream('https://example.org/v1');
+    let pending = response.body!.getReader().read();
+    upstream.destroy();
+    await expect(pending).rejects.toThrow('中断');
+    ({ upstream } = setup());
+    response = await fetchPublicHttpsStream('https://example.org/v1');
+    pending = response.body!.getReader().read();
+    upstream.write(Buffer.alloc(2 * 1024 * 1024 + 1));
+    await expect(pending).rejects.toThrow('2MB');
+    expect(upstream.destroyed).toBe(true);
+  });
+
+  it('rejects redirects and aborted requests before sending any credentials', async () => {
+    const { upstream } = setup(302);
+    await expect(fetchPublicHttpsStream('https://example.org/v1')).rejects.toThrow('重定向');
+    expect(upstream.destroyed).toBe(true);
+    mocks.request.mockClear();
+    await expect(
+      fetchPublicHttpsStream('https://example.org/v1', { signal: AbortSignal.abort() }),
+    ).rejects.toThrow();
+    expect(mocks.request).not.toHaveBeenCalled();
   });
 });

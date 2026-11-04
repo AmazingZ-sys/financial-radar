@@ -1,4 +1,5 @@
 import { verifyModeIsolation } from './mode-isolation.js';
+import { verifyAIStreamingRecovery } from './ai-streaming-integration.js';
 import { verifyConfiguration } from './configuration-integration.js';
 import { verifyHistoricalPipeline } from './history-integration.js';
 import { verifyUniSatIngestion } from './unisat-integration.js';
@@ -335,6 +336,7 @@ try {
   await verifyCommodityRecovery();
   await verifyUniSatIngestion();
   await verifyConfiguration(app, headers);
+  await verifyAIStreamingRecovery();
   await app.request('/api/v1/auth/logout', { method: 'POST', headers });
   check(
     (await app.request('/api/v1/auth/me', { headers })).status === 401,

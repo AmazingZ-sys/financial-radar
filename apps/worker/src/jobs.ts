@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type postgres from 'postgres';
 import { sql, readAIConfig, readNotificationConfig } from '@radar/database';
-import { config, fetchPublicHttps } from '@radar/config';
+import { config, fetchPublicHttps, fetchPublicHttpsStream } from '@radar/config';
 import { createLogger } from '@radar/observability';
 import {
   TelegramProvider,
@@ -23,6 +23,8 @@ import {
 const json = (value: unknown) => sql.json(value as postgres.JSONValue);
 const log = createLogger('worker.jobs');
 const secureFetch: typeof fetch = (input, init) => fetchPublicHttps(String(input), init);
+const secureStreamFetch: typeof fetch = (input, init) =>
+  fetchPublicHttpsStream(String(input), init);
 function safeError(error: unknown) {
   return error instanceof Error
     ? error.message.replace(/https?:\/\/\S+/g, '[endpoint]').slice(0, 250)
@@ -120,7 +122,7 @@ function providerForMode(
     effective.baseUrl,
     effective.apiKey,
     effective.model,
-    secureFetch,
+    secureStreamFetch,
     effective.timeoutMs,
     effective.jsonMode,
     effective.reasoningEffort,
@@ -193,7 +195,7 @@ export async function analyzeEvent(id: string) {
       return { state: 'budget', runId: '', data: null };
     const runId = cached ? String(cached.id) : randomUUID();
     if (cached)
-      await tx`UPDATE ai_analysis_runs SET status='RUNNING',estimated_cost=coalesce(estimated_cost,0)+${reservedCost},data=(data || ${json({ attempts: priorAttempts + 1, lastReservation: reservedCost, leaseStartedAt: new Date().toISOString() })}::jsonb) || jsonb_build_object('reservations',coalesce(data->'reservations','[]'::jsonb) || ${json([{ at: new Date().toISOString(), cost: reservedCost }])}::jsonb) WHERE id=${runId}`;
+      await tx`UPDATE ai_analysis_runs SET status='RUNNING',error=null,completed_at=null,estimated_cost=coalesce(estimated_cost,0)+${reservedCost},data=(data || ${json({ attempts: priorAttempts + 1, lastReservation: reservedCost, leaseStartedAt: new Date().toISOString() })}::jsonb) || jsonb_build_object('reservations',coalesce(data->'reservations','[]'::jsonb) || ${json([{ at: new Date().toISOString(), cost: reservedCost }])}::jsonb) WHERE id=${runId}`;
     else
       await tx`INSERT INTO ai_analysis_runs(id,event_id,status,provider,model,prompt_version,cache_key,estimated_cost,data) VALUES(${runId},${id},'RUNNING',${provider.name},${provider.model},${PROMPT_VERSION},${cacheKey},${reservedCost},${json({ reviewStatus: 'UNREVIEWED', reservation: reservedCost, inputHash: cacheKey, ...(effective ? { reasoningEffort: effective.reasoningEffort } : {}), costBasis: 'conservative-per-call-reservation', attempts: 1, leaseStartedAt: new Date().toISOString(), reservations: [{ at: new Date().toISOString(), cost: reservedCost }] })})`;
     return { state: 'allowed', runId, data: null };
@@ -232,23 +234,39 @@ export async function analyzeEvent(id: string) {
 }
 export async function recoverLeases() {
   await sql`UPDATE notifications SET status='RETRYING',locked_until=null,last_error='Worker租约过期；平台接受状态可能未知' WHERE status='SENDING' AND locked_until<now()`;
-  await sql`UPDATE ai_analysis_runs SET status='FAILED',error='Worker restarted during AI call; budget reservation retained',completed_at=now() WHERE status='RUNNING' AND coalesce((data->>'leaseStartedAt')::timestamptz,created_at)<now()-interval '5 minutes'`;
+  // Streaming analysis has a hard 10-minute request limit. Leave recovery headroom so a live
+  // stream is never marked failed (and charged again) while its worker still owns the run.
+  await sql`UPDATE ai_analysis_runs SET status='FAILED',error='Worker restarted during AI call; budget reservation retained',completed_at=now() WHERE status='RUNNING' AND coalesce((data->>'leaseStartedAt')::timestamptz,created_at)<now()-interval '15 minutes'`;
   await sql`UPDATE outbox_jobs SET status='PENDING',locked_until=null WHERE status='QUEUED' AND locked_until<now()`;
   // Reconcile durable notification records even if Redis lost its entire queue.
   await sql`INSERT INTO outbox_jobs(id,dedup_key,kind,entity_id) SELECT gen_random_uuid(),'notify:'||id,'NOTIFY',id FROM notifications WHERE status IN ('PENDING','RETRYING') ON CONFLICT(dedup_key) DO UPDATE SET status='PENDING',available_at=excluded.available_at WHERE outbox_jobs.status='COMPLETED'`;
 }
+export async function claimOutboxJobs() {
+  return sql`UPDATE outbox_jobs SET status='QUEUED',locked_until=now()+CASE WHEN upper(kind) IN ('ANALYZE','ANALYSIS') THEN interval '15 minutes' ELSE interval '2 minutes' END WHERE id IN (SELECT id FROM outbox_jobs WHERE status='PENDING' AND available_at<=now() ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 100) RETURNING id,kind,entity_id`;
+}
+export async function extendAnalysisOutboxLease(outboxId: string) {
+  // Queue waiting time must not consume the running call's recovery allowance.
+  await sql`UPDATE outbox_jobs SET locked_until=now()+interval '15 minutes' WHERE id=${outboxId} AND status='QUEUED' AND upper(kind) IN ('ANALYZE','ANALYSIS')`;
+}
 export async function runOutboxOnce() {
   await recoverLeases();
-  const pending =
-    await sql`UPDATE outbox_jobs SET status='QUEUED',locked_until=now()+interval '2 minutes' WHERE id IN (SELECT id FROM outbox_jobs WHERE status='PENDING' AND available_at<=now() ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 100) RETURNING id,kind,entity_id`;
-  for (const row of pending) {
+  const pending = await claimOutboxJobs();
+  // The one-shot runner has no dedicated queue processors, so finish deterministic notices
+  // before spending time on potentially long model calls.
+  const isNotification = (row: Record<string, unknown>) =>
+    ['NOTIFY', 'NOTIFICATION'].includes(String(row.kind).toUpperCase());
+  for (const row of [
+    ...pending.filter(isNotification),
+    ...pending.filter((entry) => !isNotification(entry)),
+  ]) {
     const id = String(row.id);
     try {
       if (['NOTIFY', 'NOTIFICATION'].includes(String(row.kind).toUpperCase()))
         await sendNotification(String(row.entity_id));
-      else if (['ANALYZE', 'ANALYSIS'].includes(String(row.kind).toUpperCase()))
+      else if (['ANALYZE', 'ANALYSIS'].includes(String(row.kind).toUpperCase())) {
+        await extendAnalysisOutboxLease(id);
         await analyzeEvent(String(row.entity_id));
-      else throw new Error('未知 outbox 类型');
+      } else throw new Error('未知 outbox 类型');
       await sql`UPDATE outbox_jobs SET status='COMPLETED',locked_until=null WHERE id=${id} AND NOT(status='PENDING' AND available_at>now())`;
     } catch (error) {
       if (error instanceof DeferredWorkError) {
