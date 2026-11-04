@@ -322,10 +322,10 @@ export class EmailProvider implements NotificationProvider {
         typeof error === 'object' && error && 'code' in error
           ? String((error as { code?: unknown }).code)
           : '';
-      const permanent = permanentSmtpErrors.has(code) || code.startsWith('ERR_TLS_');
-      const retryable =
-        !permanent &&
-        (responseCode === 0 || (responseCode >= 400 && responseCode < 500) || responseCode === 503);
+      const temporaryResponse = (responseCode >= 400 && responseCode < 500) || responseCode === 503;
+      const permanent =
+        (permanentSmtpErrors.has(code) || code.startsWith('ERR_TLS_')) && !temporaryResponse;
+      const retryable = !permanent && (responseCode === 0 || temporaryResponse);
       return {
         accepted: false,
         retryable,

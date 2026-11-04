@@ -163,6 +163,8 @@ describe('notification safety and acceptance semantics', () => {
   it.each([
     [{ responseCode: 450 }, true],
     [{ responseCode: 454 }, true],
+    [{ code: 'EAUTH', responseCode: 454 }, true],
+    [{ code: 'EAUTH', responseCode: 535 }, false],
     [{ responseCode: 503 }, true],
     [{ responseCode: 550 }, false],
     [{ code: 'EAUTH' }, false],
