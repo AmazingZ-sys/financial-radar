@@ -15,6 +15,7 @@ Node 24.15.0 本地验证日志与收据位于忽略提交的 `.local/usability-
 
 - `typecheck`、`lint`、`format:check`、`build`、`security:check`、生产依赖审计与 `git diff --check` 通过；构建 9 个任务成功。新解压依赖固定为修复安全公告的 fflate 0.8.3，审计无已知漏洞。
 - 单元测试 17 个文件、135 项通过。真实 PostgreSQL / Redis 集成：主流程 70 项、历史流水线 35 项、配置 62 项、新增来源配置/热加载 18 项、模式隔离 86 项通过。最终运行使用独立 Redis 逻辑库，避免连续本地验收累积限流；生产限流未放宽。
+- 首次云端容器门禁发现 fflate 的 ESM `createRequire` 导入与现有 tsup banner 重名，阻止了 Release 与部署；已将 API/Worker banner 导入加别名，并在 CI 构建后检查全部服务端 JS 语法。修复后本地 typecheck、lint、135 项单元测试、构建与全部服务端产物 `node --check` 通过，云端发布以随后独立记录为准。
 - Chromium E2E 18/18 通过，覆盖上述弹窗位置、Gmail 链接、来源入口与秘密草稿清除、商品跳转及 WTI 默认时间范围；使用真实本地 API，无业务响应替身。桌面/移动弹窗截图为 `source-dialog-{1280,390}.png`。
 - 独立保留的 live 数据库完成 21 项实采 → PostgreSQL → 鉴权 API 验收，收据 `market-live-pg-api.json`：黄金 1 条、WTI 最近 90 条真实观测；重复采集 WTI 后 raw 与行情仍各 90 条，来源时间、首次发现与采集时间独立；无通知入队或发送。该主机访问 EIA 实采使用 `NODE_USE_ENV_PROXY=1`。验收时 EIA 最新数据日为 2026-10-27，明确属于有延迟的日度数据；黄金无历史回填，历史从首次采样累积。
 

@@ -20,6 +20,8 @@ main 验证通过后在同一 workflow 中按 `needs` 运行 semantic-release，
 
 镜像包含 OCI version、revision、source、created 标签。API 与 Worker 同时推送 `vX.Y.Z`、`sha-<commit>`，部署时推荐固定 digest。`latest` 不是生产唯一依据。镜像 push 最小权限 `packages:write`；Release 需要 `contents:write`，其余作业 `contents:read`。
 
+API/Worker 的 ESM 启动 banner 使用独立命名的 `createRequire` 导入，避免与打包依赖的同名导入冲突。构建成功后、容器验收前，对所有服务端产物执行 Node 语法检查；打包成功本身不能证明生成模块可启动。
+
 Vercel CLI 作为根工程精确版本 devDependency 随 pnpm lockfile 安装。根 `vercel.json` 指定 Vite、`pnpm install --frozen-lockfile`、`pnpm --filter @radar/web build` 和 `apps/web/dist`；Vercel 项目 Root Directory 为仓库根目录 `.`，Node.js 为 24.x。设置 `git.deploymentEnabled=false`，由通过质量门禁的 Actions 负责发布。
 
 Actions production 环境使用 `VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` Secrets，依次执行 `vercel pull --yes --environment=production`、`vercel build --prod` 和 `vercel deploy --prebuilt --prod`。构建显式注入公开 `VITE_API_BASE_URL`、Release 版本与 commit SHA，不把服务端密钥传给 Web。预构建产物随同版本发布，部署时不二次重建。没有 GHCR/Vercel 凭据和项目配置时本地只能验证构建与工作流，不能声称已发布。

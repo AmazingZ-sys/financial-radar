@@ -57,6 +57,9 @@ jobs:
       - run: pnpm test
       - run: pnpm test:integration
       - run: pnpm build
+      - name: Verify built runtime syntax
+        run: |
+          for file in apps/api/dist/*.js apps/worker/dist/*.js; do node --check "$file"; done
       - name: Build images and verify isolated production Compose
         run: bash infra/scripts/test-compose.sh
       - run: pnpm security:check
