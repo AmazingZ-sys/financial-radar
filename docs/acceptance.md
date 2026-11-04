@@ -17,7 +17,9 @@ Node 24.15.0 正式验证通过，日志位于忽略提交的 `.local/source-rec
 
 `pnpm format:check`、`pnpm security:check` 与 `git diff --check` 通过；独立只读审查未发现本轮改动引入的数据丢失、错误恢复或凭据回显问题。既有未提交UniSat改动保留并随全量回归验证。
 
-本轮未发布Release、未更新生产Worker，也未重置或删除生产cursor。当前Pump Program在每轮20笔、默认60秒轮询预算下不能承诺持续追平；高流量实时覆盖仍需有预算的索引/流式采集方案，不能以分页补偿验收替代。WTI保持日度参考价，黄金/原油是否生产恢复以服务器后续真实成功记录为准。
+发布前未更新生产Worker，也未重置或删除生产cursor。当前Pump Program在每轮20笔、默认60秒轮询预算下不能承诺持续追平；高流量实时覆盖仍需有预算的索引/流式采集方案，不能以分页补偿验收替代。WTI保持日度参考价，黄金/原油是否生产恢复以服务器后续真实成功记录为准。
+
+2026-11-04 15:42（Asia/Shanghai）发布验收：GitHub Actions [41793159484](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41793159484) 的 verify、semantic-release、API/Worker 镜像、immutable image manifest 与 Vercel 全部成功。[Release v1.3.2](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.3.2) 对应 `2b3dcbe6378d38162364f8374e69d7d98c562d58`；API 镜像摘要为 `sha256:df86ffce4a3bf2864779ad1cc2fd72b21a58999d6314aa412b14a2b80bcae48f`，Worker 镜像摘要为 `sha256:51827cf77675e81ae1127055ebe95b0218405b6d748649942a9c61cd1d9e5c99`。Vercel 发布成功，但本次没有操作后端服务器；后端仍需用户按 Release 执行部署脚本。该版本包含 `0003_source_pending_batches.sql`，部署脚本会在更新 API/Worker 前执行向前兼容迁移。只更新镜像不会同步宿主仓库中的诊断脚本；需要诊断时应检出对应 Release 文件后通过 stdin 传入容器。生产 Solana 补偿进度与黄金/原油恢复仍以服务器实际健康记录为准。
 
 ## 2026-11-04 · UniSat 历史部署重复采集修复
 
