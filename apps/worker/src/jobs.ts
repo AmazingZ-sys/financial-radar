@@ -7,6 +7,7 @@ import {
   TelegramProvider,
   FeishuProvider,
   BarkProvider,
+  EmailProvider,
   type NotificationMessage,
   type SendResult,
 } from '@radar/notifications';
@@ -65,7 +66,17 @@ export async function sendNotification(id: string) {
             ? new FeishuProvider(credentials.webhookUrl, secureFetch)
             : channel.provider === 'bark'
               ? new BarkProvider(credentials.serverUrl, secureFetch)
-              : null;
+              : channel.provider === 'email'
+                ? new EmailProvider({
+                    smtpHost: credentials.smtpHost,
+                    smtpPort: credentials.smtpPort,
+                    smtpSecurity: credentials.smtpSecurity,
+                    smtpUsername: credentials.smtpUsername,
+                    smtpPassword: credentials.smtpPassword,
+                    fromEmail: credentials.fromEmail,
+                    toEmails: credentials.toEmails,
+                  })
+                : null;
       result = provider
         ? await provider.send(message)
         : { accepted: false, retryable: false, error: '不支持的通知 Provider' };

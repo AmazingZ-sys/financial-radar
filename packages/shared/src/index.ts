@@ -177,7 +177,7 @@ export type Notification = z.infer<typeof NotificationSchema>;
 export const ChannelSchema = z.object({
   id: z.uuid(),
   name: z.string(),
-  provider: z.enum(['telegram', 'feishu', 'bark']),
+  provider: z.enum(['telegram', 'feishu', 'bark', 'email']),
   enabled: z.boolean(),
   configured: z.boolean(),
   description: z.string().default(''),

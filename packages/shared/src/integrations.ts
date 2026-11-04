@@ -47,13 +47,34 @@ export const NotificationConfigPatchSchema = z
     chatId: z.string().trim().max(200).optional(),
     webhookUrl: z.union([z.literal(''), HttpsUrl]).optional(),
     serverUrl: z.union([z.literal(''), HttpsUrl]).optional(),
+    smtpHost: z
+      .string()
+      .trim()
+      .max(255)
+      .refine((value) => !/[\r\n]/.test(value), 'SMTP 主机不得包含换行')
+      .optional(),
+    smtpPort: z.number().int().min(1).max(65535).optional(),
+    smtpSecurity: z.enum(['tls', 'starttls']).optional(),
+    smtpUsername: z
+      .string()
+      .trim()
+      .max(320)
+      .refine((value) => !/[\r\n]/.test(value), 'SMTP 用户名不得包含换行')
+      .optional(),
+    smtpPassword: z
+      .string()
+      .max(4096)
+      .refine((value) => !/[\r\n]/.test(value), 'SMTP 密码不得包含换行')
+      .optional(),
+    fromEmail: z.email().optional(),
+    toEmails: z.array(z.email()).max(20).optional(),
     clearCredentials: z.boolean().optional(),
   })
   .strict();
 export const NotificationConfigViewSchema = z.object({
   id: z.uuid(),
   name: z.string(),
-  provider: z.enum(['telegram', 'feishu', 'bark']),
+  provider: z.enum(['telegram', 'feishu', 'bark', 'email']),
   enabled: z.boolean(),
   configured: z.boolean(),
   description: z.string(),
@@ -61,6 +82,13 @@ export const NotificationConfigViewSchema = z.object({
   chatId: z.string(),
   botTokenConfigured: z.boolean(),
   webhookConfigured: z.boolean(),
+  smtpHost: z.string().default(''),
+  smtpPort: z.number().int().nullable().default(null),
+  smtpSecurity: z.enum(['tls', 'starttls']).nullable().default(null),
+  smtpUsername: z.string().default(''),
+  smtpPasswordConfigured: z.boolean().default(false),
+  fromEmail: z.string().default(''),
+  toEmails: z.array(z.string()).default([]),
 });
 export type AIConfig = z.infer<typeof AIConfigSchema>;
 export type AIConfigView = z.infer<typeof AIConfigViewSchema>;

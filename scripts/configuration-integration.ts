@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { config } from '../packages/config/src/index.js';
-import { sql, readAIConfig, readNotificationConfig } from '../packages/database/src/index.js';
+import {
+  sql,
+  ensureAdmin,
+  readAIConfig,
+  readNotificationConfig,
+} from '../packages/database/src/index.js';
 import { NewsRssConnector } from '../packages/connectors/src/index.js';
 import type { createApp } from '../apps/api/src/app.js';
 import { registry, runIngestion, synchronizeCustomSources } from '../apps/worker/src/pipeline.js';
@@ -26,6 +31,16 @@ export async function verifyConfiguration(
   const telegram = channels.find((row) => row.provider === 'telegram')!;
   const feishu = channels.find((row) => row.provider === 'feishu')!;
   const bark = channels.find((row) => row.provider === 'bark')!;
+  const email = channels.find((row) => row.provider === 'email')!;
+  const emailInput = {
+    smtpHost: 'smtp.example.com',
+    smtpPort: 2525,
+    smtpSecurity: 'starttls',
+    smtpUsername: 'alerts@example.com',
+    smtpPassword: secret,
+    fromEmail: 'alerts@example.com',
+    toEmails: ['admin@example.com', 'ops@example.com'],
+  };
   const fakeFeedUrl = `https://1.1.1.1/integration-${randomUUID()}.xml`;
   let sourceId: string | undefined;
   const brokenNoticeId = randomUUID();
@@ -36,6 +51,17 @@ export async function verifyConfiguration(
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   try {
+    check(Boolean(email) && !email.enabled, 'SMTP email is seeded as a disabled channel');
+    await ensureAdmin();
+    await ensureAdmin();
+    check(
+      Number(
+        (
+          await sql`SELECT count(*) n FROM notification_channels WHERE owner_id=${email.owner_id} AND provider='email'`
+        )[0]!.n,
+      ) === 1,
+      'Repeated administrator initialization never duplicates the SMTP email channel',
+    );
     const noCsrf = await app.request('/api/v1/integrations/ai', {
       method: 'PATCH',
       headers: { ...headers, 'X-CSRF-Token': 'invalid' },
@@ -136,6 +162,67 @@ export async function verifyConfiguration(
       'Explicit credential clear does not fall back to environment',
     );
 
+    const emailSaved = await request(`/notification-channels/${email.id}`, emailInput);
+    const emailView = await emailSaved.json();
+    check(
+      emailSaved.status === 200 &&
+        emailView.data.configured &&
+        emailView.data.smtpPort === 2525 &&
+        emailView.data.smtpSecurity === 'starttls' &&
+        emailView.data.smtpPasswordConfigured &&
+        !Object.hasOwn(emailView.data, 'smtpPassword') &&
+        !JSON.stringify(emailView).includes(secret),
+      'Custom STARTTLS SMTP configuration returns a safe view without its password',
+    );
+    const emailData = () =>
+      sql`SELECT data FROM notification_channels WHERE id=${email.id}`.then(
+        (rows) => rows[0]!.data,
+      );
+    check(
+      !JSON.stringify(await emailData()).includes(secret) &&
+        readNotificationConfig('email', await emailData()).smtpPassword === secret,
+      'SMTP password is encrypted at rest and readable only by the server',
+    );
+    check(
+      (await request(`/notification-channels/${email.id}`, { ...emailInput, smtpPassword: '' }))
+        .status === 200 &&
+        readNotificationConfig('email', await emailData()).smtpPassword === secret,
+      'Blank SMTP password preserves the saved credential when other fields are resubmitted',
+    );
+    const renamedEmail = await request(`/notification-channels/${email.id}`, {
+      name: 'Integration SMTP',
+      enabled: true,
+    });
+    const renamedView = await renamedEmail.json();
+    check(
+      renamedEmail.status === 200 &&
+        renamedView.data.name === 'Integration SMTP' &&
+        renamedView.data.enabled &&
+        readNotificationConfig('email', await emailData()).smtpPassword === secret,
+      'Name and enable changes preserve SMTP credentials',
+    );
+    for (const invalid of [
+      { botToken: 'invalid-for-email' },
+      { smtpPassword: 'invalid\r\npassword' },
+      { toEmails: ['invalid-recipient'] },
+    ])
+      check(
+        (await request(`/notification-channels/${email.id}`, invalid)).status === 400,
+        'SMTP configuration rejects provider mismatches, CRLF, and invalid recipients',
+      );
+    check(
+      (await request(`/notification-channels/${email.id}`, { clearCredentials: true })).status ===
+        200 &&
+        !readNotificationConfig('email', await emailData()).configured &&
+        !readNotificationConfig('email', await emailData()).smtpPassword &&
+        readNotificationConfig('email', await emailData()).toEmails.length === 0,
+      'Explicit SMTP clear removes password and recipients without environment fallback',
+    );
+    check(
+      (await request(`/notification-channels/${email.id}`, emailInput)).status === 200,
+      'SMTP configuration can be saved again after an explicit clear',
+    );
+
     // A changed root key must permit explicit replacement rather than trapping the installation.
     config.integrationEncryptionKey = 'integration-replacement-root-key-32-characters';
     const broken = await app.request('/api/v1/integrations/ai', { headers });
@@ -168,6 +255,29 @@ export async function verifyConfiguration(
     check(
       (await app.request('/api/v1/system/status', { headers })).status === 200,
       'Damaged notification credentials do not hide system status',
+    );
+    check(
+      damagedViews.data.some(
+        (row: { id: string; configured: boolean; smtpPasswordConfigured: boolean }) =>
+          row.id === email.id && !row.configured && !row.smtpPasswordConfigured,
+      ) &&
+        (await request(`/notification-channels/${email.id}`, emailInput)).status === 200 &&
+        readNotificationConfig('email', await emailData()).smtpPassword === secret,
+      'Full SMTP replacement repairs credentials encrypted with an obsolete root key',
+    );
+    await sql`UPDATE notification_channels SET data=${sql.json({ encryptedCredentials: 'integration-corrupt-ciphertext' })} WHERE id=${email.id}`;
+    const passwordlessInput = { ...emailInput, smtpUsername: '', smtpPassword: '' };
+    check(
+      (await request(`/notification-channels/${email.id}`, passwordlessInput)).status === 503,
+      'Passwordless SMTP settings cannot silently overwrite unreadable saved credentials',
+    );
+    check(
+      (await request(`/notification-channels/${email.id}`, { clearCredentials: true })).status ===
+        200 &&
+        (await request(`/notification-channels/${email.id}`, passwordlessInput)).status === 200 &&
+        readNotificationConfig('email', await emailData()).configured &&
+        !readNotificationConfig('email', await emailData()).smtpPassword,
+      'Explicit clear repairs a damaged passwordless SMTP configuration',
     );
 
     const catalog = await app.request('/api/v1/sources/catalog', { headers });

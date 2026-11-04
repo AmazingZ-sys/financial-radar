@@ -10,13 +10,13 @@ P0 紧急且已验证的重大事故/基础设施故障；P1 可信的早期参�
 
 ## 2. Provider
 
-统一 `send(message, channelConfig)` 返回 `accepted`、platformMessageId、acceptedAt、retryable、retryAfter。Telegram Bot、飞书 Bot、Bark 在通知中心配置；环境变量作为初始默认，页面保存凭据后由后续发送任务读取服务端加密配置。Token/设备 Key/Webhook 不回显，页面仅显示配置状态和非密钥 Chat ID；空白保留、明确清除后不回退环境密钥。支持 plain text/受控转义格式，避免来源正文注入平台格式；消息长度上限截断并附站内详情 URL。凭据损坏时保留可编辑的安全视图，实际发送记录 FAILED 并释放租约。
+统一 `send(message, channelConfig)` 返回 `accepted`、platformMessageId、acceptedAt、retryable、retryAfter。Telegram Bot、飞书 Bot、Bark、SMTP 邮箱在通知中心配置；环境变量作为初始默认，页面保存凭据后由后续发送任务读取服务端加密配置。Token/设备 Key/Webhook、SMTP 密码不回显，页面仅显示配置状态和非密钥 Chat ID、发件人及收件人摘要；空白保留、明确清除后不回退环境密钥。邮箱支持自定义 SMTP 主机、端口、TLS/STARTTLS、可选用户名密码、发件地址和收件人列表；SMTP 连接与单次投递有超时，禁止重定向，收件人地址经 Zod 校验。支持 plain text/受控转义格式，避免来源正文注入平台格式；消息长度上限截断并附站内详情 URL。凭据损坏时保留可编辑的安全视图，实际发送记录 FAILED 并释放租约。
 
 ## 3. 数据库状态机
 
 PENDING → SENDING → SENT；可重试失败 SENDING→RETRYING→SENDING；次数耗尽 FAILED；禁用或撤销 CANCELLED。SENDING 必须有 lease/startedAt，崩溃可回收。SENT 仅表示平台接口接受，UI 文案为“平台已接受”，不能表示已阅读/保证终端收到。超时发生在请求发送后时结果可能未知，attempt 必须说明该不确定性。
 
-通知 dedupKey = hash(ownerId + ruleVersion + event/signal + channel + cooldownWindow)。插入唯一键确保并发命中只生成一条。平台不支持幂等键时仍存在响应丢失后重复发送窗口，保留所有尝试用于追踪。渠道禁用后停止投递待发消息，重新启用不会自动爆发发送过期信息。
+通知 dedupKey = hash(ownerId + ruleVersion + event/signal + channel + cooldownWindow)。插入唯一键确保并发命中只生成一条。平台不支持幂等键时仍存在响应丢失后重复发送窗口，保留所有尝试用于追踪。渠道禁用后停止投递待发消息，重新启用不会自动爆发发送过期信息。SMTP 必须确认至少一个收件人被接受；部分接受保留数量提示并停止自动重试，避免已接受收件人重复接收。SMTP 接受不能证明进入收件箱或用户已读。
 
 ## 4. 队列与恢复
 
@@ -29,3 +29,7 @@ PENDING → SENDING → SENT；可重试失败 SENDING→RETRYING→SENDING；�
 ## 6. 配置与偏好
 
 规则级 cooldownSeconds、允许推送小时范围、时区、最低优先级、风险过滤、enabled channel。跨午夜窗口必须正确处理；P0 是否绕过静默时段需明确配置，默认尊重用户设置。所有配置经 Zod 校验并保留版本。用户手动 retry 只复用现有通知，不创建新键绕过去重。
+
+## 7. SMTP 配置参考
+
+配置字段参考 [QuantDinger 邮箱 SMTP 通知指南](https://github.com/OpenByteInc/QuantDinger/blob/main/docs/deployment/NOTIFICATION_EMAIL_CONFIG_CN.md)：主机、端口、认证、发件人与多收件人。实现使用 [Nodemailer SMTP transport](https://nodemailer.com/smtp)，支持隐式 TLS 和强制 STARTTLS；保持证书验证，不提供明文模式。连接及空闲超时各 10 秒、总投递上限 25 秒，并销毁底层 socket 终止超时发送。默认新邮箱渠道停用，管理员保存配置并启用后可用于规则和手动测试。密码留空保留；取消认证时先清除全部配置再按无认证 SMTP 服务器参数保存。

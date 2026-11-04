@@ -1,3 +1,6 @@
+import nodemailer from 'nodemailer';
+import { Socket } from 'node:net';
+
 export type NotificationMessage = {
   title: string;
   description: string;
@@ -194,6 +197,149 @@ export class BarkProvider implements NotificationProvider {
       acceptedAt: accepted ? new Date().toISOString() : undefined,
       error: accepted ? undefined : (r.error ?? `Bark HTTP ${r.response!.status}`),
     };
+  }
+}
+export type EmailConfig = {
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecurity: 'tls' | 'starttls';
+  smtpUsername?: string;
+  smtpPassword?: string;
+  fromEmail: string;
+  toEmails: string[];
+};
+type MailTransport = {
+  sendMail: (message: { from: string; to: string[]; subject: string; text: string }) => Promise<{
+    messageId?: string;
+    accepted?: unknown[];
+    rejected?: unknown[];
+    rejectedErrors?: { responseCode?: number }[];
+  }>;
+  close?: () => void;
+};
+const SMTP_DEADLINE_MS = 25000;
+const permanentSmtpErrors = new Set([
+  'EAUTH',
+  'ETLS',
+  'CERT_HAS_EXPIRED',
+  'CERT_NOT_YET_VALID',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'UNABLE_TO_GET_ISSUER_CERT',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+]);
+function createSmtpTransport(options: Record<string, unknown>): MailTransport {
+  // Nodemailer's SMTP transport close() does not abort its active connection.
+  // Owning the underlying socket lets the total deadline stop in-flight delivery too.
+  const socket = new Socket();
+  const transport = nodemailer.createTransport({ ...options, socket });
+  return {
+    sendMail: (message) => transport.sendMail(message),
+    close: () => {
+      socket.destroy();
+      transport.close();
+    },
+  };
+}
+/** SMTP email provider. Credentials are supplied by the server-side worker only. */
+export class EmailProvider implements NotificationProvider {
+  name = 'email';
+  constructor(
+    private readonly email: EmailConfig,
+    private readonly transportFactory: (
+      options: Record<string, unknown>,
+    ) => MailTransport = createSmtpTransport,
+  ) {}
+  async send(message: NotificationMessage): Promise<SendResult> {
+    if (message.dataMode === 'fixture')
+      return { accepted: false, retryable: false, error: 'Fixture 安全保护：未向真实渠道发送' };
+    if (!this.email.smtpHost || !this.email.fromEmail || this.email.toEmails.length === 0)
+      return { accepted: false, retryable: false, error: '邮箱 SMTP 未配置' };
+    if (
+      /[\r\n]/.test(this.email.fromEmail) ||
+      this.email.toEmails.some((address) => /[\r\n]/.test(address))
+    )
+      return { accepted: false, retryable: false, error: '邮箱地址包含非法换行' };
+    let transport: MailTransport | undefined;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const secure = this.email.smtpSecurity === 'tls';
+      transport = this.transportFactory({
+        host: this.email.smtpHost,
+        port: this.email.smtpPort,
+        secure,
+        requireTLS: !secure,
+        auth:
+          this.email.smtpUsername || this.email.smtpPassword
+            ? { user: this.email.smtpUsername ?? '', pass: this.email.smtpPassword ?? '' }
+            : undefined,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+      });
+      const result = await Promise.race([
+        transport.sendMail({
+          from: this.email.fromEmail,
+          to: this.email.toEmails,
+          subject: message.title.replace(/[\r\n]+/g, ' ').slice(0, 200),
+          text: formatMessage(message),
+        }),
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(() => reject(new Error('SMTP deadline')), SMTP_DEADLINE_MS);
+        }),
+      ]);
+      const acceptedCount = result.accepted?.length ?? 0;
+      const rejectedCount = result.rejected?.length ?? 0;
+      if (acceptedCount === 0)
+        return {
+          accepted: false,
+          retryable:
+            rejectedCount > 0 &&
+            result.rejectedErrors?.length === rejectedCount &&
+            result.rejectedErrors.every(
+              (error) => (error.responseCode ?? 0) >= 400 && (error.responseCode ?? 0) < 500,
+            ),
+          ambiguous: rejectedCount === 0,
+          error: 'SMTP 响应未确认接受任何收件人；未记为已接受',
+        };
+      return {
+        accepted: true,
+        retryable: false,
+        platformMessageId: result.messageId,
+        acceptedAt: new Date().toISOString(),
+        error:
+          rejectedCount > 0 || acceptedCount < this.email.toEmails.length
+            ? `SMTP 服务器仅接受部分收件人（${acceptedCount}/${this.email.toEmails.length}）；未接受的收件人不会自动重试`
+            : undefined,
+      };
+    } catch (error) {
+      const responseCode =
+        typeof error === 'object' && error && 'responseCode' in error
+          ? Number((error as { responseCode?: unknown }).responseCode)
+          : 0;
+      const code =
+        typeof error === 'object' && error && 'code' in error
+          ? String((error as { code?: unknown }).code)
+          : '';
+      const permanent = permanentSmtpErrors.has(code) || code.startsWith('ERR_TLS_');
+      const retryable =
+        !permanent &&
+        (responseCode === 0 || (responseCode >= 400 && responseCode < 500) || responseCode === 503);
+      return {
+        accepted: false,
+        retryable,
+        ambiguous: !permanent && responseCode === 0,
+        error: '邮箱 SMTP 投递失败；请检查服务器配置和收件地址',
+      };
+    } finally {
+      if (deadline) clearTimeout(deadline);
+      try {
+        transport?.close?.();
+      } catch {
+        // SMTP outcome remains authoritative; never leak close errors or credentials.
+      }
+    }
   }
 }
 export class FixtureNotificationProvider implements NotificationProvider {

@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { config } from '@radar/config';
 import { AIConfigSchema, type AIConfigPatch, type NotificationConfigPatch } from '@radar/shared';
+import { z } from 'zod';
 import { sql } from './index.js';
 
 const CONFIG_KEY = 'integrations:ai';
@@ -94,12 +95,20 @@ export async function saveAIConfig(patch: AIConfigPatch) {
   });
 }
 
-type NotificationSecrets = {
-  botToken: string;
-  chatId: string;
-  webhookUrl: string;
-  serverUrl: string;
-};
+const NotificationSecretsSchema = z.object({
+  botToken: z.string().default(''),
+  chatId: z.string().default(''),
+  webhookUrl: z.string().default(''),
+  serverUrl: z.string().default(''),
+  smtpHost: z.string().default(''),
+  smtpPort: z.number().int().min(1).max(65535).default(587),
+  smtpSecurity: z.enum(['tls', 'starttls']).default('starttls'),
+  smtpUsername: z.string().default(''),
+  smtpPassword: z.string().default(''),
+  fromEmail: z.union([z.literal(''), z.email()]).default(''),
+  toEmails: z.array(z.email()).max(20).default([]),
+});
+type NotificationSecrets = z.infer<typeof NotificationSecretsSchema>;
 type ChannelRow = { id: string; provider: string; name: string; enabled: boolean; data?: unknown };
 function envNotificationConfig(provider: string): NotificationSecrets {
   return {
@@ -107,14 +116,23 @@ function envNotificationConfig(provider: string): NotificationSecrets {
     chatId: provider === 'telegram' ? config.telegramChatId : '',
     webhookUrl: provider === 'feishu' ? config.feishuWebhookUrl : '',
     serverUrl: provider === 'bark' ? config.barkServerUrl : '',
+    smtpHost: provider === 'email' ? config.smtpHost : '',
+    smtpPort: provider === 'email' ? config.smtpPort : 587,
+    smtpSecurity: provider === 'email' ? config.smtpSecurity : 'starttls',
+    smtpUsername: provider === 'email' ? config.smtpUsername : '',
+    smtpPassword: provider === 'email' ? config.smtpPassword : '',
+    fromEmail: provider === 'email' ? config.smtpFromEmail : '',
+    toEmails: provider === 'email' ? config.smtpToEmails : [],
   };
 }
 export function readNotificationConfig(provider: string, data: unknown) {
   const stored = data as { encryptedCredentials?: string } | null;
   const secrets = stored?.encryptedCredentials
-    ? (JSON.parse(
-        decryptIntegrationSecret(stored.encryptedCredentials, `notification:${provider}`),
-      ) as NotificationSecrets)
+    ? NotificationSecretsSchema.parse(
+        JSON.parse(
+          decryptIntegrationSecret(stored.encryptedCredentials, `notification:${provider}`),
+        ),
+      )
     : envNotificationConfig(provider);
   const configured =
     provider === 'telegram'
@@ -123,7 +141,15 @@ export function readNotificationConfig(provider: string, data: unknown) {
         ? Boolean(secrets.webhookUrl)
         : provider === 'bark'
           ? Boolean(secrets.serverUrl)
-          : false;
+          : provider === 'email'
+            ? Boolean(
+                secrets.smtpHost &&
+                secrets.smtpPort &&
+                secrets.fromEmail &&
+                secrets.toEmails.length &&
+                Boolean(secrets.smtpUsername) === Boolean(secrets.smtpPassword),
+              )
+            : false;
   return {
     ...secrets,
     configured,
@@ -146,6 +172,13 @@ export function notificationConfigView(row: ChannelRow) {
       chatId: '',
       botTokenConfigured: false,
       webhookConfigured: false,
+      smtpHost: '',
+      smtpPort: null,
+      smtpSecurity: null,
+      smtpUsername: '',
+      smtpPasswordConfigured: false,
+      fromEmail: '',
+      toEmails: [],
       description: '已保存凭据无法解密，请重新填写完整凭据或清除配置后保存',
     };
   }
@@ -162,7 +195,16 @@ export function notificationConfigView(row: ChannelRow) {
     description:
       credentials.configOrigin === 'database'
         ? '已保存服务器加密配置；空白凭据保留原值'
-        : '使用服务器环境默认配置',
+        : row.provider === 'email'
+          ? '配置自定义 SMTP 服务器、发件人与收件人'
+          : '使用服务器环境默认配置',
+    smtpHost: credentials.smtpHost,
+    smtpPort: credentials.smtpPort,
+    smtpSecurity: credentials.smtpSecurity,
+    smtpUsername: credentials.smtpUsername,
+    smtpPasswordConfigured: Boolean(credentials.smtpPassword),
+    fromEmail: credentials.fromEmail,
+    toEmails: credentials.toEmails,
   };
 }
 export async function saveNotificationConfig(
@@ -183,21 +225,49 @@ export async function saveNotificationConfig(
         ? Boolean(patch.botToken && patch.chatId)
         : row.provider === 'feishu'
           ? Boolean(patch.webhookUrl)
-          : Boolean(patch.serverUrl));
+          : row.provider === 'bark'
+            ? Boolean(patch.serverUrl)
+            : row.provider === 'email'
+              ? Boolean(
+                  patch.smtpPassword &&
+                  patch.smtpHost &&
+                  patch.smtpPort &&
+                  patch.fromEmail &&
+                  patch.toEmails?.length,
+                )
+              : false);
     const old = replacing
-      ? { botToken: '', chatId: '', webhookUrl: '', serverUrl: '' }
+      ? NotificationSecretsSchema.parse({})
       : readNotificationConfig(row.provider, row.data);
     const secrets: NotificationSecrets = {
       botToken: patch.clearCredentials ? '' : patch.botToken?.trim() || old.botToken,
       chatId: patch.clearCredentials ? '' : patch.chatId?.trim() || old.chatId,
       webhookUrl: patch.clearCredentials ? '' : patch.webhookUrl?.trim() || old.webhookUrl,
       serverUrl: patch.clearCredentials ? '' : patch.serverUrl?.trim() || old.serverUrl,
+      smtpHost: patch.clearCredentials ? '' : patch.smtpHost?.trim() || old.smtpHost,
+      smtpPort: patch.clearCredentials ? 587 : (patch.smtpPort ?? old.smtpPort),
+      smtpSecurity: patch.clearCredentials ? 'starttls' : (patch.smtpSecurity ?? old.smtpSecurity),
+      smtpUsername: patch.clearCredentials ? '' : patch.smtpUsername?.trim() || old.smtpUsername,
+      smtpPassword: patch.clearCredentials ? '' : patch.smtpPassword || old.smtpPassword,
+      fromEmail: patch.clearCredentials ? '' : patch.fromEmail?.trim() || old.fromEmail,
+      toEmails: patch.clearCredentials ? [] : (patch.toEmails ?? old.toEmails),
     };
     // Only create an override when credentials were explicitly changed, preserving env defaults on toggles.
     const touched =
-      ['botToken', 'chatId', 'webhookUrl', 'serverUrl'].some((key) =>
-        Boolean(patch[key as keyof NotificationConfigPatch]),
-      ) || patch.clearCredentials;
+      [
+        'botToken',
+        'chatId',
+        'webhookUrl',
+        'serverUrl',
+        'smtpHost',
+        'smtpPort',
+        'smtpSecurity',
+        'smtpUsername',
+        'smtpPassword',
+        'fromEmail',
+        'toEmails',
+      ].some((key) => Boolean(patch[key as keyof NotificationConfigPatch])) ||
+      patch.clearCredentials;
     const oldData =
       row.data && typeof row.data === 'object' ? (row.data as Record<string, unknown>) : {};
     const data = touched

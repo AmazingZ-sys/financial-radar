@@ -3966,7 +3966,7 @@ export interface paths {
                 id: string;
                 name: string;
                 /** @enum {string} */
-                provider: 'telegram' | 'feishu' | 'bark';
+                provider: 'telegram' | 'feishu' | 'bark' | 'email';
                 enabled: boolean;
                 configured: boolean;
                 description: string;
@@ -3975,6 +3975,23 @@ export interface paths {
                 chatId: string;
                 botTokenConfigured: boolean;
                 webhookConfigured: boolean;
+                /** @default  */
+                smtpHost: string;
+                /** @default null */
+                smtpPort: number | null;
+                /**
+                 * @default null
+                 * @enum {string|null}
+                 */
+                smtpSecurity: 'tls' | 'starttls' | null;
+                /** @default  */
+                smtpUsername: string;
+                /** @default false */
+                smtpPasswordConfigured: boolean;
+                /** @default  */
+                fromEmail: string;
+                /** @default [] */
+                toEmails: string[];
               }[];
               meta?: {
                 total: number;
@@ -4090,6 +4107,15 @@ export interface paths {
             chatId?: string;
             webhookUrl?: '' | string;
             serverUrl?: '' | string;
+            smtpHost?: string;
+            smtpPort?: number;
+            /** @enum {string} */
+            smtpSecurity?: 'tls' | 'starttls';
+            smtpUsername?: string;
+            smtpPassword?: string;
+            /** Format: email */
+            fromEmail?: string;
+            toEmails?: string[];
             clearCredentials?: boolean;
           };
         };
@@ -4107,7 +4133,7 @@ export interface paths {
                 id: string;
                 name: string;
                 /** @enum {string} */
-                provider: 'telegram' | 'feishu' | 'bark';
+                provider: 'telegram' | 'feishu' | 'bark' | 'email';
                 enabled: boolean;
                 configured: boolean;
                 description: string;
@@ -4116,6 +4142,23 @@ export interface paths {
                 chatId: string;
                 botTokenConfigured: boolean;
                 webhookConfigured: boolean;
+                /** @default  */
+                smtpHost: string;
+                /** @default null */
+                smtpPort: number | null;
+                /**
+                 * @default null
+                 * @enum {string|null}
+                 */
+                smtpSecurity: 'tls' | 'starttls' | null;
+                /** @default  */
+                smtpUsername: string;
+                /** @default false */
+                smtpPasswordConfigured: boolean;
+                /** @default  */
+                fromEmail: string;
+                /** @default [] */
+                toEmails: string[];
               };
               meta?: {
                 total: number;

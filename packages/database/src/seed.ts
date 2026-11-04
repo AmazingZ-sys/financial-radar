@@ -20,6 +20,7 @@ export async function ensureAdmin(): Promise<string> {
     ['telegram', 'Telegram Bot'],
     ['feishu', '飞书 Bot'],
     ['bark', 'Bark'],
+    ['email', '邮箱 SMTP'],
   ]) {
     await sql`INSERT INTO notification_channels(id,owner_id,provider,name,enabled,data) VALUES(${randomUUID()},${ownerId},${provider!},${name!},${provider === 'telegram'},'{}') ON CONFLICT(owner_id,provider) DO NOTHING`;
   }

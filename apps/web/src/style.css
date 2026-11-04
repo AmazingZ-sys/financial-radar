@@ -2207,7 +2207,7 @@ code,
 }
 .channel-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 17px;
 }
 .channel-card {
@@ -2238,6 +2238,11 @@ code,
   background: #d7b16a0b;
   color: var(--amber);
   border-color: #d7b16a25;
+}
+.channel-icon.email {
+  background: #b899e516;
+  color: #b899e5;
+  border-color: #b899e52b;
 }
 .channel-heading > div {
   flex: 1;

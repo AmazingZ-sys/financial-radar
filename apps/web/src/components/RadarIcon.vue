@@ -10,6 +10,7 @@ const paths: Record<string, string> = {
   chart: 'M3 3v18h18M6 15l4-5 4 3 6-8',
   rules: 'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6',
   bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4',
+  mail: 'M3 5h18v14H3zM3 6l9 7 9-7',
   source: 'M4 4h6v6H4zM14 14h6v6h-6zM14 4h6v6h-6zM4 14h6v6H4zM10 7h4M7 10v4M17 10v4M10 17h4',
   settings:
     'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M10 2h4l1 3 3 1 3-1 2 4-2 3 1 3-2 4-3-1-3 1-1 3h-4l-1-3-3-1-3 1-2-4 2-3-1-3 2-4 3 1 3-1z',

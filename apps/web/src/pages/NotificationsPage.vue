@@ -2,7 +2,11 @@
 import { onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import { z } from 'zod';
-import { NotificationConfigViewSchema, NotificationSchema } from '@radar/shared';
+import {
+  NotificationConfigPatchSchema,
+  NotificationConfigViewSchema,
+  NotificationSchema,
+} from '@radar/shared';
 import { ElMessage } from 'element-plus';
 import { api, write } from '../lib/api';
 import { date, number } from '../lib/format';
@@ -23,12 +27,20 @@ const form = reactive({
   chatId: '',
   webhookUrl: '',
   serverUrl: '',
+  smtpHost: '',
+  smtpPort: 587,
+  smtpSecurity: 'starttls' as 'tls' | 'starttls',
+  smtpUsername: '',
+  smtpPassword: '',
+  fromEmail: '',
+  toEmails: '',
   clearCredentials: false,
 });
 function clearSecrets() {
   form.botToken = '';
   form.webhookUrl = '';
   form.serverUrl = '';
+  form.smtpPassword = '';
 }
 watch(configOpen, (open) => {
   if (!open) clearSecrets();
@@ -77,6 +89,12 @@ function configure(channel: ChannelConfig) {
     name: channel.name,
     enabled: channel.enabled,
     chatId: channel.chatId,
+    smtpHost: channel.provider === 'email' ? channel.smtpHost : '',
+    smtpPort: channel.provider === 'email' ? (channel.smtpPort ?? 587) : 587,
+    smtpSecurity: channel.provider === 'email' ? (channel.smtpSecurity ?? 'starttls') : 'starttls',
+    smtpUsername: channel.provider === 'email' ? channel.smtpUsername : '',
+    fromEmail: channel.provider === 'email' ? channel.fromEmail : '',
+    toEmails: channel.provider === 'email' ? channel.toEmails.join(', ') : '',
     clearCredentials: false,
   });
   configError.value = '';
@@ -87,7 +105,7 @@ async function saveChannel() {
   configBusy.value = true;
   configError.value = '';
   try {
-    await write(`/notification-channels/${selected.value.id}`, 'PATCH', {
+    const input = NotificationConfigPatchSchema.safeParse({
       name: form.name,
       enabled: form.enabled,
       ...(form.clearCredentials
@@ -98,10 +116,26 @@ async function saveChannel() {
             ? form.webhookUrl
               ? { webhookUrl: form.webhookUrl }
               : {}
-            : form.serverUrl
-              ? { serverUrl: form.serverUrl }
-              : {}),
+            : selected.value.provider === 'bark'
+              ? form.serverUrl
+                ? { serverUrl: form.serverUrl }
+                : {}
+              : {
+                  smtpHost: form.smtpHost,
+                  smtpPort: form.smtpPort,
+                  smtpSecurity: form.smtpSecurity,
+                  smtpUsername: form.smtpUsername,
+                  fromEmail: form.fromEmail,
+                  toEmails: form.toEmails
+                    .split(/[\n,;]+/)
+                    .map((email) => email.trim())
+                    .filter(Boolean),
+                  ...(form.smtpPassword ? { smtpPassword: form.smtpPassword } : {}),
+                }),
     });
+    if (!input.success)
+      throw new Error(input.error.issues.map((issue) => issue.message).join('；'));
+    await write(`/notification-channels/${selected.value.id}`, 'PATCH', input.data);
     configOpen.value = false;
     await client.invalidateQueries({ queryKey: ['channels'] });
     await client.invalidateQueries({ queryKey: ['system-status'] });
@@ -166,7 +200,15 @@ async function retry(id: string) {
         <section v-for="channel in channels?.data" :key="channel.id" class="panel channel-card">
           <div class="channel-heading">
             <span class="channel-icon" :class="channel.provider"
-              ><RadarIcon :name="channel.provider === 'telegram' ? 'arrowUp' : 'bell'" :size="24"
+              ><RadarIcon
+                :name="
+                  channel.provider === 'telegram'
+                    ? 'arrowUp'
+                    : channel.provider === 'email'
+                      ? 'mail'
+                      : 'bell'
+                "
+                :size="24"
             /></span>
             <div>
               <h2>{{ channel.name }}</h2>
@@ -280,7 +322,7 @@ async function retry(id: string) {
             "
           /><span class="field-hint">填写机器人完整 HTTPS Webhook 地址。</span>
         </div>
-        <div v-else class="form-field full">
+        <div v-else-if="selected.provider === 'bark'" class="form-field full">
           <label for="channel-bark">Bark 推送地址</label
           ><input
             id="channel-bark"
@@ -295,6 +337,96 @@ async function retry(id: string) {
             "
           /><span class="field-hint">填写包含设备 Key 的完整 HTTPS 推送地址。</span>
         </div>
+        <template v-else>
+          <div class="form-field">
+            <label for="channel-smtp-host">SMTP 服务器</label>
+            <input
+              id="channel-smtp-host"
+              v-model="form.smtpHost"
+              maxlength="255"
+              :disabled="form.clearCredentials"
+              placeholder="例如 smtp.example.com"
+              required
+            />
+          </div>
+          <div class="form-field">
+            <label for="channel-smtp-port">SMTP 端口</label>
+            <input
+              id="channel-smtp-port"
+              v-model.number="form.smtpPort"
+              type="number"
+              min="1"
+              max="65535"
+              :disabled="form.clearCredentials"
+              required
+            />
+          </div>
+          <div class="form-field">
+            <label for="channel-smtp-security">加密方式</label>
+            <select
+              id="channel-smtp-security"
+              v-model="form.smtpSecurity"
+              :disabled="form.clearCredentials"
+            >
+              <option value="starttls">STARTTLS（推荐）</option>
+              <option value="tls">TLS（465）</option>
+            </select>
+            <span class="field-hint">常用 587 + STARTTLS、465 + TLS；支持服务器自定义端口。</span>
+          </div>
+          <div class="form-field">
+            <label for="channel-smtp-username">SMTP 用户名</label>
+            <input
+              id="channel-smtp-username"
+              v-model="form.smtpUsername"
+              maxlength="320"
+              :disabled="form.clearCredentials"
+              autocomplete="username"
+              placeholder="通常是邮箱地址"
+            />
+            <span class="field-hint">用户名和密码留空保留；取消认证需清除全部配置后重新填写。</span>
+          </div>
+          <div class="form-field">
+            <label for="channel-smtp-password">SMTP 密码</label>
+            <input
+              id="channel-smtp-password"
+              v-model="form.smtpPassword"
+              type="password"
+              maxlength="4096"
+              :disabled="form.clearCredentials"
+              autocomplete="new-password"
+              :placeholder="
+                selected.smtpPasswordConfigured
+                  ? '已配置 · 留空保留'
+                  : '输入 SMTP 密码或应用专用密码'
+              "
+            />
+          </div>
+          <div class="form-field">
+            <label for="channel-from-email">发件人地址</label>
+            <input
+              id="channel-from-email"
+              v-model="form.fromEmail"
+              type="email"
+              maxlength="320"
+              :disabled="form.clearCredentials"
+              placeholder="alerts@example.com"
+              required
+            />
+          </div>
+          <div class="form-field full">
+            <label for="channel-to-emails">收件人地址</label>
+            <textarea
+              id="channel-to-emails"
+              v-model="form.toEmails"
+              rows="2"
+              maxlength="4000"
+              :disabled="form.clearCredentials"
+              placeholder="一个或多个地址，用逗号、分号或换行分隔"
+              required
+            />
+            <span class="field-hint">仅通过服务端 SMTP 发信；浏览器不会保存邮箱密码。</span>
+          </div>
+        </template>
         <label class="integration-checkbox full"
           ><input
             v-model="form.clearCredentials"

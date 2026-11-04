@@ -61,11 +61,11 @@ pnpm dev
 - `GITHUB_REPOSITORIES`：逗号分隔的协议官方仓库白名单；仓库所有权须人工确认。
 - `DEX_CHAIN` + `DEX_TOKEN_ADDRESSES`：仅跟踪最多30个已知 token；空地址列表为未配置，不代表新币全量发现。
 - UniSat：`UNISAT_API_KEY`。EVM：`EVM_RPC_URL` + 已核验 `EVM_FACTORY_ADDRESS`；Solana：`SOLANA_RPC_URL` + `SOLANA_PROGRAM_ID`。范围型监控不能解释为全链覆盖。
-- Telegram：`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`。飞书：官方 `FEISHU_WEBHOOK_URL`。Bark：完整 HTTPS 设备推送 `BARK_SERVER_URL`。
+- Telegram：`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`。飞书：官方 `FEISHU_WEBHOOK_URL`。Bark：完整 HTTPS 设备推送 `BARK_SERVER_URL`。邮箱可用服务器端 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURITY`、`SMTP_USERNAME`、`SMTP_PASSWORD`、`SMTP_FROM_EMAIL`、`SMTP_TO_EMAILS` 作为默认值，也可在「通知中心」配置自定义 SMTP 主机、端口、TLS/STARTTLS、可选认证、发件人与多个收件人；密码只在服务端加密保存。
 - AI：在「系统管理 → AI 服务配置」填写 OpenAI-compatible 服务或中转站的 API 根地址（例如 `https://relay.example/v1`）、模型、API Key、超时、JSON 模式和预算。`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` 等环境变量保留为初始默认值；页面保存后覆盖，后续 Worker 任务直接读取，无需重启。成本为保守预算预留/估算，不能替代供应商账单；未配置时规则链继续工作。
 - FRED 因已发现的 AI/存储条款冲突默认不接入；Coinbase 等许可按私有研究范围审查，公开再分发前须确认授权。具体官方链接均在数据源文档中。
 
-「通知中心」支持保存 Telegram、飞书、Bark 的渠道凭据与启停；「数据源」展示宏观政策、财经市场、科技动态、全球热点与加密资产分类及来源目录，并支持新增已获授权的公开 HTTPS RSS/Atom 订阅。新闻保存标题、摘要、来源和实际发布时间，不抓取付费全文。Fixture 可查看 Live 目录，但不采集真实订阅、不实际调用 AI 或发送通知；启用真实采集需在服务器设置 `DATA_MODE=live`。
+「通知中心」支持保存 Telegram、飞书、Bark 和 SMTP 邮箱的渠道凭据与启停；「数据源」展示宏观政策、财经市场、科技动态、全球热点与加密资产分类及来源目录，并支持新增已获授权的公开 HTTPS RSS/Atom 订阅。新闻保存标题、摘要、来源和实际发布时间，不抓取付费全文。Fixture 可查看 Live 目录，但不采集真实订阅、不实际调用 AI 或发送通知；启用真实采集需在服务器设置 `DATA_MODE=live`。
 
 密钥在页面中只用于当前提交，不存入浏览器持久存储，接口只返回是否已配置。凭据加密存储在 PostgreSQL，`INTEGRATION_ENCRYPTION_KEY` 是 API/Worker 共享的服务器加密根密钥（至少32字符）；为空时兼容使用 `SESSION_SECRET`。请在首次保存前配置稳定根密钥，并与数据库备份分别妥善保存。更改有效根密钥后需重新填写集成凭据。空白密钥保留旧值，「清除凭据」明确清除；清除后不自动恢复环境变量中的密钥。
 

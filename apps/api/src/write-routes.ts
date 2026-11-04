@@ -265,7 +265,15 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
       if (
         (row.provider !== 'telegram' && (input.botToken || input.chatId)) ||
         (row.provider !== 'feishu' && input.webhookUrl) ||
-        (row.provider !== 'bark' && input.serverUrl)
+        (row.provider !== 'bark' && input.serverUrl) ||
+        (row.provider !== 'email' &&
+          (input.smtpHost ||
+            input.smtpPort ||
+            input.smtpSecurity ||
+            input.smtpUsername ||
+            input.smtpPassword ||
+            input.fromEmail ||
+            input.toEmails))
       )
         fail(400, '凭据字段与通知渠道类型不匹配');
       if (input.botToken && !/^[a-zA-Z0-9:_-]+$/.test(input.botToken))
@@ -279,6 +287,15 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
         fail(400, '飞书需要官方机器人 Webhook 地址');
       if (input.serverUrl && new URL(input.serverUrl).pathname === '/')
         fail(400, 'Bark 需要包含设备 Key 的完整 HTTPS 地址');
+      if (
+        input.smtpHost &&
+        !/^[a-zA-Z0-9][a-zA-Z0-9.-]{0,253}[a-zA-Z0-9]$|^[a-zA-Z0-9]$/.test(input.smtpHost)
+      )
+        fail(400, 'SMTP 主机名格式无效');
+      if (input.smtpUsername && /[\r\n]/.test(input.smtpUsername))
+        fail(400, 'SMTP 用户名不得包含换行');
+      if (input.smtpPassword && /[\r\n]/.test(input.smtpPassword))
+        fail(400, 'SMTP 密码不得包含换行');
       for (const endpoint of [input.webhookUrl, input.serverUrl])
         if (endpoint) {
           try {

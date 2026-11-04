@@ -5376,14 +5376,33 @@
                         "properties": {
                           "id": { "type": "string", "format": "uuid" },
                           "name": { "type": "string" },
-                          "provider": { "type": "string", "enum": ["telegram", "feishu", "bark"] },
+                          "provider": {
+                            "type": "string",
+                            "enum": ["telegram", "feishu", "bark", "email"]
+                          },
                           "enabled": { "type": "boolean" },
                           "configured": { "type": "boolean" },
                           "description": { "type": "string" },
                           "configOrigin": { "type": "string", "enum": ["environment", "database"] },
                           "chatId": { "type": "string" },
                           "botTokenConfigured": { "type": "boolean" },
-                          "webhookConfigured": { "type": "boolean" }
+                          "webhookConfigured": { "type": "boolean" },
+                          "smtpHost": { "type": "string", "default": "" },
+                          "smtpPort": { "type": "integer", "nullable": true, "default": null },
+                          "smtpSecurity": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": ["tls", "starttls", null],
+                            "default": null
+                          },
+                          "smtpUsername": { "type": "string", "default": "" },
+                          "smtpPasswordConfigured": { "type": "boolean", "default": false },
+                          "fromEmail": { "type": "string", "default": "" },
+                          "toEmails": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": []
+                          }
                         },
                         "required": [
                           "id",
@@ -5542,6 +5561,17 @@
                       { "type": "string", "maxLength": 2048, "format": "uri" }
                     ]
                   },
+                  "smtpHost": { "type": "string", "maxLength": 255 },
+                  "smtpPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+                  "smtpSecurity": { "type": "string", "enum": ["tls", "starttls"] },
+                  "smtpUsername": { "type": "string", "maxLength": 320 },
+                  "smtpPassword": { "type": "string", "maxLength": 4096 },
+                  "fromEmail": { "type": "string", "format": "email" },
+                  "toEmails": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "email" },
+                    "maxItems": 20
+                  },
                   "clearCredentials": { "type": "boolean" }
                 },
                 "additionalProperties": false
@@ -5562,14 +5592,33 @@
                       "properties": {
                         "id": { "type": "string", "format": "uuid" },
                         "name": { "type": "string" },
-                        "provider": { "type": "string", "enum": ["telegram", "feishu", "bark"] },
+                        "provider": {
+                          "type": "string",
+                          "enum": ["telegram", "feishu", "bark", "email"]
+                        },
                         "enabled": { "type": "boolean" },
                         "configured": { "type": "boolean" },
                         "description": { "type": "string" },
                         "configOrigin": { "type": "string", "enum": ["environment", "database"] },
                         "chatId": { "type": "string" },
                         "botTokenConfigured": { "type": "boolean" },
-                        "webhookConfigured": { "type": "boolean" }
+                        "webhookConfigured": { "type": "boolean" },
+                        "smtpHost": { "type": "string", "default": "" },
+                        "smtpPort": { "type": "integer", "nullable": true, "default": null },
+                        "smtpSecurity": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": ["tls", "starttls", null],
+                          "default": null
+                        },
+                        "smtpUsername": { "type": "string", "default": "" },
+                        "smtpPasswordConfigured": { "type": "boolean", "default": false },
+                        "fromEmail": { "type": "string", "default": "" },
+                        "toEmails": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "default": []
+                        }
                       },
                       "required": [
                         "id",

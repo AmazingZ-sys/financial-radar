@@ -13,7 +13,7 @@
 ## 接口契约与页面
 
 - GET/PATCH /api/v1/integrations/ai：配置视图与写入；POST /api/v1/integrations/ai/test：显式连接/模型协议测试，返回真实测试状态。所有写入沿用 session、Origin、CSRF 和审计。
-- GET /api/v1/notification-channels：返回原有渠道及安全配置状态；PATCH /api/v1/notification-channels/{id}：扩展名称、启用和对应 provider 凭据；现有测试接口保留。支持 Telegram Bot Token + Chat ID、飞书 Webhook、Bark 完整推送地址。
+- GET /api/v1/notification-channels：返回原有渠道及安全配置状态；PATCH /api/v1/notification-channels/{id}：扩展名称、启用和对应 provider 凭据；现有测试接口保留。支持 Telegram Bot Token + Chat ID、飞书 Webhook、Bark 完整推送地址，以及自定义 SMTP 邮箱（主机、端口、TLS/STARTTLS、可选认证、发件人与收件人）。SMTP 密码只存服务器端加密字段，GET 只返回已配置状态；测试邮件沿用 live/fixture 隔离和通知审计。
 - GET /api/v1/sources/catalog：已实现来源目录与分类；POST /api/v1/sources：添加管理员授权的 RSS/Atom 公共订阅；现有 PATCH 调整启停与轮询。订阅 URL 不原地替换，避免旧证据来源混淆。
 - 系统管理提供 AI 配置表单；通知页面提供渠道配置；数据源页面提供分类、来源目录与新增 RSS/Atom。使用现有 Vue 控制台视觉体系，并明确保存、测试、失败与待配置状态。
 
@@ -26,4 +26,4 @@
 
 ## 验收
 
-验证鉴权/CSRF、凭据不回显不落日志、加密往返/篡改失败、清除与环境默认语义、配置热更新、AI 中转请求与缓存隔离、通知真实配置读取、RSS/Atom 解析/幂等/缺失时间/错误/SSRF、来源分类与表单。执行 typecheck、lint、test、build 和相关 PostgreSQL/Redis 集成测试，结果记入 docs/acceptance.md。生产部署须另行执行，不以本地验证冒充线上生效。
+验证鉴权/CSRF、凭据不回显不落日志、加密往返/篡改失败、清除与环境默认语义、配置热更新、AI 中转请求与缓存隔离、通知真实配置读取（含 SMTP TLS/STARTTLS、超时和收件人校验）、RSS/Atom 解析/幂等/缺失时间/错误/SSRF、来源分类与表单。执行 typecheck、lint、test、build 和相关 PostgreSQL/Redis 集成测试，结果记入 docs/acceptance.md。生产部署须另行执行，不以本地验证冒充线上生效。

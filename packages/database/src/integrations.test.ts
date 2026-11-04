@@ -56,4 +56,38 @@ describe('integration credential storage', () => {
     expect(JSON.stringify(view)).not.toContain('corrupt-ciphertext');
     expect(() => readNotificationConfig('telegram', data)).toThrow('无法解密');
   });
+  it('exposes SMTP email configuration without revealing its password', () => {
+    const encryptedCredentials = encryptIntegrationSecret(
+      JSON.stringify({
+        smtpHost: 'smtp.example.com',
+        smtpPort: 2525,
+        smtpSecurity: 'starttls',
+        smtpUsername: 'alerts@example.com',
+        smtpPassword: 'never-render-this',
+        fromEmail: 'alerts@example.com',
+        toEmails: ['admin@example.com'],
+      }),
+      'notification:email',
+    );
+    const view = notificationConfigView({
+      id: '00000000-0000-4000-8000-000000000002',
+      name: 'SMTP 邮箱',
+      provider: 'email',
+      enabled: true,
+      data: { encryptedCredentials },
+    });
+    expect(view).toMatchObject({
+      provider: 'email',
+      configured: true,
+      smtpHost: 'smtp.example.com',
+      smtpPort: 2525,
+      smtpSecurity: 'starttls',
+      smtpUsername: 'alerts@example.com',
+      smtpPasswordConfigured: true,
+      fromEmail: 'alerts@example.com',
+      toEmails: ['admin@example.com'],
+    });
+    expect(JSON.stringify(view)).not.toContain('never-render-this');
+    expect(view).not.toHaveProperty('smtpPassword');
+  });
 });
