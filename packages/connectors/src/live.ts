@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { XMLParser } from 'fast-xml-parser';
 import { z } from 'zod';
 import { ResilientHttp, ConnectorError } from './http.js';
@@ -152,6 +153,7 @@ const Brc20StatusSchema = z.object({
   code: z.number(),
   data: z.object({
     height: z.number().optional(),
+    total: z.number().int().nonnegative().optional(),
     detail: z.array(
       z
         .object({
@@ -168,6 +170,24 @@ const Brc20StatusSchema = z.object({
         .passthrough(),
     ),
   }),
+});
+const UNISAT_LOOKBACK_MS = 7 * 24 * 3600_000;
+const UNISAT_MAX_SNAPSHOTS = 2000;
+const UniSatCheckpointSchema = z.object({
+  version: z.literal(2),
+  batchSequence: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(Number.MAX_SAFE_INTEGER - 1),
+  snapshots: z.record(
+    z.string(),
+    z.object({
+      fingerprint: z.string(),
+      lastSeenAt: z.iso.datetime(),
+      deployTime: z.number().int().nonnegative(),
+    }),
+  ),
 });
 export class GitHubReleasesConnector extends PullConnector {
   metadata: SourceMetadata = {
@@ -319,9 +339,12 @@ export class UniSatBrc20Connector extends PullConnector {
     pollIntervalSeconds: 120,
     licenseStatus: 'authorization-required',
   };
-  private lastSnapshotAt = 0;
-  constructor(private apiKey?: string) {
+  constructor(
+    private apiKey?: string,
+    fetcher: typeof fetch = fetch,
+  ) {
     super();
+    this.http = new ResilientHttp(fetcher, undefined, undefined, 1000);
   }
   async healthCheck() {
     return this.apiKey
@@ -330,44 +353,110 @@ export class UniSatBrc20Connector extends PullConnector {
   }
   async fetch(cursor: Cursor = {}) {
     if (!this.apiKey) throw new ConnectorError('UniSat API Key 未配置', 'AUTH');
-    const requestStatus = async (complete: 'no' | 'yes', limit: number) => {
+    const requestStatus = async (complete: 'no' | 'yes', limit: number, start = 0) => {
       const response = await this.http.request(
-        `https://open-api.unisat.io/v1/indexer/brc20/status?start=0&limit=${limit}&sort=deploy&complete=${complete}`,
+        `https://open-api.unisat.io/v1/indexer/brc20/status?start=${start}&limit=${limit}&sort=deploy&complete=${complete}`,
         { headers: { Authorization: `Bearer ${this.apiKey}` } },
       );
       const body = Brc20StatusSchema.parse(await response.json());
       if (body.code !== 0) throw new ConnectorError('UniSat 返回业务错误', 'PERMANENT');
       return body;
     };
-    // The official status API exposes completion filtering. Keep the live
-    // discovery bounded: 50 unfinished deployments plus a 20-item completed
-    // tail, rather than pretending to be a full BRC-20 index.
-    const incomplete = await requestStatus('no', 50);
-    const completedTail = await requestStatus('yes', 20);
-    const rows = [...incomplete.data.detail, ...completedTail.data.detail];
-    const uniqueRows = [...new Map(rows.map((row) => [row.inscriptionId, row])).values()];
-    const snapshotAt = Math.max(Date.now(), this.lastSnapshotAt + 1);
-    this.lastSnapshotAt = snapshotAt;
+    // The API documents deploy sorting but not its direction. Read both ends
+    // using its documented offset/total fields, then select by deployment time.
+    const requestCandidates = async (complete: 'no' | 'yes', limit: number) => {
+      const head = await requestStatus(complete, limit);
+      const tail =
+        head.data.total !== undefined && head.data.total > limit
+          ? await requestStatus(complete, limit, head.data.total - limit)
+          : null;
+      const rows = [...head.data.detail, ...(tail?.data.detail ?? [])];
+      return {
+        rows: [...new Map(rows.map((row) => [row.inscriptionId, row])).values()],
+        height: head.data.height ?? tail?.data.height ?? null,
+      };
+    };
+    const incomplete = await requestCandidates('no', 50);
+    const completed = await requestCandidates('yes', 20);
+    const snapshotAt = Date.now();
     const observedAt = new Date(snapshotAt).toISOString();
+    const cutoff = snapshotAt - UNISAT_LOOKBACK_MS;
+    const recent = (rows: typeof incomplete.rows, limit: number) =>
+      rows
+        .filter((row) => {
+          const time = row.deployTime ?? row.deployBlocktime;
+          return (
+            typeof time === 'number' &&
+            Number.isSafeInteger(time) &&
+            time * 1000 >= cutoff &&
+            time * 1000 <= snapshotAt
+          );
+        })
+        .sort(
+          (a, b) =>
+            (b.deployTime ?? b.deployBlocktime)! - (a.deployTime ?? a.deployBlocktime)! ||
+            a.inscriptionId.localeCompare(b.inscriptionId),
+        )
+        .slice(0, limit);
+    const rows = [...recent(incomplete.rows, 50), ...recent(completed.rows, 20)];
+    const uniqueRows = [...new Map(rows.map((row) => [row.inscriptionId, row])).values()];
+    const saved = UniSatCheckpointSchema.safeParse(cursor);
+    const batchSequence = (saved.success ? saved.data.batchSequence : 0) + 1;
+    const snapshots = new Map(
+      Object.entries(saved.success ? saved.data.snapshots : {}).filter(
+        ([, state]) => state.deployTime * 1000 >= cutoff && state.deployTime * 1000 <= snapshotAt,
+      ),
+    );
+    const items: RawItem[] = [];
+    for (const r of uniqueRows) {
+      const deployTime = (r.deployTime ?? r.deployBlocktime)!;
+      if (deployTime * 1000 < cutoff || deployTime * 1000 > snapshotAt) continue;
+      const assetIdentity = `bitcoin:brc20:${String(r.ticker ?? r.tick ?? r.inscriptionId).toLowerCase()}`;
+      const fingerprint = createHash('sha256')
+        .update(
+          JSON.stringify([
+            assetIdentity,
+            r.inscriptionId,
+            deployTime,
+            decimalString(r.minted ?? r.totalMinted),
+            decimalString(r.max),
+            integerMetric(r.holdersCount),
+          ]),
+        )
+        .digest('hex');
+      const previous = snapshots.get(r.inscriptionId);
+      snapshots.set(r.inscriptionId, { fingerprint, lastSeenAt: observedAt, deployTime });
+      if (previous?.fingerprint === fingerprint) continue;
+      items.push({
+        // The committed batch sequence makes partial-batch retries idempotent
+        // while allowing a genuine A -> B -> A state change to be observed.
+        externalId: `${assetIdentity}:snapshot:v2:${batchSequence}:${r.inscriptionId}:${fingerprint}`,
+        payload: {
+          ...r,
+          assetIdentity,
+          observedAt,
+          stateFingerprint: fingerprint,
+          previousStateFingerprint: previous?.fingerprint ?? null,
+          previousStateObservedAt: previous?.lastSeenAt ?? null,
+        },
+        publishedAt: null,
+      });
+    }
     return {
-      items: uniqueRows.map((r) => {
-        const assetIdentity = `bitcoin:brc20:${String(r.ticker ?? r.tick ?? r.inscriptionId).toLowerCase()}`;
-        const snapshot = `${observedAt}:${r.inscriptionId}:${r.minted ?? r.totalMinted ?? ''}:${r.max ?? ''}:${r.holdersCount ?? ''}`;
-        return {
-          // A snapshot-specific raw ID preserves every poll's evidence while the
-          // project asset key below remains stable for the ticker.
-          externalId: `${assetIdentity}:snapshot:${snapshot}`,
-          payload: { ...r, assetIdentity, observedAt },
-          // UniSat deploy time is an on-chain event time, never source publication.
-          publishedAt: null,
-        };
-      }),
+      items,
       cursor: {
         ...cursor,
-        checkedAt: new Date().toISOString(),
-        scope: 'latest-50-incomplete-plus-completed-tail-20',
-        completedTailLimit: 20,
-        indexedHeight: incomplete.data.height ?? completedTail.data.height ?? null,
+        version: 2,
+        batchSequence,
+        snapshots: Object.fromEntries(
+          [...snapshots.entries()]
+            .sort((a, b) => b[1].lastSeenAt.localeCompare(a[1].lastSeenAt))
+            .slice(0, UNISAT_MAX_SNAPSHOTS),
+        ),
+        checkedAt: observedAt,
+        scope: 'recent-7d-latest-50-incomplete-plus-completed-20-head-tail',
+        lookbackSeconds: UNISAT_LOOKBACK_MS / 1000,
+        indexedHeight: incomplete.height ?? completed.height,
       },
     };
   }
@@ -381,9 +470,9 @@ export class UniSatBrc20Connector extends PullConnector {
     const deployTime = unixTime(item.payload.deployTime ?? item.payload.deployBlocktime);
     const snapshot = String(item.externalId.split(':snapshot:')[1] ?? item.externalId);
     return this.base(item, {
-      title: `发现 BRC-20 部署 · ${name}`,
+      title: `BRC-20 状态更新 · ${name}`,
       description:
-        '索引器提供的部署状态候选；尚未验证项目官方身份与参与规则。监控范围为最近50个未完成部署和20个已完成部署尾部样本，不能保证全量。',
+        '索引器提供的近期部署状态；尚未验证项目官方身份与参与规则。仅监控近7天部署，最多50个未完成及20个已完成候选，状态变化时记录；不能保证全量。',
       eventType: 'TOKEN_STATE_SNAPSHOT',
       originalUrl: `https://unisat.io/inscription/${encodeURIComponent(String(item.payload.inscriptionId ?? name))}`,
       assets: [name],
@@ -394,6 +483,15 @@ export class UniSatBrc20Connector extends PullConnector {
       severity: 'P2',
       verificationStatus: 'UNVERIFIED',
       metrics: {
+        observedAt: validDate(item.payload.observedAt),
+        samplingMode: 'state-changes',
+        stateFingerprint:
+          typeof item.payload.stateFingerprint === 'string' ? item.payload.stateFingerprint : null,
+        previousStateFingerprint:
+          typeof item.payload.previousStateFingerprint === 'string'
+            ? item.payload.previousStateFingerprint
+            : null,
+        previousStateObservedAt: validDate(item.payload.previousStateObservedAt),
         ...(progress === null ? {} : { mintProgress: progress }),
         minted,
         max,

@@ -102,6 +102,9 @@ describe('commodity market source contracts', () => {
     const connector = new EiaWtiDailyConnector(fetcher);
     const first = await connector.fetch();
     expect(first.items).toHaveLength(2);
+    expect(fetcher.mock.calls[0]?.[1].headers.Accept).toBe(
+      'application/zip, application/x-zip-compressed, application/octet-stream, */*;q=0.1',
+    );
     expect((await connector.fetch(first.cursor)).items).toHaveLength(0);
     expect(fetcher.mock.calls[1]?.[1].headers).toMatchObject({ 'If-None-Match': 'eia-version' });
   });

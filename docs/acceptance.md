@@ -2,6 +2,40 @@
 
 日期：2026-11-02，Asia/Shanghai。此文件描述实际执行结果，不把设计、Fixture、外部服务和生产部署混为一项。原始需求末尾截断，已收到部分作为实现基线。
 
+## 2026-11-04 · Solana 积压补偿与黄金/原油熔断排查
+
+15:02–15:10（Asia/Shanghai）通过已有登录会话只读查看生产来源页与健康历史：Solana 在已有成功后持续报“指定program积压超过100交易”，配置的公开 Program 为 `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`，与 [Pump 官方文档](https://github.com/pump-fun/pump-public-docs/blob/main/docs/PUMP_PROGRAM_README.md)一致；WTI 无成功记录，13:04、14:04 多次 HTTP 406 后熔断；黄金无成功记录，持续约1秒网络错误后熔断。未编辑生产配置、未读取或使用 RPC 凭据。
+
+先新增[29 Solana补偿](29-solana-history-recovery.md)、[30商品来源恢复](30-commodity-source-recovery.md)、[31只读诊断](31-source-diagnostics.md)，再实现：
+
+- Solana 移除满100条直接永久失败，按before分页扫描并实际找到旧检查点后从旧到新回放。扫描每轮100签名、交易读取每轮20笔；页摘要、待处理签名与恢复进度持久化，重建connector后继续。null交易、首轮/后续空页未找到检查点、RPC失败或页面不完整均停止，不越过缺口。未完成保持degraded和原last_success_at，完成后恢复healthy。
+- EIA 实际媒体类型本地可返回application/x-zip-compressed，请求增加该类型、标准ZIP、二进制和低优先级通配Accept，保留ZIP/序列/日期/单位验证。生产406是否由请求头导致尚未证实：本地代理出口下原Accept与通配均可200，不能将兼容修改视为生产根因已确认。
+- HTTP 网络错误仅保留白名单DNS/TLS/连接/超时码，熔断附带最近安全原因；不回显原始URL、error message、凭据或代理配置。失败响应主动取消body，连续失败不缩短Retry-After冷却，成功清除原因与冷却。
+- 新增固定公开端点的只读诊断脚本，不读应用凭据、不写DB、不输出响应正文或IP，按DNS/TCP/TLS/HTTP阶段区分故障，供服务器出口复验。黄金本地可成功读取，生产现有通用错误无法追溯具体网络原因；尚待服务器脚本输出或更新Worker后的安全错误码。
+
+Node 24.15.0 正式验证通过，日志位于忽略提交的 `.local/source-recovery-test/`：`pnpm typecheck`、`pnpm lint`、`pnpm test`（19文件、192项）、`pnpm build`（9任务）通过。独立真实PostgreSQL 18 / Redis 7.4.2内全部集成通过：新增Solana补偿25项、商品恢复20项，以及Solana版本13、EVM分页12、UniSat41、主流程70、历史35、配置62、来源配置18、模式隔离86项。Solana验证125笔连续交易完整处理、跨轮/重启恢复、失败cursor保留、4条合成Mint落库及重放幂等；商品验证HTTP406/ENOTFOUND不写行情或前进cursor，错误脱敏可见，恢复后raw/market各1条且重放幂等。所有合成事实均明确Fixture，未向外部平台发送消息。
+
+`pnpm format:check`、`pnpm security:check` 与 `git diff --check` 通过；独立只读审查未发现本轮改动引入的数据丢失、错误恢复或凭据回显问题。既有未提交UniSat改动保留并随全量回归验证。
+
+本轮未发布Release、未更新生产Worker，也未重置或删除生产cursor。当前Pump Program在每轮20笔、默认60秒轮询预算下不能承诺持续追平；高流量实时覆盖仍需有预算的索引/流式采集方案，不能以分页补偿验收替代。WTI保持日度参考价，黄金/原油是否生产恢复以服务器后续真实成功记录为准。
+
+## 2026-11-04 · UniSat 历史部署重复采集修复
+
+用户反馈 2023 年部署被反复记录为 2026 年新发现。根因是每轮固定读取状态首部，且原始 ID 与事件身份包含本轮时间；状态未变化仍绕过数据库去重。先更新 [03 数据源](03-data-sources.md) 并新增 [28 近期部署监控](28-unisat-live-discovery.md)，再实现：
+
+- 按官方 offset/total 读取部署排序的首尾页，兼容排序方向未声明的接口；选最多50条未完成、20条已完成候选，仅接纳近7天的有效部署。2023 年、未知、无效和未来部署均不生成 raw/event/project/新部署信号；无 total 时覆盖仅限首部，不声称全量。
+- checkpoint 持久保存实际状态指纹和批次序号，排除观察时间、索引高度及无关元数据；不变状态零新增，真实变化与 A→B→A 回归均保留。标题改为「BRC-20 状态更新」，链上部署、未知来源发布、首次发现与采集时间保持独立。
+- 新增向前兼容迁移 `0003_source_pending_batches.sql`；UniSat 批次在处理首项前保存到 PostgreSQL。部分处理失败后先重放已保存的响应，完成时与 checkpoint 原子清除 pending；重启恢复不重新读取已变化的供应商响应。重试标准化使用已保存的原始 payload/发布时间，避免篡改证据时间。
+- 变化采样携带前一状态最后确认时间及关联指纹，铸造加速按校验后的实际基线间隔计算。回归验证删除不变采样不会制造11倍加速，真实3倍加速仍可检出；缺失、断链、未来及越界基线不产生加速信号，既有6小时门限保留。
+
+Node 24.15.0 本地验收通过，日志保存在忽略提交的 `.local/unisat-test/`：
+
+- `pnpm typecheck`、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm security:check` 与 `git diff --check` 通过；构建9个任务成功。
+- `pnpm test`：18个文件、176项通过，覆盖时间窗边界、首尾分页、数值格式等价、持久去重、重启、状态回归、确定性身份、缓存边界，以及采样基线与加速误报。
+- 隔离真实 PostgreSQL 18 / Redis 7.4.2 的 `pnpm test:integration` 通过：新增 UniSat 41项、主流程70项、历史35项、EVM分页12项、Solana版本13项、配置62项、来源配置/热加载18项、模式隔离86项。UniSat 集成使用真实适配器与显式 Fixture HTTP 响应，验证部分处理失败后 checkpoint 不前进、pending 可重放、恢复期间上游回归不丢失、原始身份与时间不变、成功后删除 pending、后续不变轮询零新增。迁移在已有隔离数据库上执行并重复运行，未删除既有事实；测试结束停止自身服务。
+
+本轮未使用用户 UniSat 凭据实采、未发布或更新生产环境，也未自动清理已有历史数据。后端需先执行新增迁移，再运行更新后的 Worker；原 UniSat Key 可沿用。旧事件保留原始时间与证据，不能把本地 Fixture 验收视为线上修复已生效。
+
 ## 2026-11-04 · v1.3.1 发布与前端部署
 
 用户明确授权发布Release与部署，并指定后端由其自行更新。下方两节为发布前本地回归，本节记录随后实际完成的正式发布。

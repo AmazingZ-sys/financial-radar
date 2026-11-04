@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type DataMode = 'live' | 'fixture';
 export type SourceMetadata = {
   id: string;
@@ -58,6 +60,16 @@ export type NormalizedEvent = {
   conditionsVerified?: boolean;
 };
 export type FetchResult = { items: RawItem[]; cursor: Cursor };
+export const FetchResultSchema = z.object({
+  items: z.array(
+    z.object({
+      externalId: z.string().min(1),
+      payload: z.record(z.string(), z.unknown()),
+      publishedAt: z.iso.datetime().nullable(),
+    }),
+  ),
+  cursor: z.record(z.string(), z.unknown()),
+});
 export interface Connector {
   metadata: SourceMetadata;
   capabilities: CapabilityDescriptor;

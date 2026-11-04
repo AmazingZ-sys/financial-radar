@@ -10,6 +10,7 @@ import {
   type RawItem,
   type NormalizedEvent,
   type Cursor,
+  FetchResultSchema,
   ConnectorError,
   NewsRssConnector,
   categoriesForSource,
@@ -907,8 +908,22 @@ async function runIngestionUnlocked(sourceId: string) {
       integrationScope && savedCursor?._integrationScope !== integrationScope
         ? undefined
         : savedCursor;
-    const fetched = await connector.fetch(cursor);
+    // Change-only adapters must finish a durable batch before fetching again:
+    // after a partial failure, upstream may already have reverted to a state
+    // that the old committed cursor would otherwise suppress.
+    const retainsBatch = connector instanceof UniSatBrc20Connector;
+    const pending = retainsBatch
+      ? (
+          await sql`SELECT integration_scope,data FROM source_pending_batches WHERE source_id=${sourceId}`
+        )[0]
+      : undefined;
+    const fetched =
+      pending && pending.integration_scope === (integrationScope ?? null)
+        ? FetchResultSchema.parse(pending.data)
+        : await connector.fetch(cursor);
     if (integrationScope) fetched.cursor._integrationScope = integrationScope;
+    if (retainsBatch)
+      await sql`INSERT INTO source_pending_batches(source_id,integration_scope,data) VALUES(${sourceId},${integrationScope ?? null},${json(fetched)}) ON CONFLICT(source_id) DO UPDATE SET integration_scope=excluded.integration_scope,data=excluded.data,created_at=now()`;
     let inserted = 0;
     const orderedItems = [...fetched.items].sort((a, b) => {
       const aObserved =
@@ -936,23 +951,38 @@ async function runIngestionUnlocked(sourceId: string) {
       // Raw storage is committed before normalization, including malformed items for investigation.
       await sql`INSERT INTO raw_items(id,source_id,external_id,payload,published_at,first_seen_at,collected_at) VALUES(${randomUUID()},${sourceId},${item.externalId},${json(item.payload)},${item.publishedAt},${now},${now}) ON CONFLICT(source_id,external_id) DO NOTHING`;
       const raw = (
-        await sql`SELECT id,first_seen_at FROM raw_items WHERE source_id=${sourceId} AND external_id=${item.externalId}`
+        await sql`SELECT id,first_seen_at,payload,published_at FROM raw_items WHERE source_id=${sourceId} AND external_id=${item.externalId}`
       )[0]!;
       if (
         await persistEvent(
           connector,
           String(raw.id),
           new Date(raw.first_seen_at as string).toISOString(),
-          item,
+          {
+            externalId: item.externalId,
+            payload: raw.payload as RawItem['payload'],
+            publishedAt: raw.published_at
+              ? new Date(raw.published_at as string).toISOString()
+              : null,
+          },
         )
       )
         inserted++;
     }
+    const recovery =
+      connector instanceof SolanaMintConnector
+        ? (fetched.cursor.solanaRecovery as { phase?: string } | undefined)
+        : undefined;
+    const healthStatus = recovery ? 'degraded' : 'healthy';
+    const healthDetail = recovery
+      ? `Solana 历史补偿中（${recovery.phase === 'scan' ? '扫描缺口' : '回放交易'}）；尚未追平，检查点不越过未处理交易`
+      : null;
     await sql.begin(async (tx) => {
       await tx`INSERT INTO source_checkpoints(source_id,cursor) VALUES(${sourceId},${json(fetched.cursor)}) ON CONFLICT(source_id) DO UPDATE SET cursor=excluded.cursor,committed_at=now()`;
+      if (retainsBatch) await tx`DELETE FROM source_pending_batches WHERE source_id=${sourceId}`;
       await tx`UPDATE ingestion_runs SET status='COMPLETED',fetched=${orderedItems.length},inserted=${inserted},finished_at=now() WHERE id=${runId}`;
-      await tx`UPDATE data_sources SET last_success_at=now(),last_error=null,next_poll_at=now()+interval_seconds*interval '1 second',data=data || '{"status":"healthy"}'::jsonb WHERE id=${sourceId}`;
-      await tx`INSERT INTO source_health_records(id,source_id,status,latency_ms) VALUES(${randomUUID()},${sourceId},'healthy',${Date.now() - started})`;
+      await tx`UPDATE data_sources SET last_success_at=CASE WHEN ${Boolean(recovery)} THEN last_success_at ELSE now() END,last_error=${healthDetail},next_poll_at=now()+interval_seconds*interval '1 second',data=data || ${json({ status: healthStatus, cooldownUntil: null })}::jsonb WHERE id=${sourceId}`;
+      await tx`INSERT INTO source_health_records(id,source_id,status,latency_ms,error) VALUES(${randomUUID()},${sourceId},${healthStatus},${Date.now() - started},${healthDetail})`;
     });
     log.info({ sourceId, runId, fetched: orderedItems.length, inserted }, 'ingestion completed');
     return { fetched: orderedItems.length, inserted, skipped: false };

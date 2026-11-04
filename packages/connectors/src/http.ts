@@ -33,10 +33,44 @@ export function retryAfterMs(value: string | null, now = Date.now()): number {
     ? Math.max(0, seconds * 1000)
     : Math.max(0, Date.parse(value) - now) || 0;
 }
+// Never copy messages from fetch/cause: they may contain credential-bearing URLs.
+const safeNetworkCodes = new Set([
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_SOCKET',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  'CERT_HAS_EXPIRED',
+  'ERR_SSL_WRONG_VERSION_NUMBER',
+]);
+function networkDiagnostic(error: unknown): string {
+  let current = error;
+  for (let depth = 0; depth < 5 && current && typeof current === 'object'; depth++) {
+    const item = current as { code?: unknown; name?: unknown; message?: unknown; cause?: unknown };
+    if (typeof item.code === 'string' && safeNetworkCodes.has(item.code)) return item.code;
+    if (item.name === 'TimeoutError') return 'REQUEST_TIMEOUT';
+    if (item.name === 'AbortError') return 'REQUEST_ABORTED';
+    if (item.message === 'unexpected redirect') return 'REDIRECT_REJECTED';
+    current = item.cause;
+  }
+  return 'NETWORK_UNKNOWN';
+}
 export class ResilientHttp {
   private failures = 0;
   private openUntil = 0;
   private lastRequestAt = 0;
+  private lastFailure = '';
   constructor(
     private fetcher: typeof fetch = fetch,
     private sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
@@ -50,7 +84,7 @@ export class ResilientHttp {
   ): Promise<Response> {
     if (this.now() < this.openUntil)
       throw new ConnectorError(
-        '数据源熔断，等待半开探测',
+        `数据源熔断，等待半开探测${this.lastFailure ? `；上次失败：${this.lastFailure}` : ''}`,
         'TRANSIENT',
         this.openUntil - this.now(),
       );
@@ -66,6 +100,7 @@ export class ResilientHttp {
           redirect: 'error',
         });
         if (!response.ok && response.status !== 304) {
+          void response.body?.cancel().catch(() => undefined);
           throw new ConnectorError(
             `来源 HTTP ${response.status}`,
             classifyStatus(response.status),
@@ -74,16 +109,21 @@ export class ResilientHttp {
         }
         this.failures = 0;
         this.openUntil = 0;
+        this.lastFailure = '';
         return response;
       } catch (error) {
         const problem =
           error instanceof ConnectorError
             ? error
-            : new ConnectorError('数据源网络错误或超时', 'TRANSIENT');
+            : new ConnectorError(
+                `数据源网络错误或超时（${networkDiagnostic(error)}）`,
+                'TRANSIENT',
+              );
+        this.lastFailure = problem.message;
         this.failures++;
         if (problem.classification === 'RATE_LIMIT' && problem.retryAfterMs > 0)
           this.openUntil = Math.max(this.openUntil, this.now() + problem.retryAfterMs);
-        if (this.failures >= 5) this.openUntil = this.now() + 60_000;
+        if (this.failures >= 5) this.openUntil = Math.max(this.openUntil, this.now() + 60_000);
         if (
           !['TRANSIENT', 'RATE_LIMIT'].includes(problem.classification) ||
           attempt + 1 === p.attempts

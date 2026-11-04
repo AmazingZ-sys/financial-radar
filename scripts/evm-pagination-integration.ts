@@ -11,7 +11,7 @@ import {
 } from '../packages/connectors/src/index.js';
 import { registry, runIngestion } from '../apps/worker/src/pipeline.js';
 
-async function cleanupFixtureSource(sourceId: string, projectPrefix: string) {
+export async function cleanupFixtureSource(sourceId: string, projectPrefix: string) {
   await sql.begin(async (tx) => {
     await tx`DELETE FROM outbox_jobs WHERE entity_id IN (SELECT id FROM notifications WHERE event_id IN (SELECT id FROM events WHERE source_id=${sourceId})) OR entity_id IN (SELECT id FROM events WHERE source_id=${sourceId})`;
     await tx`DELETE FROM notification_attempts WHERE notification_id IN (SELECT id FROM notifications WHERE event_id IN (SELECT id FROM events WHERE source_id=${sourceId}))`;
@@ -245,10 +245,10 @@ export async function verifySolanaTransactionVersion() {
     };
     let result: unknown;
     if (method === 'getSignaturesForAddress') {
-      const options = params[1] as { commitment: string; until: string };
+      const options = params[1] as { commitment: string; before?: string };
       assert.equal(options.commitment, 'finalized');
-      assert.equal(options.until, initialCursor.signature);
-      result = signatures;
+      assert.equal(options.before, undefined);
+      result = [...signatures, { ...initialCursor, err: null, blockTime: null }];
     } else if (method === 'getTransaction') {
       const signature = String(params[0]);
       const options = params[1] as {

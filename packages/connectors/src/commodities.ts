@@ -305,7 +305,9 @@ export class EiaWtiDailyConnector implements Connector {
   }
   async fetch(cursor: Cursor = {}): Promise<FetchResult> {
     const headers: Record<string, string> = {
-      Accept: 'application/zip',
+      // EIA serves this archive as application/x-zip-compressed. Accept both
+      // standard and legacy binary media types to avoid content negotiation 406.
+      Accept: 'application/zip, application/x-zip-compressed, application/octet-stream, */*;q=0.1',
       'User-Agent': 'FinancialRadar/1.0 (private research)',
     };
     if (typeof cursor.etag === 'string') headers['If-None-Match'] = cursor.etag;

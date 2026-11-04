@@ -159,55 +159,6 @@ describe('configured source scopes', () => {
     expect(new UniSatBrc20Connector().capabilities.sourceTimestamp).toBe(false);
   });
 
-  it('normalizes UniSat snapshots with stable project and distinct observation identity', async () => {
-    const connector = new UniSatBrc20Connector('test-key');
-    let calls = 0;
-    const body = (minted: string) => ({
-      code: 0,
-      data: {
-        height: 900 + calls,
-        detail: [
-          {
-            ticker: 'TEST',
-            inscriptionId: 'abc123i0',
-            deployTime: 1_700_000_000,
-            minted,
-            max: '100',
-            holdersCount: 12,
-          },
-        ],
-      },
-    });
-    (connector as unknown as { http: { request: () => Promise<Response> } }).http = {
-      request: async () => {
-        calls++;
-        return new Response(JSON.stringify(body(calls > 2 ? '35.0000' : '25.0000')), {
-          status: 200,
-        });
-      },
-    };
-    const first = await connector.fetch();
-    const normalized = connector.normalize(first.items[0]!);
-    expect(first.items[0]!.publishedAt).toBeNull();
-    expect(normalized.sourcePublishedAt).toBeNull();
-    expect(normalized.eventOccurredAt).toBe(new Date(1_700_000_000 * 1000).toISOString());
-    expect(normalized.project?.assetKey).toBe('bitcoin:brc20:test');
-    expect(normalized.identity).toContain(':snapshot:');
-    expect(normalized.metrics).toMatchObject({
-      mintProgress: 25,
-      minted: '25.0',
-      max: '100.0',
-      holders: 12,
-      uniqueParticipants: null,
-    });
-    expect(normalized.metrics).not.toHaveProperty('participants');
-    const second = await connector.fetch();
-    expect(second.items[0]!.externalId).not.toBe(first.items[0]!.externalId);
-    const normalizedSecond = connector.normalize(second.items[0]!);
-    expect(normalizedSecond.project?.assetKey).toBe(normalized.project?.assetKey);
-    expect(normalizedSecond.metrics).toMatchObject({ mintProgress: 35, minted: '35.0' });
-  });
-
   it('rejects duplicate or malformed repository scopes', () => {
     expect(normalizeRepositories(['ORDINALS/ORD', 'ordinals/ord'])).toEqual(['ordinals/ord']);
     expect(() =>

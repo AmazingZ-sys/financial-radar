@@ -88,18 +88,22 @@ function solanaVersionRpc(
   transactionResult: (
     signature: string,
   ) => { result: unknown } | { error: { code: number; message: string } },
+  checkpoint?: { signature: string; slot: number },
 ) {
   return vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
     const request = JSON.parse(String(init?.body)) as { method: string; params: unknown[] };
     let response: { result: unknown } | { error: { code: number; message: string } };
     if (request.method === 'getSignaturesForAddress')
       response = {
-        result: signatures.map((signature, i) => ({
-          signature,
-          slot: 100 - i,
-          err: null,
-          blockTime: null,
-        })),
+        result: [
+          ...signatures.map((signature, i) => ({
+            signature,
+            slot: 100 - i,
+            err: null,
+            blockTime: null,
+          })),
+          ...(checkpoint ? [{ ...checkpoint, err: null, blockTime: null }] : []),
+        ],
       };
     else if (request.method === 'getTransaction') {
       const options = request.params[1] as { maxSupportedTransactionVersion?: unknown };
@@ -269,19 +273,6 @@ describe('chain adapters preserve bounded coverage and durable cursors', () => {
     );
     expect((await new EvmFactoryConnector().healthCheck()).status).toBe('unconfigured');
   });
-  it('stops on a Solana history gap rather than advancing past uncollected transactions', async () => {
-    const signature = '1'.repeat(64);
-    const fetcher = rpcFetch(() =>
-      Array.from({ length: 100 }, (_, i) => ({ signature, slot: i, err: null, blockTime: null })),
-    );
-    await expect(
-      runRpc(() =>
-        new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fetcher).fetch({
-          signature: '2'.repeat(64),
-        }),
-      ),
-    ).rejects.toThrow('缺口');
-  });
   it('parses only SPL initializeMint instructions from finalized program transactions', async () => {
     const signature = '1'.repeat(64);
     const mint = '2'.repeat(32);
@@ -345,15 +336,18 @@ describe('chain adapters preserve bounded coverage and durable cursors', () => {
   it('preserves the cursor and hides provider text when a later transaction has an unsupported version', async () => {
     const signatures = ['4'.repeat(64), '3'.repeat(64), '2'.repeat(64)];
     const providerSecret = 'fixture-provider-key-never-display';
-    const fetcher = solanaVersionRpc(signatures, (signature) =>
-      signature === signatures[1]
-        ? {
-            error: {
-              code: -32015,
-              message: `Unsupported version at https://rpc.example/${providerSecret}`,
-            },
-          }
-        : { result: solanaTransaction(1) },
+    const fetcher = solanaVersionRpc(
+      signatures,
+      (signature) =>
+        signature === signatures[1]
+          ? {
+              error: {
+                code: -32015,
+                message: `Unsupported version at https://rpc.example/${providerSecret}`,
+              },
+            }
+          : { result: solanaTransaction(1) },
+      { signature: '1'.repeat(64), slot: 97 },
     );
     const connector = new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fetcher);
     const cursor = { signature: '1'.repeat(64), slot: 97 };
@@ -372,14 +366,20 @@ describe('chain adapters preserve bounded coverage and durable cursors', () => {
     expect(fetchedSignatures).toEqual([signatures[2], signatures[1]]);
   });
   it('preserves the cursor when finalized transaction history is unavailable', async () => {
-    const fetcher = solanaVersionRpc(['2'.repeat(64)], () => ({ result: null }));
+    const fetcher = solanaVersionRpc(['2'.repeat(64)], () => ({ result: null }), {
+      signature: '1'.repeat(64),
+      slot: 97,
+    });
     const connector = new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fetcher);
     const cursor = { signature: '1'.repeat(64), slot: 97 };
     await expect(runRpc(() => connector.fetch(cursor))).rejects.toThrow('历史暂不可得');
     expect(cursor).toEqual({ signature: '1'.repeat(64), slot: 97 });
   });
   it('rejects a transaction version above the supported range without advancing its cursor', async () => {
-    const fetcher = solanaVersionRpc(['2'.repeat(64)], () => ({ result: solanaTransaction(2) }));
+    const fetcher = solanaVersionRpc(['2'.repeat(64)], () => ({ result: solanaTransaction(2) }), {
+      signature: '1'.repeat(64),
+      slot: 97,
+    });
     const connector = new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fetcher);
     const cursor = { signature: '1'.repeat(64), slot: 97 };
     const error = await runRpc(() => connector.fetch(cursor)).catch((reason: unknown) => reason);
@@ -387,5 +387,220 @@ describe('chain adapters preserve bounded coverage and durable cursors', () => {
     expect(error).toMatchObject({ classification: 'PERMANENT' });
     expect((error as Error).message).toContain('交易版本');
     expect(cursor).toEqual({ signature: '1'.repeat(64), slot: 97 });
+  });
+});
+
+function fixtureSignature(index: number) {
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let value = index;
+  let encoded = '';
+  do {
+    encoded = alphabet[value % 58] + encoded;
+    value = Math.floor(value / 58);
+  } while (value);
+  return encoded.padStart(64, '1');
+}
+function solanaHistoryFixture(total: number) {
+  const entries = Array.from({ length: total + 1 }, (_, i) => ({
+    signature: fixtureSignature(total - i),
+    slot: total - i,
+    err: null,
+    blockTime: null,
+  }));
+  let failureSignature: string | undefined;
+  let missingBoundary = false;
+  const transactions: string[] = [];
+  const fetcher = rpcFetch((method, params) => {
+    if (method === 'getSignaturesForAddress') {
+      const options = params[1] as { before?: string; limit: number };
+      const start = options.before
+        ? entries.findIndex((entry) => entry.signature === options.before) + 1
+        : 0;
+      return entries
+        .slice(start, start + options.limit)
+        .filter((entry) => !missingBoundary || entry.slot > 0);
+    }
+    if (method === 'getTransaction') {
+      const signature = String(params[0]);
+      transactions.push(signature);
+      return signature === failureSignature ? null : solanaTransaction(1);
+    }
+    throw new Error('Unexpected fixture method');
+  });
+  return {
+    fetcher,
+    entries,
+    transactions,
+    fail: (signature?: string) => {
+      failureSignature = signature;
+    },
+    omitBoundary: () => {
+      missingBoundary = true;
+    },
+  };
+}
+describe('Solana bounded durable history recovery', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-04T00:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+  it('scans more than 100 transactions before replaying oldest first and resumes after restart', async () => {
+    const fixture = solanaHistoryFixture(225);
+    let connector = new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fixture.fetcher);
+    const initial = { signature: fixtureSignature(0), slot: 0 };
+    let result = await runRpc(() => connector.fetch(initial));
+    expect(result.items).toEqual([]);
+    expect(result.cursor.signature).toBe(initial.signature);
+    expect(result.cursor.solanaRecovery).toMatchObject({ phase: 'scan', pages: expect.any(Array) });
+    expect(fixture.transactions).toEqual([]);
+    result = await runRpc(() => connector.fetch(result.cursor));
+    expect(result.cursor.signature).toBe(initial.signature);
+    // A new connector has no memory of the previous scans. PostgreSQL's JSON cursor is sufficient.
+    connector = new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fixture.fetcher);
+    result = await runRpc(() => connector.fetch(JSON.parse(JSON.stringify(result.cursor))));
+    expect(result.items).toHaveLength(20);
+    expect(result.cursor.signature).toBe(fixtureSignature(20));
+    expect(fixture.transactions).toEqual(
+      Array.from({ length: 20 }, (_, i) => fixtureSignature(i + 1)),
+    );
+    let total = result.items.length;
+    let rounds = 0;
+    while (result.cursor.solanaRecovery && rounds++ < 20) {
+      const before = fixture.transactions.length;
+      result = await runRpc(() => connector.fetch(result.cursor));
+      expect(fixture.transactions.length - before).toBeLessThanOrEqual(20);
+      total += result.items.length;
+    }
+    expect(rounds).toBeLessThan(20);
+    expect(total).toBe(225);
+    expect(fixture.transactions).toEqual(
+      Array.from({ length: 225 }, (_, i) => fixtureSignature(i + 1)),
+    );
+    expect(result.cursor.signature).toBe(fixtureSignature(225));
+    expect(result.cursor.solanaRecovery).toBeUndefined();
+    expect(initial).toEqual({ signature: fixtureSignature(0), slot: 0 });
+  });
+  it('freezes the recovery head while new transactions arrive and collects them on the next cycle', async () => {
+    const fixture = solanaHistoryFixture(105);
+    const connector = new SolanaMintConnector(
+      'https://rpc.example',
+      '1'.repeat(32),
+      fixture.fetcher,
+    );
+    let result = await runRpc(() => connector.fetch({ signature: fixtureSignature(0), slot: 0 }));
+    fixture.entries.unshift({
+      signature: fixtureSignature(106),
+      slot: 106,
+      err: null,
+      blockTime: null,
+    });
+    let rounds = 0;
+    while (result.cursor.solanaRecovery && rounds++ < 20)
+      result = await runRpc(() => connector.fetch(result.cursor));
+    expect(fixture.transactions).toEqual(
+      Array.from({ length: 105 }, (_, i) => fixtureSignature(i + 1)),
+    );
+    expect(result.cursor.signature).toBe(fixtureSignature(105));
+    result = await runRpc(() => connector.fetch(result.cursor));
+    expect(result.items).toHaveLength(1);
+    expect(result.cursor.signature).toBe(fixtureSignature(106));
+  });
+  it('keeps persisted progress unchanged on a null transaction and retries the same oldest batch', async () => {
+    const fixture = solanaHistoryFixture(105);
+    const connector = new SolanaMintConnector(
+      'https://rpc.example',
+      '1'.repeat(32),
+      fixture.fetcher,
+    );
+    const scanned = await runRpc(() =>
+      connector.fetch({ signature: fixtureSignature(0), slot: 0 }),
+    );
+    const saved = JSON.stringify(scanned.cursor);
+    fixture.fail(fixtureSignature(3));
+    await expect(runRpc(() => connector.fetch(scanned.cursor))).rejects.toThrow('历史暂不可得');
+    expect(JSON.stringify(scanned.cursor)).toBe(saved);
+    expect(fixture.transactions).toEqual([
+      fixtureSignature(1),
+      fixtureSignature(2),
+      fixtureSignature(3),
+    ]);
+    fixture.fail();
+    fixture.transactions.length = 0;
+    const retried = await runRpc(() => connector.fetch(scanned.cursor));
+    expect(retried.cursor.signature).toBe(fixtureSignature(5));
+    expect(fixture.transactions).toEqual(
+      Array.from({ length: 5 }, (_, i) => fixtureSignature(i + 1)),
+    );
+  });
+  it('refuses an empty page before the old checkpoint is actually found', async () => {
+    const fixture = solanaHistoryFixture(105);
+    fixture.omitBoundary();
+    const connector = new SolanaMintConnector(
+      'https://rpc.example',
+      '1'.repeat(32),
+      fixture.fetcher,
+    );
+    let result = await runRpc(() => connector.fetch({ signature: fixtureSignature(0), slot: 0 }));
+    result = await runRpc(() => connector.fetch(result.cursor));
+    expect(result.cursor.signature).toBe(fixtureSignature(0));
+    const saved = JSON.stringify(result.cursor);
+    await expect(runRpc(() => connector.fetch(result.cursor))).rejects.toThrow('历史覆盖存在缺口');
+    expect(JSON.stringify(result.cursor)).toBe(saved);
+    expect(fixture.transactions).toEqual([]);
+  });
+  it('refuses an empty first page when an existing checkpoint has not been seen', async () => {
+    const fetcher = rpcFetch(() => []);
+    const connector = new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fetcher);
+    const cursor = { signature: fixtureSignature(0), slot: 0 };
+    await expect(runRpc(() => connector.fetch(cursor))).rejects.toThrow('历史覆盖存在缺口');
+    expect(cursor).toEqual({ signature: fixtureSignature(0), slot: 0 });
+    expect((await runRpc(() => connector.fetch())).cursor).toEqual({});
+  });
+  it('rejects a provider that ignores before and returns the same history page', async () => {
+    const entries = solanaHistoryFixture(105).entries.slice(0, 100);
+    const fetcher = rpcFetch(() => entries);
+    const connector = new SolanaMintConnector('https://rpc.example', '1'.repeat(32), fetcher);
+    const scanned = await runRpc(() =>
+      connector.fetch({ signature: fixtureSignature(0), slot: 0 }),
+    );
+    await expect(runRpc(() => connector.fetch(scanned.cursor))).rejects.toThrow(
+      '分页没有向历史前进',
+    );
+  });
+  it('rejects a replay page whose finalized history no longer matches the scanned digest', async () => {
+    const fixture = solanaHistoryFixture(105);
+    const connector = new SolanaMintConnector(
+      'https://rpc.example',
+      '1'.repeat(32),
+      fixture.fetcher,
+    );
+    let result = await runRpc(() => connector.fetch({ signature: fixtureSignature(0), slot: 0 }));
+    result = await runRpc(() => connector.fetch(result.cursor));
+    fixture.entries.splice(
+      fixture.entries.findIndex((entry) => entry.slot === 70),
+      1,
+    );
+    const saved = JSON.stringify(result.cursor);
+    await expect(runRpc(() => connector.fetch(result.cursor))).rejects.toThrow('历史页不完整');
+    expect(JSON.stringify(result.cursor)).toBe(saved);
+  });
+  it('bounds bootstrap to 100 recent signatures and processes at most 20 per round', async () => {
+    const fixture = solanaHistoryFixture(225);
+    const connector = new SolanaMintConnector(
+      'https://rpc.example',
+      '1'.repeat(32),
+      fixture.fetcher,
+    );
+    let result = await runRpc(() => connector.fetch());
+    expect(result.items).toHaveLength(20);
+    expect(result.cursor.bootstrapHistoryLimited).toBe(true);
+    expect(result.cursor.signature).toBe(fixtureSignature(145));
+    while (result.cursor.solanaRecovery)
+      result = await runRpc(() => connector.fetch(result.cursor));
+    expect(fixture.transactions).toEqual(
+      Array.from({ length: 100 }, (_, i) => fixtureSignature(126 + i)),
+    );
+    expect(result.cursor.signature).toBe(fixtureSignature(225));
   });
 });

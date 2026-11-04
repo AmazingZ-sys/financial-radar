@@ -77,6 +77,14 @@ export const sourceCheckpoints = pgTable('source_checkpoints', {
   cursor: jsonb('cursor').notNull(),
   committedAt: time('committed_at').notNull().defaultNow(),
 });
+export const sourcePendingBatches = pgTable('source_pending_batches', {
+  sourceId: text('source_id')
+    .primaryKey()
+    .references(() => dataSources.id, { onDelete: 'cascade' }),
+  integrationScope: text('integration_scope'),
+  data: jsonb('data').notNull(),
+  createdAt: time('created_at').notNull().defaultNow(),
+});
 export const sourceHealthRecords = pgTable('source_health_records', {
   id: uuid('id').primaryKey(),
   sourceId: text('source_id')

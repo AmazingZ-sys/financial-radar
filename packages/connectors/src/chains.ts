@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { fetchPublicHttps } from '@radar/config';
 import { ResilientHttp, ConnectorError } from './http.js';
@@ -13,6 +14,9 @@ export const PAIR_CREATED_TOPIC =
 const EVM_LOG_PAGE_BLOCKS = 10;
 const EVM_MAX_BLOCKS_PER_FETCH = 200;
 const SOLANA_MAX_TRANSACTION_VERSION = 1;
+const SOLANA_SIGNATURE_PAGE_SIZE = 100;
+const SOLANA_TRANSACTIONS_PER_FETCH = 20;
+const SOLANA_MAX_RECOVERY_PAGES = 1000;
 abstract class RpcConnector implements Connector {
   abstract metadata: SourceMetadata;
   capabilities = {
@@ -221,6 +225,29 @@ const Signature = z.object({
   err: z.unknown(),
   blockTime: z.number().nullable(),
 });
+
+const SolanaRecoveryPage = z.object({
+  first: Signature,
+  count: z.number().int().min(1).max(SOLANA_SIGNATURE_PAGE_SIZE),
+  digest: z.string().regex(/^[0-9a-f]{64}$/),
+});
+const SolanaRecovery = z.object({
+  version: z.literal(1),
+  programId: z.string(),
+  phase: z.enum(['scan', 'replay']),
+  baseSignature: z.string().nullable(),
+  before: z.string().nullable(),
+  beforeSlot: z.number().int(),
+  pages: z.array(SolanaRecoveryPage).max(SOLANA_MAX_RECOVERY_PAGES),
+  pending: z.array(Signature).max(SOLANA_SIGNATURE_PAGE_SIZE),
+});
+type SolanaSignature = z.infer<typeof Signature>;
+function signatureDigest(signatures: SolanaSignature[]) {
+  return createHash('sha256').update(JSON.stringify(signatures)).digest('hex');
+}
+function recoveryPage(signatures: SolanaSignature[]) {
+  return { first: signatures[0]!, count: signatures.length, digest: signatureDigest(signatures) };
+}
 const Instruction = z
   .object({
     programId: z.string().optional(),
@@ -272,23 +299,78 @@ export class SolanaMintConnector extends RpcConnector {
   async fetch(cursor: Cursor = {}) {
     if ((await this.healthCheck()).status !== 'healthy')
       throw new ConnectorError('Solana RPC/Program未配置', 'AUTH');
-    const signatures = z.array(Signature).parse(
-      await this.call('getSignaturesForAddress', [
-        this.programId,
-        {
-          commitment: 'finalized',
-          limit: 100,
-          ...(typeof cursor.signature === 'string' ? { until: cursor.signature } : {}),
-        },
-      ]),
-    );
-    if (signatures.length === 100 && typeof cursor.signature === 'string')
-      throw new ConnectorError(
-        '指定program积压超过100交易，需要历史补偿；不越过缺口提交cursor',
-        'PERMANENT',
-      );
+    const nextCursor = { ...cursor };
+    let recovery =
+      cursor.solanaRecovery === undefined ? undefined : SolanaRecovery.parse(cursor.solanaRecovery);
+    if (recovery && recovery.programId !== this.programId)
+      throw new ConnectorError('Solana 恢复进度的 Program 不匹配，不推进检查点', 'PERMANENT');
+    if (!recovery || recovery.phase === 'scan') {
+      const before = recovery?.before;
+      const signatures = await this.signaturePage(SOLANA_SIGNATURE_PAGE_SIZE, before ?? undefined);
+      const baseSignature =
+        recovery?.baseSignature ?? (typeof cursor.signature === 'string' ? cursor.signature : null);
+      if (!signatures.length) {
+        if (baseSignature !== null)
+          throw new ConnectorError(
+            'Solana 历史覆盖存在缺口，尚未找到原检查点；需要保留历史的 RPC',
+            'PERMANENT',
+          );
+        return { items: [], cursor };
+      }
+      if (
+        before &&
+        (signatures.some((entry) => entry.signature === before) ||
+          signatures[0]!.slot > recovery!.beforeSlot ||
+          recovery!.pages.some((page) => page.first.signature === signatures[0]!.signature))
+      )
+        throw new ConnectorError('Solana 分页没有向历史前进，不推进检查点', 'SCHEMA');
+      const boundary =
+        baseSignature === null
+          ? -1
+          : signatures.findIndex((entry) => entry.signature === baseSignature);
+      const selected = boundary < 0 ? signatures : signatures.slice(0, boundary);
+      const pages = [...(recovery?.pages ?? [])];
+      if (selected.length) {
+        if (pages.length >= SOLANA_MAX_RECOVERY_PAGES)
+          throw new ConnectorError(
+            'Solana 积压超过有界补偿容量；需缩小 Program 范围或专门历史索引，不越过缺口',
+            'PERMANENT',
+          );
+        pages.push(recoveryPage(selected));
+      }
+      recovery = {
+        version: 1,
+        programId: this.programId,
+        phase: baseSignature === null || boundary >= 0 ? 'replay' : 'scan',
+        baseSignature,
+        before: signatures.at(-1)!.signature,
+        beforeSlot: signatures.at(-1)!.slot,
+        pages,
+        pending: [],
+      };
+      if (baseSignature === null) nextCursor.bootstrapHistoryLimited = true;
+      if (recovery.phase === 'scan')
+        return { items: [], cursor: { ...nextCursor, solanaRecovery: recovery } };
+      // The terminal page is already available; its oldest signatures can be read
+      // immediately without a second history request. Other pages are immutable anchors.
+      if (selected.length) {
+        recovery.pages.pop();
+        recovery.pending = [...selected].reverse();
+      }
+    }
+    if (!recovery.pending.length && recovery.pages.length) {
+      const page = recovery.pages.pop()!;
+      const signatures = [
+        page.first,
+        ...(page.count > 1 ? await this.signaturePage(page.count - 1, page.first.signature) : []),
+      ];
+      if (signatures.length !== page.count || signatureDigest(signatures) !== page.digest)
+        throw new ConnectorError('Solana 历史页不完整或内容变化，不推进检查点', 'PERMANENT');
+      recovery.pending = signatures.reverse();
+    }
+    const signatures = recovery.pending.slice(0, SOLANA_TRANSACTIONS_PER_FETCH);
     const items: RawItem[] = [];
-    for (const sig of [...signatures].reverse()) {
+    for (const sig of signatures) {
       if (sig.err) continue;
       const raw = await this.call('getTransaction', [
         sig.signature,
@@ -341,17 +423,34 @@ export class SolanaMintConnector extends RpcConnector {
         });
       }
     }
-    return {
-      items,
-      cursor: signatures[0]
-        ? {
-            signature: signatures[0].signature,
-            slot: signatures[0].slot,
-            scope: 'configured-mainnet-program',
-            bootstrapHistoryLimited: cursor.bootstrapHistoryLimited ?? true,
-          }
-        : cursor,
-    };
+    const latest = signatures.at(-1);
+    if (latest) {
+      nextCursor.signature = latest.signature;
+      nextCursor.slot = latest.slot;
+      nextCursor.scope = 'configured-mainnet-program';
+    }
+    recovery.pending = recovery.pending.slice(signatures.length);
+    if (recovery.pending.length || recovery.pages.length) nextCursor.solanaRecovery = recovery;
+    else delete nextCursor.solanaRecovery;
+    return { items, cursor: nextCursor };
+  }
+  private async signaturePage(limit: number, before?: string) {
+    const signatures = z
+      .array(Signature)
+      .max(limit)
+      .parse(
+        await this.call('getSignaturesForAddress', [
+          this.programId,
+          { commitment: 'finalized', limit, ...(before ? { before } : {}) },
+        ]),
+      );
+    const unique = new Set(signatures.map((entry) => entry.signature));
+    if (
+      unique.size !== signatures.length ||
+      signatures.some((entry, index) => index > 0 && entry.slot > signatures[index - 1]!.slot)
+    )
+      throw new ConnectorError('Solana 签名页重复或顺序无效，不推进检查点', 'SCHEMA');
+    return signatures;
   }
   normalize(item: RawItem): NormalizedEvent {
     const mint = String(item.payload.mint);

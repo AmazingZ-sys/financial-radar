@@ -1,6 +1,9 @@
 import { verifyModeIsolation } from './mode-isolation.js';
 import { verifyConfiguration } from './configuration-integration.js';
 import { verifyHistoricalPipeline } from './history-integration.js';
+import { verifyUniSatIngestion } from './unisat-integration.js';
+import { verifySolanaHistoryRecovery } from './solana-recovery-integration.js';
+import { verifyCommodityRecovery } from './commodity-recovery-integration.js';
 import {
   verifyEvmPagination,
   verifySolanaTransactionVersion,
@@ -328,6 +331,9 @@ try {
   console.log(`Historical pipeline passed: ${historical.checks} PostgreSQL checks.`);
   await verifyEvmPagination();
   await verifySolanaTransactionVersion();
+  await verifySolanaHistoryRecovery();
+  await verifyCommodityRecovery();
+  await verifyUniSatIngestion();
   await verifyConfiguration(app, headers);
   await app.request('/api/v1/auth/logout', { method: 'POST', headers });
   check(

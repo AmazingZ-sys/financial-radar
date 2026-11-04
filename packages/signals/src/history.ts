@@ -101,6 +101,53 @@ function compatibleSupply(samples: ProjectObservation[]): boolean {
   const values = samples.map((sample) => decimal(sample.metrics.max));
   return values.every((value) => value !== null && value === values[0]);
 }
+/** Change-only observations omit flat polls. Use the last confirmed time of
+ * each linked prior state so a quiet period cannot manufacture acceleration. */
+function mintRateIntervals(
+  earlier: ProjectObservation,
+  previous: ProjectObservation,
+  current: ProjectObservation,
+  at: number,
+): { previousSeconds: number; currentSeconds: number } | null {
+  const samples = [earlier, previous, current];
+  const stateChanges = samples.some((sample) => sample.metrics.samplingMode === 'state-changes');
+  if (
+    stateChanges &&
+    !samples.every(
+      (sample) =>
+        sample.metrics.samplingMode === 'state-changes' &&
+        typeof sample.metrics.stateFingerprint === 'string' &&
+        sample.metrics.stateFingerprint.length > 0,
+    )
+  )
+    return null;
+  const interval = (prior: ProjectObservation, next: ProjectObservation): number | null => {
+    const nextAt = Date.parse(next.observedAt);
+    let baselineAt = Date.parse(prior.observedAt);
+    if (stateChanges) {
+      if (
+        next.metrics.previousStateFingerprint !== prior.metrics.stateFingerprint ||
+        typeof next.metrics.previousStateObservedAt !== 'string'
+      )
+        return null;
+      const confirmedAt = validTime(next.metrics.previousStateObservedAt);
+      if (
+        confirmedAt === null ||
+        confirmedAt < baselineAt ||
+        confirmedAt >= nextAt ||
+        confirmedAt > at
+      )
+        return null;
+      baselineAt = confirmedAt;
+    }
+    return (nextAt - baselineAt) / 1000;
+  };
+  const previousSeconds = interval(earlier, previous);
+  const currentSeconds = interval(previous, current);
+  return previousSeconds === null || currentSeconds === null
+    ? null
+    : { previousSeconds, currentSeconds };
+}
 function knows(o: ProjectObservation, at: number) {
   const observed = validTime(o.observedAt),
     available = validTime(o.availableAt);
@@ -198,18 +245,20 @@ export function detectHistoricalSignals(
   const earlier = sorted.at(-2);
   if (earlier && currentMint !== null && previousMint !== null) {
     const earlierMint = mint(earlier);
-    const previousSeconds =
-      (Date.parse(previous.observedAt) - Date.parse(earlier.observedAt)) / 1000;
+    const intervals = mintRateIntervals(earlier, previous, current, clock);
     if (
       earlierMint !== null &&
-      previousSeconds >= config.minIntervalSeconds &&
-      previousSeconds <= config.maxGapSeconds &&
+      intervals !== null &&
+      intervals.previousSeconds >= config.minIntervalSeconds &&
+      intervals.previousSeconds <= config.maxGapSeconds &&
+      intervals.currentSeconds >= config.minIntervalSeconds &&
+      intervals.currentSeconds <= config.maxGapSeconds &&
       compatibleSupply([earlier, previous, current])
     ) {
       const beforeDelta = previousMint - earlierMint,
         afterDelta = currentMint - previousMint;
-      const beforeRate = (beforeDelta / previousSeconds) * 3600,
-        afterRate = (afterDelta / seconds) * 3600;
+      const beforeRate = (beforeDelta / intervals.previousSeconds) * 3600,
+        afterRate = (afterDelta / intervals.currentSeconds) * 3600;
       if (
         beforeDelta > 0 &&
         afterDelta >= config.minMintDeltaPp &&
@@ -227,7 +276,7 @@ export function detectHistoricalSignals(
               previousRatePpPerHour: beforeRate,
               currentRatePpPerHour: afterRate,
               accelerationRatio: afterRate / beforeRate,
-              windowSeconds: seconds,
+              windowSeconds: intervals.currentSeconds,
             },
             config,
           ),

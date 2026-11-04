@@ -70,7 +70,7 @@
 
 - GitHub：`GITHUB_REPOSITORIES` 最多20个管理员核验的 `owner/repo`，每仓库独立Connector/checkpoint；默认 `ordinals/ord` 保留兼容sourceId，新增仓库ID含owner/repo。删去的配置保留历史证据并停止调度，不以一个默认仓库冒充白名单覆盖。
 - DEX：`DEX_CHAIN` + `DEX_TOKEN_ADDRESSES` 最多30个已知token地址，链与地址格式同时校验。当前采集流动性快照；没有地址则未配置，非全链部署/新资产发现。
-- UniSat：每轮最近50条未完成部署 + 最近20条已完成部署尾部；不能保证捕获所有完成跳变或长期跟踪离开窗口的项目。稳定资产标识关联项目，snapshot ID保留每轮原始事实；`deployTime/deployBlocktime` 只代表链上发生时间，来源公开时间保持null。`minted/max` 按十进制保留，`holders` 单列，独立铸造参与者数量未知。官方接口字段以 [UniSat OpenAPI源文件](https://github.com/unisat-wallet/unisat-dev-docs) 交叉核对；凭据缺失时只做契约测试，未宣称实采成功。
+- UniSat：按部署排序读取完成/未完成分组的首尾页，选最近50条未完成、20条已完成候选，仅接纳近7天且有效的部署时间；状态不变不重复入库，持久checkpoint恢复状态指纹及批次身份。不能保证捕获所有完成跳变或长期跟踪离开窗口的项目。稳定资产标识关联项目；`deployTime/deployBlocktime` 只代表链上发生时间，来源公开时间保持null。`minted/max` 按十进制保留，`holders` 单列，独立铸造参与者数量未知。官方接口字段以 [UniSat OpenAPI源文件](https://github.com/unisat-wallet/unisat-dev-docs) 交叉核对；完整策略见 [28 近期部署监控](28-unisat-live-discovery.md)，生产实采另行验收。
 
 ## 6. ORDI 历史重建边界
 
@@ -94,7 +94,7 @@
 ## 8. 首版链上适配器的真实实现范围
 
 - `EvmFactoryConnector`：仅 Ethereum 主网，必须配置已核验的 V2 兼容 Factory 地址及授权 RPC；校验 eth_chainId=0x1。使用 finalized 区块、指定 PairCreated topic 的 eth_getLogs，每轮最多200块，以每次最多10块（含首尾）的连续分页顺序读取，兼容本次反馈的 RPC 免费套餐10块跨度限制；这只是本系统保守请求上限，不保证所有供应商套餐均可用。请求沿用本地每秒最多2次、超时与退避；逐页校验日志范围，全部页成功才返回下一cursor，失败重试原范围，空页也不能跳过后续页。首次只回看20块并将范围记入cursor。持久 checkpoint 含高度和哈希；哈希不匹配停止，避免把已撤回记录当成有效发现。PairCreated只能证明池被创建，不证明流动性已加入，更不证明代币安全。不是全 ERC20 部署索引、不是所有 DEX 的新池索引。
-- `SolanaMintConnector`：仅已配置 program 相关 finalized 交易，解析其中 SPL Token / Token-2022 的 initializeMint/initializeMint2。getTransaction 显式传入数值 maxSupportedTransactionVersion=1，支持 legacy/v0/v1 的 jsonParsed 外层及内部指令；v1 额外的 message.transactionConfig 不参与新 Mint 判断，不读取或推断计算资源/优先费。RPC -32015 单独提示交易版本不支持，归类 PERMANENT，不回显可能含凭据的供应商原始错误、不自动协商未知版本；若响应出现高于v1的版本，同样停止且不推进cursor。首轮最多100交易，后续until checkpoint；若连续积压达到100则停止前进并提示补历史，而不是静默丢弃。null交易历史也停止cursor。没有抓取全链、没有解析所有新池/launchpad指令。slot时间仅作为eventOccurredAt，sourcePublishedAt保留null，避免伪造可观察时点。
+- `SolanaMintConnector`：仅已配置 program 相关 finalized 交易，解析其中 SPL Token / Token-2022 的 initializeMint/initializeMint2。getTransaction 显式传入数值 maxSupportedTransactionVersion=1，支持 legacy/v0/v1 的 jsonParsed 外层及内部指令；v1 额外的 message.transactionConfig 不参与新 Mint 判断，不读取或推断计算资源/优先费。RPC -32015 单独提示交易版本不支持，归类 PERMANENT，不回显可能含凭据的供应商原始错误、不自动协商未知版本；若响应出现高于v1的版本，同样停止且不推进cursor。初次配置只取最新100条签名作为有界启动窗口；已有checkpoint时按before每轮扫描100条，必须实际找到旧签名后按旧至新每轮处理20笔，恢复进度随PostgreSQL checkpoint持久化。历史缺失、null交易、页面摘要变化或失败均不越过缺口；补偿未完保持degraded。页锚点最多1000页，高流量Program的持续追平受吞吐预算限制，详见[29历史补偿](29-solana-history-recovery.md)。没有抓取全链、没有解析所有新池/launchpad指令。slot时间仅作为eventOccurredAt，sourcePublishedAt保留null，避免伪造可观察时点。
 - 两个来源只有配置完整才启用，缺少凭据和范围时 unconfigured。测试使用合成RPC响应覆盖finality、错误链、重组、历史缺口和标准化，不构成实际授权RPC生产验收。
 - 官方契约补充：[Solana签名分页](https://solana.com/docs/rpc/http/getsignaturesforaddress)、[Solana交易查询](https://solana.com/docs/rpc/http/gettransaction)、[Solana v1兼容及-32015错误](https://solana.com/docs/core/transactions/versioned-transactions#preparing-for-v1)、[Solana jsonParsed交易结构](https://solana.com/docs/rpc/json-structures)、[Uniswap V2架构及Factory](https://developers.uniswap.org/docs/protocols/v2/concepts/architecture)。
 

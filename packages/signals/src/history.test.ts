@@ -24,6 +24,29 @@ const base = (overrides: Partial<ProjectObservation> = {}): ProjectObservation =
   endsAt: '2026-01-01T04:00:00.000Z',
   ...overrides,
 });
+const minuteAt = (minute: number) =>
+  new Date(Date.parse('2026-01-01T00:00:00.000Z') + minute * 60_000).toISOString();
+function stateChange(
+  minute: number,
+  mintProgress: number,
+  stateFingerprint: string,
+  previousStateFingerprint: string | null,
+  previousStateMinute: number | null,
+): ProjectObservation {
+  return base({
+    evidenceId: `change-${minute}`,
+    observedAt: minuteAt(minute),
+    availableAt: new Date(Date.parse(minuteAt(minute)) + 1000).toISOString(),
+    metrics: {
+      mintProgress,
+      max: '1000',
+      samplingMode: 'state-changes',
+      stateFingerprint,
+      previousStateFingerprint,
+      previousStateObservedAt: previousStateMinute === null ? null : minuteAt(previousStateMinute),
+    },
+  });
+}
 
 describe('historical opportunity detection', () => {
   it('normalizes mint rates, requires three samples, and rejects max supply revisions', () => {
@@ -99,6 +122,108 @@ describe('historical opportunity detection', () => {
         '2026-01-01T04:00:02.000Z',
       ),
     ).not.toContainEqual(expect.objectContaining({ type: 'MINT_PROGRESS_ACCELERATED' }));
+  });
+
+  it('does not manufacture acceleration when unchanged mint observations are omitted', () => {
+    const first = stateChange(0, 0, 'zero', null, null);
+    const second = stateChange(11, 10, 'ten', 'zero', 10);
+    const current = stateChange(12, 20, 'twenty', 'ten', 11);
+    const flat = base({
+      evidenceId: 'flat',
+      observedAt: minuteAt(10),
+      availableAt: minuteAt(10),
+      metrics: { mintProgress: 0, max: '1000' },
+    });
+    const fullPolls = [first, flat, second, current].map((sample) => ({
+      ...sample,
+      metrics: { mintProgress: sample.metrics.mintProgress, max: '1000' },
+    }));
+    expect(
+      detectHistoricalSignals(fullPolls[3]!, fullPolls.slice(0, 3), minuteAt(13)),
+    ).not.toContainEqual(expect.objectContaining({ type: 'MINT_PROGRESS_ACCELERATED' }));
+    expect(detectHistoricalSignals(current, [first, second], minuteAt(13))).not.toContainEqual(
+      expect.objectContaining({ type: 'MINT_PROGRESS_ACCELERATED' }),
+    );
+  });
+
+  it('detects genuine acceleration from linked last-confirmed unchanged baselines', () => {
+    const first = stateChange(0, 0, 'zero', null, null);
+    const second = stateChange(11, 2, 'two', 'zero', 10);
+    const current = stateChange(12, 8, 'eight', 'two', 11);
+    const acceleration = detectHistoricalSignals(current, [first, second], minuteAt(13)).find(
+      (signal) => signal.type === 'MINT_PROGRESS_ACCELERATED',
+    );
+    expect(acceleration?.metrics).toMatchObject({
+      previousRatePpPerHour: 120,
+      currentRatePpPerHour: 360,
+      accelerationRatio: 3,
+      windowSeconds: 60,
+    });
+    expect(acceleration?.evidenceIds).toEqual(['change-0', 'change-11', 'change-12']);
+  });
+
+  it.each([
+    { name: 'missing prior fingerprint', target: 2, metrics: { previousStateFingerprint: null } },
+    {
+      name: 'mismatched prior fingerprint',
+      target: 2,
+      metrics: { previousStateFingerprint: 'other' },
+    },
+    {
+      name: 'mismatched earlier fingerprint',
+      target: 1,
+      metrics: { previousStateFingerprint: 'other' },
+    },
+    { name: 'missing baseline time', target: 2, metrics: { previousStateObservedAt: null } },
+    { name: 'malformed baseline time', target: 2, metrics: { previousStateObservedAt: 'invalid' } },
+    { name: 'future baseline', target: 2, metrics: { previousStateObservedAt: minuteAt(14) } },
+    {
+      name: 'baseline equal to target',
+      target: 2,
+      metrics: { previousStateObservedAt: minuteAt(12) },
+    },
+    {
+      name: 'baseline before prior observation',
+      target: 2,
+      metrics: { previousStateObservedAt: minuteAt(10) },
+    },
+    {
+      name: 'earlier baseline before prior observation',
+      target: 1,
+      metrics: { previousStateObservedAt: minuteAt(-1) },
+    },
+    {
+      name: 'current interval below minimum',
+      target: 2,
+      metrics: { previousStateObservedAt: minuteAt(11.5) },
+    },
+    {
+      name: 'previous interval below minimum',
+      target: 1,
+      metrics: { previousStateObservedAt: minuteAt(10.5) },
+    },
+    { name: 'mixed legacy sampling', target: 0, metrics: { samplingMode: null } },
+    { name: 'missing state fingerprint', target: 1, metrics: { stateFingerprint: null } },
+  ])('rejects change-only acceleration with $name', ({ target, metrics }) => {
+    const samples = [
+      stateChange(0, 0, 'zero', null, null),
+      stateChange(11, 2, 'two', 'zero', 10),
+      stateChange(12, 8, 'eight', 'two', 11),
+    ].map((sample, index) =>
+      index === target ? { ...sample, metrics: { ...sample.metrics, ...metrics } } : sample,
+    );
+    expect(
+      detectHistoricalSignals(samples[2]!, samples.slice(0, 2), minuteAt(15)),
+    ).not.toContainEqual(expect.objectContaining({ type: 'MINT_PROGRESS_ACCELERATED' }));
+  });
+
+  it('rejects change-only acceleration when a confirmed baseline exceeds the maximum gap', () => {
+    const first = stateChange(0, 0, 'zero', null, null);
+    const second = stateChange(420, 2, 'two', 'zero', 0);
+    const current = stateChange(421, 8, 'eight', 'two', 420);
+    expect(detectHistoricalSignals(current, [first, second], minuteAt(422))).not.toContainEqual(
+      expect.objectContaining({ type: 'MINT_PROGRESS_ACCELERATED' }),
+    );
   });
 
   it('excludes future evidence, different sources/modes and late observations', () => {
