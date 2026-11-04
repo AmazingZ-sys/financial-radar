@@ -19,7 +19,14 @@ Node 24.15.0 本地验证日志与收据位于忽略提交的 `.local/usability-
 - Chromium E2E 18/18 通过，覆盖上述弹窗位置、Gmail 链接、来源入口与秘密草稿清除、商品跳转及 WTI 默认时间范围；使用真实本地 API，无业务响应替身。桌面/移动弹窗截图为 `source-dialog-{1280,390}.png`。
 - 独立保留的 live 数据库完成 21 项实采 → PostgreSQL → 鉴权 API 验收，收据 `market-live-pg-api.json`：黄金 1 条、WTI 最近 90 条真实观测；重复采集 WTI 后 raw 与行情仍各 90 条，来源时间、首次发现与采集时间独立；无通知入队或发送。该主机访问 EIA 实采使用 `NODE_USE_ENV_PROXY=1`。验收时 EIA 最新数据日为 2026-10-27，明确属于有延迟的日度数据；黄金无历史回填，历史从首次采样累积。
 
-本轮仅修改并验证本地代码，未发布镜像、更新前端托管或操作生产服务器。线上生效需部署本轮前端、API 与 Worker；已有 SMTP 配置继续沿用。本节取代下方早期记录中「黄金/EIA 未接入」的当前状态，不代表 UniSat 或授权 RPC 已完成生产实采。
+上述本地验收完成后，用户授权发布 Release 与部署，并明确后端由其自行更新。本节取代下方早期记录中「黄金/EIA 未接入」的当前状态，不代表 UniSat 或授权 RPC 已完成生产实采。
+
+2026-11-04 11:42（Asia/Shanghai）发布验收：
+
+- [Actions 41767679975](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41767679975) 的 verify、release、API/Worker images、image-manifest 与 vercel 全部成功。云端重新验证 135 项单元测试、70/35/62/18/86 项各组集成、全部服务端产物语法及隔离生产 Compose 的启动、持久化与备份恢复。18 个 E2E 用例最终通过，其中既有评分编辑成功提示用例在一次重试后通过，其余 17 项一次通过。首次失败运行未产生 Release 或部署。
+- [Release v1.3.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.3.0) 对应 `fad2d16ec4ddeb04386fd762329a91debba05fd4`，已上传 CHANGELOG、release-metadata 与 image-manifest。API digest 为 `sha256:d766885243ee949ae8af1c148270e126ad52523a019f4ff0bd6badf099de1b4a`，Worker 为 `sha256:f5dac3def6036c32e742909928beaf4063a62717ade06dd8411e1c7b5d35f6a8`。GHCR 只读核验版本与 SHA tag 指向相同 digest；两镜像 linux/amd64、Node 24.22.2、非 root，OCI 标签及运行环境均匹配版本/commit。
+- Vercel production [部署](https://financial-radar-f9bl3c80u-amazings-projects-6f99eda0.vercel.app) 与 GitHub deployment 状态均 success，artifact 收据绑定同一版本/commit。[正式域名](https://radar.amazingzsys.site) 的 `/login`、`/sources`、`/notifications`、`/markets` 与新资源共 10 项 HTTP 检查通过：来源设置、Gmail 直达链接、商品数据字段、弹窗高度样式、正式 API 前缀、安全头及 JS/CSS immutable 缓存均已生效。全程未登录或写入生产业务数据。
+- 只读收据保存在 `.local/usability-release/`，镜像完整摘要为 `v1.3.0/verification-summary.json`，前端为 `frontend-http-receipt.json`。发布后 API `/health` 仍为 v1.2.0，`/ready` 返回 200；镜像/前端发布不代表后端已更新。用户需在服务器执行 `sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.3.0`，完成后来源设置接口与黄金/原油 Worker 采集才会在生产生效，已有 SMTP 配置继续沿用。
 
 ## 2026-11-04 · SMTP 邮箱通知
 
