@@ -93,10 +93,10 @@
 
 ## 8. 首版链上适配器的真实实现范围
 
-- `EvmFactoryConnector`：仅 Ethereum 主网，必须配置已核验的 V2 兼容 Factory 地址及授权 RPC；校验 eth_chainId=0x1。使用 finalized 区块、指定 PairCreated topic 的 eth_getLogs，每批最多200块，首次只回看20块并将范围记入cursor。持久 checkpoint 含高度和哈希；哈希不匹配停止，避免把已撤回记录当成有效发现。PairCreated只能证明池被创建，不证明流动性已加入，更不证明代币安全。不是全 ERC20 部署索引、不是所有 DEX 的新池索引。
-- `SolanaMintConnector`：仅已配置 program 相关 finalized 交易，解析其中 SPL Token / Token-2022 的 initializeMint/initializeMint2。首轮最多100交易，后续until checkpoint；若连续积压达到100则停止前进并提示补历史，而不是静默丢弃。null交易历史也停止cursor。没有抓取全链、没有解析所有新池/launchpad指令。slot时间仅作为eventOccurredAt，sourcePublishedAt保留null，避免伪造可观察时点。
+- `EvmFactoryConnector`：仅 Ethereum 主网，必须配置已核验的 V2 兼容 Factory 地址及授权 RPC；校验 eth_chainId=0x1。使用 finalized 区块、指定 PairCreated topic 的 eth_getLogs，每轮最多200块，以每次最多10块（含首尾）的连续分页顺序读取，兼容本次反馈的 RPC 免费套餐10块跨度限制；这只是本系统保守请求上限，不保证所有供应商套餐均可用。请求沿用本地每秒最多2次、超时与退避；逐页校验日志范围，全部页成功才返回下一cursor，失败重试原范围，空页也不能跳过后续页。首次只回看20块并将范围记入cursor。持久 checkpoint 含高度和哈希；哈希不匹配停止，避免把已撤回记录当成有效发现。PairCreated只能证明池被创建，不证明流动性已加入，更不证明代币安全。不是全 ERC20 部署索引、不是所有 DEX 的新池索引。
+- `SolanaMintConnector`：仅已配置 program 相关 finalized 交易，解析其中 SPL Token / Token-2022 的 initializeMint/initializeMint2。getTransaction 显式传入数值 maxSupportedTransactionVersion=1，支持 legacy/v0/v1 的 jsonParsed 外层及内部指令；v1 额外的 message.transactionConfig 不参与新 Mint 判断，不读取或推断计算资源/优先费。RPC -32015 单独提示交易版本不支持，归类 PERMANENT，不回显可能含凭据的供应商原始错误、不自动协商未知版本；若响应出现高于v1的版本，同样停止且不推进cursor。首轮最多100交易，后续until checkpoint；若连续积压达到100则停止前进并提示补历史，而不是静默丢弃。null交易历史也停止cursor。没有抓取全链、没有解析所有新池/launchpad指令。slot时间仅作为eventOccurredAt，sourcePublishedAt保留null，避免伪造可观察时点。
 - 两个来源只有配置完整才启用，缺少凭据和范围时 unconfigured。测试使用合成RPC响应覆盖finality、错误链、重组、历史缺口和标准化，不构成实际授权RPC生产验收。
-- 官方契约补充：[Solana签名分页](https://solana.com/docs/rpc/http/getsignaturesforaddress)、[Solana交易查询](https://solana.com/docs/rpc/http/gettransaction)、[Uniswap V2架构及Factory](https://developers.uniswap.org/docs/protocols/v2/concepts/architecture)。
+- 官方契约补充：[Solana签名分页](https://solana.com/docs/rpc/http/getsignaturesforaddress)、[Solana交易查询](https://solana.com/docs/rpc/http/gettransaction)、[Solana v1兼容及-32015错误](https://solana.com/docs/core/transactions/versioned-transactions#preparing-for-v1)、[Solana jsonParsed交易结构](https://solana.com/docs/rpc/json-structures)、[Uniswap V2架构及Factory](https://developers.uniswap.org/docs/protocols/v2/concepts/architecture)。
 
 ## 9. Treasury 日度收益率正式适配
 

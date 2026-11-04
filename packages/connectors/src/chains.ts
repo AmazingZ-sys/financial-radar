@@ -9,6 +9,10 @@ const evmAddress = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const txHash = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 export const PAIR_CREATED_TOPIC =
   '0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9';
+// Inclusive block count per RPC request; conservative enough for 10-block free plans.
+const EVM_LOG_PAGE_BLOCKS = 10;
+const EVM_MAX_BLOCKS_PER_FETCH = 200;
+const SOLANA_MAX_TRANSACTION_VERSION = 1;
 abstract class RpcConnector implements Connector {
   abstract metadata: SourceMetadata;
   capabilities = {
@@ -46,11 +50,17 @@ abstract class RpcConnector implements Connector {
         error: z.object({ code: z.number(), message: z.string() }).optional(),
       })
       .parse(await response.json());
-    if (body.error)
+    if (body.error) {
+      if (method === 'getTransaction' && body.error.code === -32015)
+        throw new ConnectorError(
+          `Solana RPC -32015（交易版本不受支持，当前最高 v${SOLANA_MAX_TRANSACTION_VERSION}；请核查 RPC 节点兼容性或更新适配器）`,
+          'PERMANENT',
+        );
       throw new ConnectorError(
         `RPC ${body.error.code}（参数/额度/历史覆盖需核查）`,
         body.error.code === -32005 ? 'RATE_LIMIT' : 'TRANSIENT',
       );
+    }
     return body.result;
   }
 }
@@ -108,42 +118,47 @@ export class EvmFactoryConnector extends RpcConnector {
     const from =
       typeof cursor.blockNumber === 'number' ? cursor.blockNumber + 1 : Math.max(0, head - 20);
     if (from > head) return { items: [], cursor };
-    const to = Math.min(head, from + 199);
-    const logs = z.array(EvmLog).parse(
-      await this.call('eth_getLogs', [
-        {
-          address: this.factoryAddress,
-          fromBlock: '0x' + from.toString(16),
-          toBlock: '0x' + to.toString(16),
-          topics: [PAIR_CREATED_TOPIC],
-        },
-      ]),
-    );
+    const to = Math.min(head, from + EVM_MAX_BLOCKS_PER_FETCH - 1);
     const items: RawItem[] = [];
-    for (const entry of logs) {
-      if (
-        entry.address.toLowerCase() !== this.factoryAddress.toLowerCase() ||
-        entry.topics[0] !== PAIR_CREATED_TOPIC
-      )
-        throw new ConnectorError('RPC返回不在配置Factory或topic范围内的日志', 'SCHEMA');
-      if (entry.removed) throw new ConnectorError('RPC返回已撤回日志，不提交检查点', 'SCHEMA');
-      const block = EvmBlock.parse(
-        await this.call('eth_getBlockByNumber', [entry.blockNumber, false]),
+    // Keep requests sequential so RpcConnector's rate limit applies to every page.
+    // Any failed page rejects the fetch before the worker can commit its checkpoint.
+    for (let pageFrom = from; pageFrom <= to; pageFrom += EVM_LOG_PAGE_BLOCKS) {
+      const pageTo = Math.min(to, pageFrom + EVM_LOG_PAGE_BLOCKS - 1);
+      const logs = z.array(EvmLog).parse(
+        await this.call('eth_getLogs', [
+          {
+            address: this.factoryAddress,
+            fromBlock: '0x' + pageFrom.toString(16),
+            toBlock: '0x' + pageTo.toString(16),
+            topics: [PAIR_CREATED_TOPIC],
+          },
+        ]),
       );
-      if (
-        block.hash !== entry.blockHash ||
-        Number(BigInt(entry.blockNumber)) < from ||
-        Number(BigInt(entry.blockNumber)) > to
-      )
-        throw new ConnectorError('日志与区块范围/哈希不一致', 'SCHEMA');
-      items.push({
-        externalId: `${entry.transactionHash}:${entry.logIndex}`,
-        publishedAt: null,
-        payload: {
-          ...entry,
-          blockTime: new Date(Number(BigInt(block.timestamp)) * 1000).toISOString(),
-        },
-      });
+      for (const entry of logs) {
+        if (
+          entry.address.toLowerCase() !== this.factoryAddress.toLowerCase() ||
+          entry.topics[0] !== PAIR_CREATED_TOPIC
+        )
+          throw new ConnectorError('RPC返回不在配置Factory或topic范围内的日志', 'SCHEMA');
+        if (entry.removed) throw new ConnectorError('RPC返回已撤回日志，不提交检查点', 'SCHEMA');
+        const block = EvmBlock.parse(
+          await this.call('eth_getBlockByNumber', [entry.blockNumber, false]),
+        );
+        if (
+          block.hash !== entry.blockHash ||
+          Number(BigInt(entry.blockNumber)) < pageFrom ||
+          Number(BigInt(entry.blockNumber)) > pageTo
+        )
+          throw new ConnectorError('日志与区块范围/哈希不一致', 'SCHEMA');
+        items.push({
+          externalId: `${entry.transactionHash}:${entry.logIndex}`,
+          publishedAt: null,
+          payload: {
+            ...entry,
+            blockTime: new Date(Number(BigInt(block.timestamp)) * 1000).toISOString(),
+          },
+        });
+      }
     }
     const last =
       to === head
@@ -213,6 +228,7 @@ const Instruction = z
   })
   .passthrough();
 const Transaction = z.object({
+  version: z.union([z.literal('legacy'), z.number().int().nonnegative()]).optional(),
   blockTime: z.number().nullable(),
   slot: z.number(),
   meta: z
@@ -276,10 +292,22 @@ export class SolanaMintConnector extends RpcConnector {
       if (sig.err) continue;
       const raw = await this.call('getTransaction', [
         sig.signature,
-        { commitment: 'finalized', encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 },
+        {
+          commitment: 'finalized',
+          encoding: 'jsonParsed',
+          maxSupportedTransactionVersion: SOLANA_MAX_TRANSACTION_VERSION,
+        },
       ]);
       if (!raw) throw new ConnectorError('finalized交易历史暂不可得，不前进检查点', 'TRANSIENT');
       const transaction = Transaction.parse(raw);
+      if (
+        typeof transaction.version === 'number' &&
+        transaction.version > SOLANA_MAX_TRANSACTION_VERSION
+      )
+        throw new ConnectorError(
+          `Solana 交易版本不受支持（当前最高 v${SOLANA_MAX_TRANSACTION_VERSION}）；请更新适配器，不推进检查点`,
+          'PERMANENT',
+        );
       if (transaction.meta?.err) continue;
       const instructions = [
         ...transaction.transaction.message.instructions,

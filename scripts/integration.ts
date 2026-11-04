@@ -1,6 +1,10 @@
 import { verifyModeIsolation } from './mode-isolation.js';
 import { verifyConfiguration } from './configuration-integration.js';
 import { verifyHistoricalPipeline } from './history-integration.js';
+import {
+  verifyEvmPagination,
+  verifySolanaTransactionVersion,
+} from './evm-pagination-integration.js';
 import { initializeCalendarFixtures } from '../apps/api/src/calendar-routes.js';
 import assert from 'node:assert/strict';
 import { config } from '../packages/config/src/index.js';
@@ -322,6 +326,8 @@ try {
     }
   });
   console.log(`Historical pipeline passed: ${historical.checks} PostgreSQL checks.`);
+  await verifyEvmPagination();
+  await verifySolanaTransactionVersion();
   await verifyConfiguration(app, headers);
   await app.request('/api/v1/auth/logout', { method: 'POST', headers });
   check(

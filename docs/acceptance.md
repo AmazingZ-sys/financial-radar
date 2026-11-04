@@ -2,6 +2,30 @@
 
 日期：2026-11-02，Asia/Shanghai。此文件描述实际执行结果，不把设计、Fixture、外部服务和生产部署混为一项。原始需求末尾截断，已收到部分作为实现基线。
 
+## 2026-11-04 · Solana 交易版本兼容与 -32015 错误
+
+用户反馈配置 Solana RPC/Program 后出现 `RPC -32015（参数/额度/历史覆盖需核查）`。核对[Solana 官方迁移说明](https://solana.com/docs/core/transactions/versioned-transactions#preparing-for-v1)与[jsonParsed 结构](https://solana.com/docs/rpc/json-structures)：-32015 表示请求客户端不支持交易版本，固定 maxSupportedTransactionVersion=0 的请求会在读取 v1 交易时失败。先更新数据源设计，再将 getTransaction 的版本上限改为数值1，保留 finalized/jsonParsed 与外层/内部 SPL Token 初始化解析。legacy/v0 继续兼容，v1 新增 transactionConfig 不用于推断资源或费用。残余 -32015 单独显示固定中文版本提示并归类 PERMANENT，响应高于v1的版本也拒绝处理；失败不跳过交易、不推进检查点，不回显供应商原始错误中的地址或凭据。
+
+Node 24.15.0 本地验证，日志位于忽略提交的 `.local/solana-version-test/`：
+
+- `pnpm typecheck`、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm security:check` 与 `git diff --check` 通过，构建9个任务成功。
+- `pnpm test`：17个文件、146项通过。新增6项覆盖数值1请求、v1内层Token-2022 Mint初始化、legacy/v0兼容、后续-32015错误脱敏与cursor保留、null交易历史及未来版本拒绝；保留上轮Ethereum分页回归。
+- 隔离的真实PostgreSQL 18 / Redis 7.4.2中，`pnpm test:integration` 全部通过：新增Solana版本13项、EVM分页12项、主流程70项、历史35项、配置62项、来源配置/热加载18项、模式隔离86项。Solana集成在同轮前一交易读取成功后注入-32015，验证持久cursor不变且无部分事实写入，来源健康与运行错误均脱敏；恢复v1响应后两条事实成功写入，重放幂等。RPC响应均为明确Fixture，未向外部平台发送消息。
+
+本轮完成本地回归，未使用用户RPC凭据实采、未发布Release或更新生产Worker。运行环境需更新Worker代码或镜像后生效；既有每轮最多100笔交易及积压停止的监控边界保留。
+
+## 2026-11-04 · Ethereum 免费 RPC 日志跨度兼容
+
+用户反馈 `eth_getLogs` 返回 HTTP 400 / JSON-RPC -32600，响应明确套餐每次最多允许10个区块。原适配器首次查询 finalized head 向前20块（含首尾21块），后续单次最多200块，均可能超过此限制。本轮先更新数据源设计，再将请求改为每页最多10块，顺序连续读取，每轮仍最多追赶200块。空页继续读取后续范围，尾页不超过 finalized head；沿用本地每秒最多2次请求、超时与退避。逐页验证 Factory、topic、日志区块范围及哈希；全部页成功后才返回cursor，后页失败保留原持久检查点以便完整重试。
+
+Node 24.15.0 本地验证，日志位于忽略提交的 `.local/rpc-pagination-test/`：
+
+- `pnpm typecheck`、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm security:check` 与 `git diff --check` 通过，构建9个任务成功。新增集成脚本也通过工具TypeScript与ESLint检查。
+- `pnpm test`：17个文件、140项通过。新增回归覆盖拒绝超过10块的合成HTTP400响应、首次21块按10/10/1分页、200块连续追赶、finalized尾页、中途失败从原cursor重试，以及拒绝跨页日志。
+- 隔离的真实PostgreSQL 18 / Redis 7.4.2中，`pnpm test:integration` 全部通过：新增EVM分页12项、主流程70项、历史35项、配置62项、来源配置/热加载18项、模式隔离86项。分页集成注入合成RPC并显式标记Fixture，验证第二页HTTP400后数据库cursor不变、无部分事实提前提交；恢复后写入两条事实并提交最终cursor，重放无重复。只清理本次随机测试源，服务退出后停止自身进程，保留本地证据文件。
+
+本轮完成本地代码与回归验收，未使用用户RPC凭据实采、未发布Release或更新生产Worker。10块是本系统保守分页上限，不是对所有RPC供应商配额的承诺；运行环境需更新Worker代码或镜像后生效，原RPC与Factory配置可继续沿用。
+
 ## 2026-11-04 · 弹窗、接入入口与黄金/原油
 
 本轮先更新数据源、前端、通知与接入配置设计，再完成以下修复：
