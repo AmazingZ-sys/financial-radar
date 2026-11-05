@@ -294,9 +294,13 @@ describe('historical opportunity detection', () => {
   });
 
   it('matches rule source and rejects negative/future event ages', () => {
-    const conditions = { sourceIds: ['source-a'], maxAgeSeconds: 60 };
+    const conditions = {
+      sourceIds: ['source-a'],
+      maxAgeSeconds: 60,
+      includeRoutineEvents: true,
+    };
     const event = {
-      eventType: 'MINT_STARTED',
+      eventType: 'NEWS',
       sourceId: 'source-a',
       assets: [],
       categories: [],

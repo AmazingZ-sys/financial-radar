@@ -3,6 +3,7 @@ import { scoringRoutes } from './scoring-routes.js';
 import { calendarRoutes } from './calendar-routes.js';
 import { integrationRoutes } from './integration-routes.js';
 import { sourceConfigRoutes } from './source-config-routes.js';
+import { xRoutes } from './x-routes.js';
 import { randomUUID } from 'node:crypto';
 import { OpenAPIHono, z } from '@hono/zod-openapi';
 import { HTTPException } from 'hono/http-exception';
@@ -154,6 +155,7 @@ export function createApp() {
   readRoutes(app);
   writeRoutes(app);
   integrationRoutes(app);
+  xRoutes(app);
   calendarRoutes(app);
   scoringRoutes(app);
   researchRoutes(app);

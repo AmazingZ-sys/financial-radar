@@ -204,6 +204,8 @@ export function writeRoutes(app: OpenAPIHono<ApiEnv>) {
       const existing =
         await sql`SELECT * FROM data_sources WHERE id=${id} AND mode=${config.dataMode}`;
       if (!existing[0]) fail(404, '数据源不存在');
+      if (id === 'x-search' && (input.enabled !== undefined || input.intervalSeconds !== undefined))
+        fail(400, 'X 启停和随机采集区间请在系统管理的 X 讨论监测中调整');
       const minimumInterval = MarketSourceMinimumIntervals[id];
       if (
         input.intervalSeconds !== undefined &&

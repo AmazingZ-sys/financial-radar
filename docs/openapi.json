@@ -1473,7 +1473,25 @@
                           },
                           "analysisStatus": {
                             "type": "string",
-                            "enum": ["PENDING", "COMPLETED", "FAILED", "DISABLED", "DEFERRED"]
+                            "enum": [
+                              "PENDING",
+                              "COMPLETED",
+                              "FAILED",
+                              "DISABLED",
+                              "DEFERRED",
+                              "SKIPPED"
+                            ]
+                          },
+                          "analysisDecision": {
+                            "type": "object",
+                            "properties": {
+                              "version": { "type": "string" },
+                              "reason": { "type": "string" },
+                              "decidedAt": { "type": "string", "format": "date-time" },
+                              "cooldownKey": { "type": "string", "nullable": true },
+                              "admittedAt": { "type": "string", "format": "date-time" }
+                            },
+                            "required": ["version", "reason", "decidedAt"]
                           },
                           "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
                           "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -1705,7 +1723,25 @@
                         },
                         "analysisStatus": {
                           "type": "string",
-                          "enum": ["PENDING", "COMPLETED", "FAILED", "DISABLED", "DEFERRED"]
+                          "enum": [
+                            "PENDING",
+                            "COMPLETED",
+                            "FAILED",
+                            "DISABLED",
+                            "DEFERRED",
+                            "SKIPPED"
+                          ]
+                        },
+                        "analysisDecision": {
+                          "type": "object",
+                          "properties": {
+                            "version": { "type": "string" },
+                            "reason": { "type": "string" },
+                            "decidedAt": { "type": "string", "format": "date-time" },
+                            "cooldownKey": { "type": "string", "nullable": true },
+                            "admittedAt": { "type": "string", "format": "date-time" }
+                          },
+                          "required": ["version", "reason", "decidedAt"]
                         },
                         "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
                         "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -3582,7 +3618,25 @@
                               },
                               "analysisStatus": {
                                 "type": "string",
-                                "enum": ["PENDING", "COMPLETED", "FAILED", "DISABLED", "DEFERRED"]
+                                "enum": [
+                                  "PENDING",
+                                  "COMPLETED",
+                                  "FAILED",
+                                  "DISABLED",
+                                  "DEFERRED",
+                                  "SKIPPED"
+                                ]
+                              },
+                              "analysisDecision": {
+                                "type": "object",
+                                "properties": {
+                                  "version": { "type": "string" },
+                                  "reason": { "type": "string" },
+                                  "decidedAt": { "type": "string", "format": "date-time" },
+                                  "cooldownKey": { "type": "string", "nullable": true },
+                                  "admittedAt": { "type": "string", "format": "date-time" }
+                                },
+                                "required": ["version", "reason", "decidedAt"]
                               },
                               "opportunityScore": {
                                 "type": "number",
@@ -3923,6 +3977,7 @@
                             "provider": { "type": "string" },
                             "model": { "type": "string" },
                             "dailyBudgetUsd": { "type": "number" },
+                            "maxDailyCalls": { "type": "integer", "minimum": 0, "maximum": 500 },
                             "usage": {
                               "type": "object",
                               "properties": {
@@ -3934,7 +3989,14 @@
                               "required": ["calls", "inputTokens", "outputTokens", "estimatedCost"]
                             }
                           },
-                          "required": ["configured", "provider", "model", "dailyBudgetUsd", "usage"]
+                          "required": [
+                            "configured",
+                            "provider",
+                            "model",
+                            "dailyBudgetUsd",
+                            "maxDailyCalls",
+                            "usage"
+                          ]
                         },
                         "keys": { "type": "object", "additionalProperties": { "type": "boolean" } },
                         "latency": {
@@ -4432,7 +4494,8 @@
                                 "minimum": 0,
                                 "maximum": 31536000
                               },
-                              "verifiedOnly": { "type": "boolean" }
+                              "verifiedOnly": { "type": "boolean" },
+                              "includeRoutineEvents": { "type": "boolean" }
                             },
                             "additionalProperties": false
                           },
@@ -4649,7 +4712,8 @@
                       "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
                       "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
                       "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
-                      "verifiedOnly": { "type": "boolean" }
+                      "verifiedOnly": { "type": "boolean" },
+                      "includeRoutineEvents": { "type": "boolean" }
                     },
                     "additionalProperties": false
                   },
@@ -4769,7 +4833,8 @@
                               "minimum": 0,
                               "maximum": 31536000
                             },
-                            "verifiedOnly": { "type": "boolean" }
+                            "verifiedOnly": { "type": "boolean" },
+                            "includeRoutineEvents": { "type": "boolean" }
                           },
                           "additionalProperties": false
                         },
@@ -4995,7 +5060,8 @@
                       "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
                       "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
                       "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
-                      "verifiedOnly": { "type": "boolean" }
+                      "verifiedOnly": { "type": "boolean" },
+                      "includeRoutineEvents": { "type": "boolean" }
                     },
                     "additionalProperties": false
                   },
@@ -5114,7 +5180,8 @@
                               "minimum": 0,
                               "maximum": 31536000
                             },
-                            "verifiedOnly": { "type": "boolean" }
+                            "verifiedOnly": { "type": "boolean" },
+                            "includeRoutineEvents": { "type": "boolean" }
                           },
                           "additionalProperties": false
                         },
@@ -5463,7 +5530,8 @@
                       "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
                       "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
                       "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
-                      "verifiedOnly": { "type": "boolean" }
+                      "verifiedOnly": { "type": "boolean" },
+                      "includeRoutineEvents": { "type": "boolean" }
                     },
                     "additionalProperties": false
                   }
@@ -7590,7 +7658,8 @@
                       "minYieldChangeBps": { "type": "number", "minimum": 0, "maximum": 1000000 },
                       "windowSeconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
                       "maxAgeSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000 },
-                      "verifiedOnly": { "type": "boolean" }
+                      "verifiedOnly": { "type": "boolean" },
+                      "includeRoutineEvents": { "type": "boolean" }
                     },
                     "default": {},
                     "additionalProperties": false
@@ -7746,6 +7815,12 @@
                         "jsonMode": { "type": "boolean" },
                         "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
                         "maxCallCostUsd": { "type": "number", "minimum": 0, "maximum": 1000 },
+                        "maxDailyCalls": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 500,
+                          "default": 20
+                        },
                         "apiKeyConfigured": { "type": "boolean" },
                         "configOrigin": { "type": "string", "enum": ["environment", "database"] },
                         "hasOverride": { "type": "boolean" }
@@ -7893,6 +7968,7 @@
                   "jsonMode": { "type": "boolean" },
                   "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
                   "maxCallCostUsd": { "type": "number", "minimum": 0, "maximum": 1000 },
+                  "maxDailyCalls": { "type": "integer", "minimum": 0, "maximum": 500 },
                   "apiKey": { "type": "string", "maxLength": 4096 },
                   "clearApiKey": { "type": "boolean" }
                 },
@@ -7925,6 +8001,12 @@
                         "jsonMode": { "type": "boolean" },
                         "dailyBudgetUsd": { "type": "number", "minimum": 0, "maximum": 10000 },
                         "maxCallCostUsd": { "type": "number", "minimum": 0, "maximum": 1000 },
+                        "maxDailyCalls": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 500,
+                          "default": 20
+                        },
                         "apiKeyConfigured": { "type": "boolean" },
                         "configOrigin": { "type": "string", "enum": ["environment", "database"] },
                         "hasOverride": { "type": "boolean" }
@@ -8075,6 +8157,762 @@
                         }
                       },
                       "required": ["status", "message", "model", "reasoningEffort"]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/x": {
+      "get": {
+        "summary": "X 自建免费采集配置、请求上限和调试状态（不回显登录态）",
+        "tags": ["integrations"],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": { "type": "boolean" },
+                        "usernames": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "maxItems": 20
+                        },
+                        "keywords": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 40,
+                            "pattern": "^[\\p{L}\\p{N} #$._-]+$/u"
+                          },
+                          "maxItems": 10
+                        },
+                        "pollIntervalMinSeconds": {
+                          "type": "integer",
+                          "minimum": 300,
+                          "maximum": 86400
+                        },
+                        "pollIntervalMaxSeconds": {
+                          "type": "integer",
+                          "minimum": 300,
+                          "maximum": 86400
+                        },
+                        "maxResults": { "type": "integer", "minimum": 10, "maximum": 100 },
+                        "dailyRequestLimit": { "type": "integer", "minimum": 0, "maximum": 500 },
+                        "candidateMinAuthors": { "type": "integer", "minimum": 2, "maximum": 20 },
+                        "candidateWindowMinutes": {
+                          "type": "integer",
+                          "minimum": 15,
+                          "maximum": 60
+                        },
+                        "pollIntervalSeconds": {
+                          "type": "integer",
+                          "minimum": 300,
+                          "maximum": 86400
+                        },
+                        "sessionConfigured": { "type": "boolean" },
+                        "collectorConfigured": { "type": "boolean" },
+                        "credentialError": { "type": "boolean" },
+                        "configOrigin": { "type": "string", "enum": ["default", "database"] },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "query": { "type": "string" },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "day": { "type": "string" },
+                            "requests": { "type": "integer", "minimum": 0 },
+                            "remaining": { "type": "integer", "minimum": 0 }
+                          },
+                          "required": ["day", "requests", "remaining"]
+                        },
+                        "lastTest": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                            "status": {
+                              "type": "string",
+                              "enum": ["connected", "failed", "skipped"]
+                            },
+                            "message": { "type": "string" },
+                            "checkedAt": { "type": "string", "format": "date-time" },
+                            "httpStatus": { "type": "integer", "nullable": true },
+                            "returnedPosts": { "type": "integer", "minimum": 0 },
+                            "samples": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string" },
+                                  "text": { "type": "string" },
+                                  "authorId": { "type": "string" },
+                                  "url": { "type": "string", "format": "uri" },
+                                  "sourcePublishedAt": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": ["id", "text", "authorId", "url", "sourcePublishedAt"]
+                              },
+                              "maxItems": 3
+                            }
+                          },
+                          "required": [
+                            "dataMode",
+                            "status",
+                            "message",
+                            "checkedAt",
+                            "httpStatus",
+                            "returnedPosts",
+                            "samples"
+                          ]
+                        },
+                        "scheduling": {
+                          "type": "object",
+                          "properties": {
+                            "lastRequestAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "nextRequestAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "lastDelaySeconds": {
+                              "type": "integer",
+                              "nullable": true,
+                              "minimum": 300,
+                              "maximum": 86400
+                            }
+                          },
+                          "required": ["lastRequestAt", "nextRequestAt", "lastDelaySeconds"]
+                        },
+                        "source": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean" },
+                            "status": { "type": "string" },
+                            "lastFetchedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "lastError": { "type": "string", "nullable": true }
+                          },
+                          "required": ["enabled", "status", "lastFetchedAt", "lastError"]
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "usernames",
+                        "keywords",
+                        "pollIntervalMinSeconds",
+                        "pollIntervalMaxSeconds",
+                        "maxResults",
+                        "dailyRequestLimit",
+                        "candidateMinAuthors",
+                        "candidateWindowMinutes",
+                        "pollIntervalSeconds",
+                        "sessionConfigured",
+                        "collectorConfigured",
+                        "credentialError",
+                        "configOrigin",
+                        "dataMode",
+                        "query",
+                        "usage",
+                        "lastTest",
+                        "scheduling",
+                        "source"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "保存 X 自建免费采集配置",
+        "tags": ["integrations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "usernames": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
+                  "keywords": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "pattern": "^[\\p{L}\\p{N} #$._-]+$/u"
+                    },
+                    "maxItems": 10
+                  },
+                  "pollIntervalMinSeconds": { "type": "integer", "minimum": 300, "maximum": 86400 },
+                  "pollIntervalMaxSeconds": { "type": "integer", "minimum": 300, "maximum": 86400 },
+                  "maxResults": { "type": "integer", "minimum": 10, "maximum": 100 },
+                  "dailyRequestLimit": { "type": "integer", "minimum": 0, "maximum": 500 },
+                  "candidateMinAuthors": { "type": "integer", "minimum": 2, "maximum": 20 },
+                  "candidateWindowMinutes": { "type": "integer", "minimum": 15, "maximum": 60 },
+                  "pollIntervalSeconds": { "type": "integer", "minimum": 300, "maximum": 86400 },
+                  "sessionCookies": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "pattern": "^[^\\r\\n]*$"
+                  },
+                  "clearSessionCookies": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": { "type": "boolean" },
+                        "usernames": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "maxItems": 20
+                        },
+                        "keywords": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 40,
+                            "pattern": "^[\\p{L}\\p{N} #$._-]+$/u"
+                          },
+                          "maxItems": 10
+                        },
+                        "pollIntervalMinSeconds": {
+                          "type": "integer",
+                          "minimum": 300,
+                          "maximum": 86400
+                        },
+                        "pollIntervalMaxSeconds": {
+                          "type": "integer",
+                          "minimum": 300,
+                          "maximum": 86400
+                        },
+                        "maxResults": { "type": "integer", "minimum": 10, "maximum": 100 },
+                        "dailyRequestLimit": { "type": "integer", "minimum": 0, "maximum": 500 },
+                        "candidateMinAuthors": { "type": "integer", "minimum": 2, "maximum": 20 },
+                        "candidateWindowMinutes": {
+                          "type": "integer",
+                          "minimum": 15,
+                          "maximum": 60
+                        },
+                        "pollIntervalSeconds": {
+                          "type": "integer",
+                          "minimum": 300,
+                          "maximum": 86400
+                        },
+                        "sessionConfigured": { "type": "boolean" },
+                        "collectorConfigured": { "type": "boolean" },
+                        "credentialError": { "type": "boolean" },
+                        "configOrigin": { "type": "string", "enum": ["default", "database"] },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "query": { "type": "string" },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "day": { "type": "string" },
+                            "requests": { "type": "integer", "minimum": 0 },
+                            "remaining": { "type": "integer", "minimum": 0 }
+                          },
+                          "required": ["day", "requests", "remaining"]
+                        },
+                        "lastTest": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                            "status": {
+                              "type": "string",
+                              "enum": ["connected", "failed", "skipped"]
+                            },
+                            "message": { "type": "string" },
+                            "checkedAt": { "type": "string", "format": "date-time" },
+                            "httpStatus": { "type": "integer", "nullable": true },
+                            "returnedPosts": { "type": "integer", "minimum": 0 },
+                            "samples": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string" },
+                                  "text": { "type": "string" },
+                                  "authorId": { "type": "string" },
+                                  "url": { "type": "string", "format": "uri" },
+                                  "sourcePublishedAt": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": ["id", "text", "authorId", "url", "sourcePublishedAt"]
+                              },
+                              "maxItems": 3
+                            }
+                          },
+                          "required": [
+                            "dataMode",
+                            "status",
+                            "message",
+                            "checkedAt",
+                            "httpStatus",
+                            "returnedPosts",
+                            "samples"
+                          ]
+                        },
+                        "scheduling": {
+                          "type": "object",
+                          "properties": {
+                            "lastRequestAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "nextRequestAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "lastDelaySeconds": {
+                              "type": "integer",
+                              "nullable": true,
+                              "minimum": 300,
+                              "maximum": 86400
+                            }
+                          },
+                          "required": ["lastRequestAt", "nextRequestAt", "lastDelaySeconds"]
+                        },
+                        "source": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": { "type": "boolean" },
+                            "status": { "type": "string" },
+                            "lastFetchedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "lastError": { "type": "string", "nullable": true }
+                          },
+                          "required": ["enabled", "status", "lastFetchedAt", "lastError"]
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "usernames",
+                        "keywords",
+                        "pollIntervalMinSeconds",
+                        "pollIntervalMaxSeconds",
+                        "maxResults",
+                        "dailyRequestLimit",
+                        "candidateMinAuthors",
+                        "candidateWindowMinutes",
+                        "pollIntervalSeconds",
+                        "sessionConfigured",
+                        "collectorConfigured",
+                        "credentialError",
+                        "configOrigin",
+                        "dataMode",
+                        "query",
+                        "usage",
+                        "lastTest",
+                        "scheduling",
+                        "source"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "number" },
+                        "page": { "type": "number" },
+                        "pageSize": { "type": "number" },
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "asOf": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["total", "page", "pageSize", "dataMode", "asOf"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或 CSRF 校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求频率超过限制",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/x/test": {
+      "post": {
+        "summary": "测试已保存 X 配置，最多读取10条，不入库为业务事件或调用 AI",
+        "tags": ["integrations"],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dataMode": { "type": "string", "enum": ["live", "fixture"] },
+                        "status": { "type": "string", "enum": ["connected", "failed", "skipped"] },
+                        "message": { "type": "string" },
+                        "checkedAt": { "type": "string", "format": "date-time" },
+                        "httpStatus": { "type": "integer", "nullable": true },
+                        "returnedPosts": { "type": "integer", "minimum": 0 },
+                        "samples": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "text": { "type": "string" },
+                              "authorId": { "type": "string" },
+                              "url": { "type": "string", "format": "uri" },
+                              "sourcePublishedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              }
+                            },
+                            "required": ["id", "text", "authorId", "url", "sourcePublishedAt"]
+                          },
+                          "maxItems": 3
+                        }
+                      },
+                      "required": [
+                        "dataMode",
+                        "status",
+                        "message",
+                        "checkedAt",
+                        "httpStatus",
+                        "returnedPosts",
+                        "samples"
+                      ]
                     },
                     "meta": {
                       "type": "object",
@@ -9182,7 +10020,25 @@
                         },
                         "analysisStatus": {
                           "type": "string",
-                          "enum": ["PENDING", "COMPLETED", "FAILED", "DISABLED", "DEFERRED"]
+                          "enum": [
+                            "PENDING",
+                            "COMPLETED",
+                            "FAILED",
+                            "DISABLED",
+                            "DEFERRED",
+                            "SKIPPED"
+                          ]
+                        },
+                        "analysisDecision": {
+                          "type": "object",
+                          "properties": {
+                            "version": { "type": "string" },
+                            "reason": { "type": "string" },
+                            "decidedAt": { "type": "string", "format": "date-time" },
+                            "cooldownKey": { "type": "string", "nullable": true },
+                            "admittedAt": { "type": "string", "format": "date-time" }
+                          },
+                          "required": ["version", "reason", "decidedAt"]
                         },
                         "opportunityScore": { "type": "number", "minimum": 0, "maximum": 100 },
                         "riskScore": { "type": "number", "minimum": 0, "maximum": 100 },

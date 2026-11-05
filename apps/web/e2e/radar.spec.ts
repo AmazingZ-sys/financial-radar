@@ -43,6 +43,12 @@ test('rules are persisted through create edit test and delete', async ({ page })
   const ruleName = `E2E规则-${Date.now()}`;
   await page.getByRole('link', { name: '预警规则', exact: true }).click();
   await page.getByRole('button', { name: '新建规则' }).click();
+  await expect(page.getByLabel('最低置信度（%）')).toHaveValue('80');
+  await expect(page.getByLabel('最低机会评分')).toHaveValue('65');
+  await expect(page.getByLabel('最高风险评分')).toHaveValue('60');
+  await expect(page.getByLabel('冷却时间（秒）')).toHaveValue('86400');
+  await expect(page.getByLabel('只匹配已验证来源', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('包含行情快照', { exact: true })).not.toBeChecked();
   await page.getByLabel('规则名称').fill(ruleName);
   await page.getByRole('button', { name: '保存规则' }).click();
   const card = page

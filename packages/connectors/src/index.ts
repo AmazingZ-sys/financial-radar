@@ -7,10 +7,12 @@ export * from './treasury.js';
 export * from './scope.js';
 export * from './news.js';
 export * from './commodities.js';
+export * from './x.js';
 import { GoldPriceConnector, EiaWtiDailyConnector } from './commodities.js';
 import { NewsRssConnector, NEWS_PRESETS } from './news.js';
 import { TreasuryDailyConnector } from './treasury.js';
 import { EvmFactoryConnector, SolanaMintConnector } from './chains.js';
+import { XRecentSearchConnector } from './x.js';
 import type { Connector } from './types.js';
 import { FixtureConnector } from './fixture.js';
 import { normalizeRepositories } from './scope.js';
@@ -65,6 +67,15 @@ export function createRegistry(config: {
     .register(new DexScreenerConnector(config.dexChain, config.dexTokenAddresses))
     .register(new EvmFactoryConnector(config.evmRpcUrl, config.evmFactoryAddress))
     .register(new SolanaMintConnector(config.solanaRpcUrl, config.solanaProgramId));
+  registry.register(
+    new XRecentSearchConnector({
+      sessionCookies: '',
+      usernames: [],
+      keywords: [],
+      pollIntervalSeconds: 900,
+      maxResults: 10,
+    }),
+  );
   for (const repository of normalizeRepositories(config.githubRepositories))
     registry.register(new GitHubReleasesConnector(config.githubToken, repository));
   for (const feed of NEWS_PRESETS) registry.register(new NewsRssConnector(feed));

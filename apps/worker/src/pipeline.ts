@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import type postgres from 'postgres';
 import type { TransactionSql } from 'postgres';
-import { sql, ensureAdmin, readAIConfig, readSourceIntegrationsConfig } from '@radar/database';
+import {
+  sql,
+  ensureAdmin,
+  readSourceIntegrationsConfig,
+  readXConfig,
+  reserveXRequest,
+  readXPollState,
+  deferXRequestsUntil,
+  XRequestDeferredError,
+} from '@radar/database';
+import { initialAnalysisState, enqueueAnalysis } from './analysis-admission.js';
 import { config } from '@radar/config';
 import { createLogger } from '@radar/observability';
 import {
@@ -18,6 +28,7 @@ import {
   EvmFactoryConnector,
   SolanaMintConnector,
   DexScreenerConnector,
+  XRecentSearchConnector,
 } from '@radar/connectors';
 import {
   fingerprint,
@@ -47,18 +58,6 @@ const log = createLogger('worker.pipeline');
 export const registry = createRegistry(config);
 const json = (data: unknown) => sql.json(data as postgres.JSONValue);
 type Tx = TransactionSql;
-
-async function initialAnalysisStatus(): Promise<'PENDING' | 'DISABLED'> {
-  if (config.dataMode === 'fixture') return 'PENDING';
-  try {
-    const ai = await readAIConfig();
-    return ai.enabled && ai.apiKey && ai.model ? 'PENDING' : 'DISABLED';
-  } catch {
-    // Invalid integration secrets must never prevent deterministic event/alert persistence.
-    log.warn('AI configuration unavailable; deterministic ingestion continues');
-    return 'DISABLED';
-  }
-}
 
 let sourceSync: Promise<void> | undefined;
 let configuredSync: Promise<void> | undefined;
@@ -125,6 +124,33 @@ export async function synchronizeConfiguredSources() {
       await sql`UPDATE data_sources SET enabled=CASE WHEN NOT ${configured} THEN false WHEN data->>'status'='unconfigured' THEN true ELSE enabled END,last_error=null,data=data || ${json({ keyConfigured: configured, description: health.detail, status: configured ? 'pending' : 'unconfigured', integrationScope: scopeId, cooldownUntil: null })}::jsonb WHERE id=${id} AND mode='live'`;
       configuredVersions.set(id, fingerprint);
       configuredScopes.set(id, scopeId);
+    }
+    try {
+      const x = await readXConfig();
+      const id = 'x-search';
+      const version = stableHash(JSON.stringify(x));
+      if (configuredVersions.get(id) !== version || !registry.get(id)) {
+        const connector = new XRecentSearchConnector(x, undefined, () =>
+          reserveXRequest(x).then(() => undefined),
+        );
+        const scope = stableHash(JSON.stringify([x.usernames, x.keywords]));
+        const configured =
+          !x.credentialError &&
+          Boolean(x.sessionCookies) &&
+          Boolean(config.xCollectorSecret) &&
+          x.usernames.length > 0;
+        const old = registry.get(id);
+        await connector.initialize();
+        registry.remove(id);
+        registry.register(connector);
+        if (old) await old.shutdown();
+        await sql`INSERT INTO data_sources(id,name,enabled,connector_type,mode,interval_seconds,data) VALUES(${id},'X · 自建免费讨论采集',${x.enabled && configured},'pull','live',${x.pollIntervalMinSeconds},${json({ status: !x.enabled ? 'disabled' : configured ? 'pending' : 'unconfigured', keyConfigured: configured, categories: ['crypto', 'social'], docsUrl: 'https://github.com/vladkens/twscrape', integrationScope: scope, description: '自建授权会话采集，无数据API费用；所选账号采样，非全网趋势', collector: 'self-hosted', pollingStrategy: 'random-range', delayLabel: `${x.pollIntervalMinSeconds}–${x.pollIntervalMaxSeconds}s随机间隔；来源延迟未知` })}) ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled,interval_seconds=excluded.interval_seconds,last_success_at=CASE WHEN data_sources.data->>'collector'='self-hosted' THEN data_sources.last_success_at ELSE null END,data=data_sources.data || excluded.data,last_error=null`;
+        configuredVersions.set(id, version);
+        configuredScopes.set(id, scope);
+      }
+    } catch {
+      await sql`UPDATE data_sources SET enabled=false,last_error='X 配置无法读取，请在系统管理重新保存',data=data || '{"status":"unconfigured"}'::jsonb WHERE id='x-search' AND mode='live'`;
+      log.warn('X configuration unavailable; other deterministic ingestion continues');
     }
   })();
   try {
@@ -196,7 +222,9 @@ export async function initializeSources() {
       keyConfigured: health.status !== 'unconfigured',
       capabilities: [connector.capabilities.scope, 'checkpoint'],
       status: health.status === 'unconfigured' ? 'unconfigured' : 'pending',
-      delayLabel: `${meta.pollIntervalSeconds}s轮询；来源延迟未知`,
+      ...(meta.id === 'x-search'
+        ? {}
+        : { delayLabel: `${meta.pollIntervalSeconds}s轮询；来源延迟未知` }),
       licenseStatus: meta.licenseStatus,
       categories: categoriesForSource(meta.id, meta.categories),
       ...(connector instanceof NewsRssConnector ? { feedUrl: connector.feed.feedUrl } : {}),
@@ -321,7 +349,7 @@ async function persistHistoricalSignal(
     detectedAt: at,
     rawDataReference: historical.evidenceIds.at(-1)!,
     fingerprint: `history:${historical.stableKey}`,
-    analysisStatus: await initialAnalysisStatus(),
+    ...(await initialAnalysisState({ ...derived, firstSeenAt: at })),
     opportunityScore: opportunity.score,
     riskScore: risk.score,
     opportunityBreakdown: opportunity,
@@ -419,8 +447,7 @@ async function persistHistoricalSignal(
     }
   }
   await decideNotifications(tx, event, derived, projectId, signalId, at);
-  if (event.analysisStatus === 'PENDING')
-    await tx`INSERT INTO outbox_jobs(id,dedup_key,kind,entity_id) VALUES(${randomUUID()},${'analyze:' + eventId},'ANALYZE',${eventId}) ON CONFLICT DO NOTHING`;
+  await enqueueAnalysis(tx, event);
   return true;
 }
 export function quietHours(
@@ -446,6 +473,7 @@ async function decideNotifications(
   signalId: string | null,
   now: string,
 ) {
+  if (normalized.eventType === 'SOCIAL_POST') return;
   const rules =
     await tx`SELECT r.data,s.data AS settings FROM alert_rules r LEFT JOIN user_settings s ON s.user_id=r.owner_id WHERE r.enabled=true ORDER BY r.id`;
   for (const row of rules) {
@@ -459,6 +487,7 @@ async function decideNotifications(
       rule.conditions,
       {
         ...normalized,
+        ...event,
         sourceId: normalized.sourceId,
         firstSeenAt: String(event.firstSeenAt),
         opportunityScore: Number(event.opportunityScore),
@@ -468,6 +497,7 @@ async function decideNotifications(
       Date.parse(now),
     );
     if (!result.matched) continue;
+    if (normalized.eventType === 'X_HOT_TOPIC' && ['P0', 'P1'].includes(rule.priority)) continue;
     const settings = row.settings as UserSettings | null;
     const isQuiet = settings ? quietHours(settings, new Date(now)) : false;
     const belowPriority = settings
@@ -517,6 +547,24 @@ async function decideNotifications(
         await tx`INSERT INTO outbox_jobs(id,dedup_key,kind,entity_id) VALUES(${randomUUID()},${'notify:' + id},'NOTIFY',${id}) ON CONFLICT(dedup_key) DO NOTHING`;
     }
   }
+}
+/** Only completed research may produce an X discussion reminder; social evidence stays unverified. */
+export async function decideXResearchNotifications(tx: Tx, event: Record<string, unknown>) {
+  if (event.eventType !== 'X_HOT_TOPIC' || event.analysisStatus !== 'COMPLETED') return;
+  const analysis = event.analysis as Record<string, unknown> | undefined;
+  if (typeof analysis?.summary !== 'string') return;
+  const now = new Date().toISOString();
+  await decideNotifications(
+    tx,
+    {
+      ...event,
+      description: `【X讨论研究·尚未验证参与机会】${analysis.summary}\n风险：社交讨论不构成项目官方确认，合约安全与参与条件仍需核实。`,
+    },
+    event as unknown as NormalizedEvent,
+    null,
+    null,
+    now,
+  );
 }
 /** Persist one durable raw observation through the same normalization/history
  * path used by ingestion. Exported for the PostgreSQL acceptance fixture, which
@@ -605,7 +653,7 @@ export async function persistEvent(
     detectedAt: now,
     rawDataReference: rawId,
     fingerprint: hash,
-    analysisStatus: await initialAnalysisStatus(),
+    ...(await initialAnalysisState({ ...normalized, firstSeenAt })),
     opportunityScore: opportunity.score,
     riskScore: risk.score,
     riskWarnings: [...risk.flags, ...risk.unknowns.map((key) => `${key}未知`)],
@@ -862,8 +910,7 @@ export async function persistEvent(
     }
     await tx`INSERT INTO risk_assessments(id,project_id,event_id,score,version,data) VALUES(${randomUUID()},${projectId},${eventId},${risk.score},${risk.version},${json(risk)})`;
     await decideNotifications(tx, event, normalized, projectId, signalId, now);
-    if (event.analysisStatus === 'PENDING')
-      await tx`INSERT INTO outbox_jobs(id,dedup_key,kind,entity_id) VALUES(${randomUUID()},${'analyze:' + eventId},'ANALYZE',${eventId}) ON CONFLICT DO NOTHING`;
+    await enqueueAnalysis(tx, event);
     return true;
   });
 }
@@ -911,16 +958,24 @@ async function runIngestionUnlocked(sourceId: string) {
     // Change-only adapters must finish a durable batch before fetching again:
     // after a partial failure, upstream may already have reverted to a state
     // that the old committed cursor would otherwise suppress.
-    const retainsBatch = connector instanceof UniSatBrc20Connector;
+    const retainsBatch =
+      connector instanceof UniSatBrc20Connector || connector instanceof XRecentSearchConnector;
     const pending = retainsBatch
       ? (
           await sql`SELECT integration_scope,data FROM source_pending_batches WHERE source_id=${sourceId}`
         )[0]
       : undefined;
-    const fetched =
-      pending && pending.integration_scope === (integrationScope ?? null)
-        ? FetchResultSchema.parse(pending.data)
-        : await connector.fetch(cursor);
+    const replayPending = pending && pending.integration_scope === (integrationScope ?? null);
+    if (sourceId === 'x-search' && !replayPending) {
+      const schedule = await readXPollState();
+      if (schedule.nextRequestAt && Date.parse(schedule.nextRequestAt) > Date.now()) {
+        await sql`UPDATE ingestion_runs SET status='COMPLETED',fetched=0,inserted=0,finished_at=now() WHERE id=${runId}`;
+        return { fetched: 0, inserted: 0, skipped: true };
+      }
+    }
+    const fetched = replayPending
+      ? FetchResultSchema.parse(pending.data)
+      : await connector.fetch(cursor);
     if (integrationScope) fetched.cursor._integrationScope = integrationScope;
     if (retainsBatch)
       await sql`INSERT INTO source_pending_batches(source_id,integration_scope,data) VALUES(${sourceId},${integrationScope ?? null},${json(fetched)}) ON CONFLICT(source_id) DO UPDATE SET integration_scope=excluded.integration_scope,data=excluded.data,created_at=now()`;
@@ -949,7 +1004,9 @@ async function runIngestionUnlocked(sourceId: string) {
     for (const item of orderedItems) {
       const now = new Date().toISOString();
       // Raw storage is committed before normalization, including malformed items for investigation.
-      await sql`INSERT INTO raw_items(id,source_id,external_id,payload,published_at,first_seen_at,collected_at) VALUES(${randomUUID()},${sourceId},${item.externalId},${json(item.payload)},${item.publishedAt},${now},${now}) ON CONFLICT(source_id,external_id) DO NOTHING`;
+      await sql`INSERT INTO raw_items(id,source_id,external_id,payload,published_at,first_seen_at,collected_at) VALUES(${randomUUID()},${sourceId},${item.externalId},${json(sourceId === 'x-search' ? { ...item.payload, _integrationScope: integrationScope } : item.payload)},${item.publishedAt},${now},${now}) ON CONFLICT(source_id,external_id) DO NOTHING`;
+      if (sourceId === 'x-search' && integrationScope)
+        await sql`UPDATE raw_items SET payload=jsonb_set(payload,'{_integrationScopeSeenAt}',coalesce(payload->'_integrationScopeSeenAt','{}'::jsonb) || jsonb_build_object(${integrationScope}::text,${now}::text)) WHERE source_id='x-search' AND external_id=${item.externalId} AND NOT(coalesce(payload->'_integrationScopeSeenAt','{}'::jsonb) ? ${integrationScope})`;
       const raw = (
         await sql`SELECT id,first_seen_at,payload,published_at FROM raw_items WHERE source_id=${sourceId} AND external_id=${item.externalId}`
       )[0]!;
@@ -981,19 +1038,35 @@ async function runIngestionUnlocked(sourceId: string) {
       await tx`INSERT INTO source_checkpoints(source_id,cursor) VALUES(${sourceId},${json(fetched.cursor)}) ON CONFLICT(source_id) DO UPDATE SET cursor=excluded.cursor,committed_at=now()`;
       if (retainsBatch) await tx`DELETE FROM source_pending_batches WHERE source_id=${sourceId}`;
       await tx`UPDATE ingestion_runs SET status='COMPLETED',fetched=${orderedItems.length},inserted=${inserted},finished_at=now() WHERE id=${runId}`;
-      await tx`UPDATE data_sources SET last_success_at=CASE WHEN ${Boolean(recovery)} THEN last_success_at ELSE now() END,last_error=${healthDetail},next_poll_at=now()+interval_seconds*interval '1 second',data=data || ${json({ status: healthStatus, cooldownUntil: null })}::jsonb WHERE id=${sourceId}`;
+      await tx`UPDATE data_sources SET last_success_at=CASE WHEN ${Boolean(recovery)} THEN last_success_at ELSE now() END,last_error=${healthDetail},next_poll_at=CASE WHEN ${sourceId === 'x-search'} THEN next_poll_at ELSE now()+interval_seconds*interval '1 second' END,data=data || ${json({ status: healthStatus, cooldownUntil: null })}::jsonb WHERE id=${sourceId}`;
       await tx`INSERT INTO source_health_records(id,source_id,status,latency_ms,error) VALUES(${randomUUID()},${sourceId},${healthStatus},${Date.now() - started},${healthDetail})`;
     });
     log.info({ sourceId, runId, fetched: orderedItems.length, inserted }, 'ingestion completed');
     return { fetched: orderedItems.length, inserted, skipped: false };
   } catch (error) {
+    if (sourceId === 'x-search' && error instanceof XRequestDeferredError) {
+      await sql`UPDATE ingestion_runs SET status='COMPLETED',fetched=0,inserted=0,finished_at=now() WHERE id=${runId}`;
+      return { fetched: 0, inserted: 0, skipped: true };
+    }
     const summary = error instanceof Error ? error.message.slice(0, 300) : '采集失败';
     await sql`UPDATE ingestion_runs SET status='FAILED',error=${summary},finished_at=now() WHERE id=${runId}`;
     const cooldown =
       error instanceof ConnectorError && error.retryAfterMs > 0
         ? new Date(Date.now() + error.retryAfterMs).toISOString()
-        : null;
-    await sql`UPDATE data_sources SET last_error=${summary},next_poll_at=coalesce(${cooldown}::timestamptz,next_poll_at),data=data || ${json({ status: 'degraded', cooldownUntil: cooldown })}::jsonb WHERE id=${sourceId}`;
+        : sourceId === 'x-search' &&
+            error instanceof ConnectorError &&
+            error.classification === 'RATE_LIMIT'
+          ? new Date(Date.now() + 900_000).toISOString()
+          : null;
+    if (sourceId === 'x-search' && cooldown) await deferXRequestsUntil(cooldown);
+    const nextPollAt = sourceId === 'x-search' ? (await readXPollState()).nextRequestAt : cooldown;
+    await sql`UPDATE data_sources SET last_error=${summary},next_poll_at=coalesce(${nextPollAt}::timestamptz,next_poll_at),data=data || ${json({ status: 'degraded', cooldownUntil: cooldown })}::jsonb WHERE id=${sourceId}`;
+    if (
+      sourceId === 'x-search' &&
+      error instanceof ConnectorError &&
+      ['AUTH', 'SCHEMA'].includes(error.classification)
+    )
+      await sql`UPDATE data_sources SET enabled=false,data=data || '{"status":"unconfigured"}'::jsonb WHERE id='x-search'`;
     await sql`INSERT INTO source_health_records(id,source_id,status,latency_ms,error) VALUES(${randomUUID()},${sourceId},'degraded',${Date.now() - started},${summary})`;
     throw error;
   }

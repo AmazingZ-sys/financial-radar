@@ -11,6 +11,7 @@ import { useUi } from '../stores/ui';
 import DataState from '../components/DataState.vue';
 import RadarIcon from '../components/RadarIcon.vue';
 import AiIntegrationPanel from '../components/AiIntegrationPanel.vue';
+import XIntegrationPanel from '../components/XIntegrationPanel.vue';
 interface SystemStatus {
   version: string;
   commitSha: string;
@@ -23,6 +24,7 @@ interface SystemStatus {
     provider: string;
     model: string;
     dailyBudgetUsd: number;
+    maxDailyCalls?: number;
     usage: { calls: number; inputTokens: number; outputTokens: number; estimatedCost: number };
   };
   keys: Record<string, boolean>;
@@ -257,8 +259,15 @@ function queueTotal(value: number | Record<string, number> | null | undefined) {
                 <dd class="mono">$ {{ number(system.ai?.dailyBudgetUsd, 2) }}</dd>
               </div>
               <div>
-                <dt>今日调用</dt>
-                <dd class="mono">{{ number(system.ai?.usage?.calls) }} 次</dd>
+                <dt>今日调用 / 上限</dt>
+                <dd class="mono">
+                  {{ number(system.ai?.usage?.calls) }} /
+                  {{
+                    system.ai?.maxDailyCalls === undefined
+                      ? '待服务器升级'
+                      : `${number(system.ai.maxDailyCalls)} 次`
+                  }}
+                </dd>
               </div>
               <div>
                 <dt>输入 / 输出 Token</dt>
@@ -273,7 +282,8 @@ function queueTotal(value: number | Record<string, number> | null | undefined) {
               </div>
             </dl>
             <p class="muted text-xs">
-              AI 为异步辅助分析，超时、预算不足或不可用时，采集与确定性规则继续工作。
+              UTC 日内统计调用，重试和连接测试也计次。上限为 0
+              时暂停真实调用；采集与确定性规则继续工作。
             </p>
           </section>
           <section class="panel detail-panel">
@@ -295,6 +305,7 @@ function queueTotal(value: number | Record<string, number> | null | undefined) {
       ></DataState
     >
     <AiIntegrationPanel />
+    <XIntegrationPanel />
     <div class="settings-grid">
       <section class="panel detail-panel">
         <div class="panel-heading">

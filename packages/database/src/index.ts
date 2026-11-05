@@ -25,3 +25,4 @@ export * from './password.js';
 export * from './seed.js';
 export * from './integrations.js';
 export * from './source-integrations.js';
+export * from './x-integrations.js';

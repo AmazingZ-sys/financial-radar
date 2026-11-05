@@ -33,6 +33,9 @@ export async function verifyModeIsolation() {
     >`SELECT id FROM notification_channels WHERE owner_id=${ownerId} AND provider='telegram'`
   )[0]!.id;
   const app = createApp();
+  const usageBefore = (
+    await sql`SELECT (SELECT count(*) FROM ai_analysis_runs WHERE provider='fixture' AND created_at>=(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')) AS fixture,(SELECT count(*) FROM ai_analysis_runs r CROSS JOIN LATERAL jsonb_array_elements(coalesce(r.data->'reservations','[]'::jsonb)) AS reservation WHERE r.provider<>'fixture' AND (reservation->>'at')::timestamptz>=(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')) AS live`
+  )[0]!;
   let assertions = 0;
   async function request(path: string, method = 'GET', body?: unknown) {
     return app.request('/api/v1' + path, {
@@ -137,7 +140,14 @@ export async function verifyModeIsolation() {
       await sql`INSERT INTO market_observations(id,asset_key,source_id,observed_at,value,unit,data) VALUES(${randomUUID()},${asset},${row.sourceId},${now},${mode === 'fixture' ? '111' : '222'},'USD',${sql.json({ dataMode: mode })})`;
       await sql`INSERT INTO notifications(id,dedup_key,channel_id,event_id,status,data) VALUES(${row.notificationId},${row.notificationId},${channel},${row.eventId},'FAILED',${sql.json({ title: group, body: 'Mode isolation audit', priority: 'P1', dataMode: mode })})`;
       await sql`INSERT INTO alert_triggers(id,rule_id,rule_version,event_id,dedup_key,data) VALUES(${row.triggerId},${ruleId},1,${row.eventId},${row.triggerId},${sql.json({ priority: 'P1' })})`;
-      await sql`INSERT INTO ai_analysis_runs(id,event_id,status,provider,model,prompt_version,cache_key,estimated_cost,data) VALUES(${row.aiId},${row.eventId},'COMPLETED',${mode === 'fixture' ? 'fixture' : 'mode-isolation-test'},'audit','audit',${row.aiId},0,'{}')`;
+      await sql`INSERT INTO ai_analysis_runs(id,event_id,status,provider,model,prompt_version,cache_key,estimated_cost,data) VALUES(${row.aiId},${row.eventId},'COMPLETED',${mode === 'fixture' ? 'fixture' : 'mode-isolation-test'},'audit','audit',${row.aiId},0,${sql.json(
+        {
+          reservations: [
+            { at: now, cost: 0 },
+            { at: now, cost: 0 },
+          ],
+        },
+      )})`;
     }
     for (const current of fixtures) {
       config.dataMode = current.mode;
@@ -241,9 +251,11 @@ export async function verifyModeIsolation() {
       );
       assertions += 2;
       const system = (await get('/system/status')).data as { ai: { usage: { calls: number } } };
-      const expectedUsage =
-        await sql`SELECT count(*) n FROM ai_analysis_runs WHERE (provider='fixture')=${current.mode === 'fixture'} AND created_at>=date_trunc('day',now())`;
-      assert.equal(system.ai.usage.calls, Number(expectedUsage[0]!.n));
+      // Fixture counts synthetic runs; live counts attempts, including retries in one run.
+      assert.equal(
+        system.ai.usage.calls,
+        Number(usageBefore[current.mode]) + (current.mode === 'fixture' ? 1 : 2),
+      );
       assertions++;
     }
     return { assertions, modes: 2, retainedFacts: true };

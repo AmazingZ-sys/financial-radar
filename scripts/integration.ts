@@ -1,7 +1,13 @@
 import { verifyModeIsolation } from './mode-isolation.js';
 import { verifyAIStreamingRecovery } from './ai-streaming-integration.js';
+import { verifyAnalysisCandidates } from './ai-candidate-integration.js';
+import { verifyXManagement } from './x-management-integration.js';
+import { verifyXScheduling } from './x-scheduling-integration.js';
+import { verifyXTopicPipeline } from './x-topics-integration.js';
+import { verifyXAnalysisRecovery } from './x-analysis-recovery-integration.js';
 import { verifyConfiguration } from './configuration-integration.js';
 import { verifyHistoricalPipeline } from './history-integration.js';
+import { verifyNotificationPolicy } from './notification-policy-integration.js';
 import { verifyUniSatIngestion } from './unisat-integration.js';
 import { verifySolanaHistoryRecovery } from './solana-recovery-integration.js';
 import { verifyCommodityRecovery } from './commodity-recovery-integration.js';
@@ -337,6 +343,12 @@ try {
   await verifyUniSatIngestion();
   await verifyConfiguration(app, headers);
   await verifyAIStreamingRecovery();
+  await verifyAnalysisCandidates();
+  await verifyXManagement(app, headers);
+  await verifyXScheduling(app, headers);
+  await verifyXTopicPipeline();
+  await verifyXAnalysisRecovery();
+  await verifyNotificationPolicy();
   await app.request('/api/v1/auth/logout', { method: 'POST', headers });
   check(
     (await app.request('/api/v1/auth/me', { headers })).status === 401,

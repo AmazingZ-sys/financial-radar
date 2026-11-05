@@ -4,6 +4,8 @@ import { Redis } from 'ioredis';
 import { config } from '@radar/config';
 import { sql } from '@radar/database';
 import { createLogger } from '@radar/observability';
+import { scanXTopics } from './x-topics.js';
+import { synchronizeXSchedule } from './x-scheduling.js';
 import {
   initializeSources,
   registry,
@@ -36,6 +38,13 @@ const aiQueue = new Queue('financial-radar-ai', { connection: redis });
 let stopping = false;
 let reconcileRunning = false;
 await initializeSources();
+async function scanXTopicsSafely() {
+  try {
+    await scanXTopics();
+  } catch {
+    log.warn('X topic scan failed; deterministic alerts continue');
+  }
+}
 async function beat() {
   const [coreCounts, aiCounts] = await Promise.all([
     queue.getJobCounts('waiting', 'active', 'failed', 'delayed'),
@@ -80,6 +89,7 @@ if (process.argv.includes('--once')) {
       }
     }
     await scanParticipationWindows();
+    await scanXTopicsSafely();
     await runOutboxOnce();
     await beat();
   } finally {
@@ -178,7 +188,9 @@ if (process.argv.includes('--once')) {
       await sql`SELECT id,enabled,interval_seconds FROM data_sources WHERE mode=${config.dataMode}`;
     const enabled = new Map(
       rows
-        .filter((source) => source.enabled && registry.get(String(source.id)))
+        .filter(
+          (source) => source.id !== 'x-search' && source.enabled && registry.get(String(source.id)),
+        )
         .map((source) => [String(source.id), Number(source.interval_seconds)]),
     );
     for (const entry of await queue.getJobSchedulers()) {
@@ -194,7 +206,7 @@ if (process.argv.includes('--once')) {
           name: 'INGEST',
           data: { sourceId: id },
           opts: {
-            attempts: 3,
+            attempts: id === 'x-search' ? 1 : 3,
             backoff: { type: 'exponential', delay: 5000 },
             removeOnComplete: 100,
             removeOnFail: 200,
@@ -204,6 +216,7 @@ if (process.argv.includes('--once')) {
       scheduled.set(id, interval);
     }
     for (const id of scheduled.keys()) if (!enabled.has(id)) scheduled.delete(id);
+    await synchronizeXSchedule(queue);
   }
   async function reconcile() {
     if (stopping || reconcileRunning) return;
@@ -212,6 +225,7 @@ if (process.argv.includes('--once')) {
       await synchronizeSchedules();
       await recoverLeases();
       await scanParticipationWindows();
+      await scanXTopicsSafely();
       const rows = await claimOutboxJobs();
       for (const row of rows) {
         const kind = String(row.kind).toUpperCase();

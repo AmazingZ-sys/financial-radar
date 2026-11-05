@@ -12,6 +12,8 @@ export const AIReasoningEffortSchema = z.enum(['low', 'medium', 'high', 'xhigh']
 export type AIReasoningEffort = z.infer<typeof AIReasoningEffortSchema>;
 export const DEFAULT_AI_REASONING_EFFORT: AIReasoningEffort = 'xhigh';
 export const AI_CONNECTION_TEST_REASONING_EFFORT: AIReasoningEffort = 'low';
+export const DEFAULT_AI_MAX_DAILY_CALLS = 20;
+export const AIMaxDailyCallsSchema = z.number().int().min(0).max(500);
 
 export const AIConfigSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -23,6 +25,7 @@ export const AIConfigSchema = z.object({
   jsonMode: z.boolean(),
   dailyBudgetUsd: z.number().finite().min(0).max(10000),
   maxCallCostUsd: z.number().finite().min(0).max(1000),
+  maxDailyCalls: AIMaxDailyCallsSchema.default(DEFAULT_AI_MAX_DAILY_CALLS),
 });
 export const AIConfigViewSchema = AIConfigSchema.extend({
   apiKeyConfigured: z.boolean(),
@@ -33,6 +36,7 @@ export const AIConfigPatchSchema = AIConfigSchema.partial()
   .extend({
     // Defaults apply when reading old configurations, never to omitted PATCH fields.
     reasoningEffort: AIReasoningEffortSchema.optional(),
+    maxDailyCalls: AIMaxDailyCallsSchema.optional(),
     apiKey: z
       .string()
       .trim()

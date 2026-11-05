@@ -1145,7 +1145,17 @@ export interface paths {
                 /** @enum {string} */
                 verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 /** @enum {string} */
-                analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
+                analysisStatus:
+                  'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED' | 'SKIPPED';
+                analysisDecision?: {
+                  version: string;
+                  reason: string;
+                  /** Format: date-time */
+                  decidedAt: string;
+                  cooldownKey?: string | null;
+                  /** Format: date-time */
+                  admittedAt?: string;
+                };
                 opportunityScore: number;
                 riskScore: number;
                 /** @enum {string} */
@@ -1316,7 +1326,17 @@ export interface paths {
                 /** @enum {string} */
                 verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 /** @enum {string} */
-                analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
+                analysisStatus:
+                  'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED' | 'SKIPPED';
+                analysisDecision?: {
+                  version: string;
+                  reason: string;
+                  /** Format: date-time */
+                  decidedAt: string;
+                  cooldownKey?: string | null;
+                  /** Format: date-time */
+                  admittedAt?: string;
+                };
                 opportunityScore: number;
                 riskScore: number;
                 /** @enum {string} */
@@ -2759,7 +2779,17 @@ export interface paths {
                   /** @enum {string} */
                   verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                   /** @enum {string} */
-                  analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
+                  analysisStatus:
+                    'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED' | 'SKIPPED';
+                  analysisDecision?: {
+                    version: string;
+                    reason: string;
+                    /** Format: date-time */
+                    decidedAt: string;
+                    cooldownKey?: string | null;
+                    /** Format: date-time */
+                    admittedAt?: string;
+                  };
                   opportunityScore: number;
                   riskScore: number;
                   /** @enum {string} */
@@ -2970,6 +3000,7 @@ export interface paths {
                   provider: string;
                   model: string;
                   dailyBudgetUsd: number;
+                  maxDailyCalls: number;
                   usage: {
                     calls: number;
                     inputTokens: number;
@@ -3348,6 +3379,7 @@ export interface paths {
                   windowSeconds?: number;
                   maxAgeSeconds?: number;
                   verifiedOnly?: boolean;
+                  includeRoutineEvents?: boolean;
                 };
                 /**
                  * @default P2
@@ -3484,6 +3516,7 @@ export interface paths {
               windowSeconds?: number;
               maxAgeSeconds?: number;
               verifiedOnly?: boolean;
+              includeRoutineEvents?: boolean;
             };
             /**
              * @default P2
@@ -3536,6 +3569,7 @@ export interface paths {
                   windowSeconds?: number;
                   maxAgeSeconds?: number;
                   verifiedOnly?: boolean;
+                  includeRoutineEvents?: boolean;
                 };
                 /**
                  * @default P2
@@ -3787,6 +3821,7 @@ export interface paths {
               windowSeconds?: number;
               maxAgeSeconds?: number;
               verifiedOnly?: boolean;
+              includeRoutineEvents?: boolean;
             };
             /**
              * @default P2
@@ -3839,6 +3874,7 @@ export interface paths {
                   windowSeconds?: number;
                   maxAgeSeconds?: number;
                   verifiedOnly?: boolean;
+                  includeRoutineEvents?: boolean;
                 };
                 /**
                  * @default P2
@@ -3986,6 +4022,7 @@ export interface paths {
               windowSeconds?: number;
               maxAgeSeconds?: number;
               verifiedOnly?: boolean;
+              includeRoutineEvents?: boolean;
             };
           };
         };
@@ -5652,6 +5689,7 @@ export interface paths {
               windowSeconds?: number;
               maxAgeSeconds?: number;
               verifiedOnly?: boolean;
+              includeRoutineEvents?: boolean;
             };
           };
         };
@@ -5784,6 +5822,8 @@ export interface paths {
                 jsonMode: boolean;
                 dailyBudgetUsd: number;
                 maxCallCostUsd: number;
+                /** @default 20 */
+                maxDailyCalls: number;
                 apiKeyConfigured: boolean;
                 /** @enum {string} */
                 configOrigin: 'environment' | 'database';
@@ -5890,6 +5930,7 @@ export interface paths {
             jsonMode?: boolean;
             dailyBudgetUsd?: number;
             maxCallCostUsd?: number;
+            maxDailyCalls?: number;
             apiKey?: string;
             clearApiKey?: boolean;
           };
@@ -5918,6 +5959,8 @@ export interface paths {
                 jsonMode: boolean;
                 dailyBudgetUsd: number;
                 maxCallCostUsd: number;
+                /** @default 20 */
+                maxDailyCalls: number;
                 apiKeyConfigured: boolean;
                 /** @enum {string} */
                 configOrigin: 'environment' | 'database';
@@ -6032,6 +6075,463 @@ export interface paths {
                 model: string;
                 /** @enum {string} */
                 reasoningEffort: 'low' | 'medium' | 'high' | 'xhigh';
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/integrations/x': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** X 自建免费采集配置、请求上限和调试状态（不回显登录态） */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                enabled: boolean;
+                usernames: string[];
+                keywords: string[];
+                pollIntervalMinSeconds: number;
+                pollIntervalMaxSeconds: number;
+                maxResults: number;
+                dailyRequestLimit: number;
+                candidateMinAuthors: number;
+                candidateWindowMinutes: number;
+                pollIntervalSeconds: number;
+                sessionConfigured: boolean;
+                collectorConfigured: boolean;
+                credentialError: boolean;
+                /** @enum {string} */
+                configOrigin: 'default' | 'database';
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                query: string;
+                usage: {
+                  day: string;
+                  requests: number;
+                  remaining: number;
+                };
+                lastTest: {
+                  /** @enum {string} */
+                  dataMode: 'live' | 'fixture';
+                  /** @enum {string} */
+                  status: 'connected' | 'failed' | 'skipped';
+                  message: string;
+                  /** Format: date-time */
+                  checkedAt: string;
+                  httpStatus: number | null;
+                  returnedPosts: number;
+                  samples: {
+                    id: string;
+                    text: string;
+                    authorId: string;
+                    /** Format: uri */
+                    url: string;
+                    /** Format: date-time */
+                    sourcePublishedAt: string | null;
+                  }[];
+                } | null;
+                scheduling: {
+                  /** Format: date-time */
+                  lastRequestAt: string | null;
+                  /** Format: date-time */
+                  nextRequestAt: string | null;
+                  lastDelaySeconds: number | null;
+                };
+                source: {
+                  enabled: boolean;
+                  status: string;
+                  /** Format: date-time */
+                  lastFetchedAt: string | null;
+                  lastError: string | null;
+                };
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** 保存 X 自建免费采集配置 */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            enabled?: boolean;
+            usernames?: string[];
+            keywords?: string[];
+            pollIntervalMinSeconds?: number;
+            pollIntervalMaxSeconds?: number;
+            maxResults?: number;
+            dailyRequestLimit?: number;
+            candidateMinAuthors?: number;
+            candidateWindowMinutes?: number;
+            pollIntervalSeconds?: number;
+            sessionCookies?: string;
+            clearSessionCookies?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                enabled: boolean;
+                usernames: string[];
+                keywords: string[];
+                pollIntervalMinSeconds: number;
+                pollIntervalMaxSeconds: number;
+                maxResults: number;
+                dailyRequestLimit: number;
+                candidateMinAuthors: number;
+                candidateWindowMinutes: number;
+                pollIntervalSeconds: number;
+                sessionConfigured: boolean;
+                collectorConfigured: boolean;
+                credentialError: boolean;
+                /** @enum {string} */
+                configOrigin: 'default' | 'database';
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                query: string;
+                usage: {
+                  day: string;
+                  requests: number;
+                  remaining: number;
+                };
+                lastTest: {
+                  /** @enum {string} */
+                  dataMode: 'live' | 'fixture';
+                  /** @enum {string} */
+                  status: 'connected' | 'failed' | 'skipped';
+                  message: string;
+                  /** Format: date-time */
+                  checkedAt: string;
+                  httpStatus: number | null;
+                  returnedPosts: number;
+                  samples: {
+                    id: string;
+                    text: string;
+                    authorId: string;
+                    /** Format: uri */
+                    url: string;
+                    /** Format: date-time */
+                    sourcePublishedAt: string | null;
+                  }[];
+                } | null;
+                scheduling: {
+                  /** Format: date-time */
+                  lastRequestAt: string | null;
+                  /** Format: date-time */
+                  nextRequestAt: string | null;
+                  lastDelaySeconds: number | null;
+                };
+                source: {
+                  enabled: boolean;
+                  status: string;
+                  /** Format: date-time */
+                  lastFetchedAt: string | null;
+                  lastError: string | null;
+                };
+              };
+              meta?: {
+                total: number;
+                page: number;
+                pageSize: number;
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** Format: date-time */
+                asOf: string;
+              };
+            };
+          };
+        };
+        /** @description 输入无效 */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 需要登录 */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 权限或 CSRF 校验失败 */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description 请求频率超过限制 */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error: {
+                code: string;
+                message: string;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/integrations/x/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** 测试已保存 X 配置，最多读取10条，不入库为业务事件或调用 AI */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description 成功 */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              data: {
+                /** @enum {string} */
+                dataMode: 'live' | 'fixture';
+                /** @enum {string} */
+                status: 'connected' | 'failed' | 'skipped';
+                message: string;
+                /** Format: date-time */
+                checkedAt: string;
+                httpStatus: number | null;
+                returnedPosts: number;
+                samples: {
+                  id: string;
+                  text: string;
+                  authorId: string;
+                  /** Format: uri */
+                  url: string;
+                  /** Format: date-time */
+                  sourcePublishedAt: string | null;
+                }[];
               };
               meta?: {
                 total: number;
@@ -6813,7 +7313,17 @@ export interface paths {
                 /** @enum {string} */
                 verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'DISPUTED';
                 /** @enum {string} */
-                analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED';
+                analysisStatus:
+                  'PENDING' | 'COMPLETED' | 'FAILED' | 'DISABLED' | 'DEFERRED' | 'SKIPPED';
+                analysisDecision?: {
+                  version: string;
+                  reason: string;
+                  /** Format: date-time */
+                  decidedAt: string;
+                  cooldownKey?: string | null;
+                  /** Format: date-time */
+                  admittedAt?: string;
+                };
                 opportunityScore: number;
                 riskScore: number;
                 /** @enum {string} */

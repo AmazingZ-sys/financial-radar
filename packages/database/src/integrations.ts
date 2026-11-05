@@ -52,9 +52,13 @@ function envAIConfig() {
     jsonMode: true,
     dailyBudgetUsd: config.aiDailyBudgetUsd,
     maxCallCostUsd: config.aiMaxCallCostUsd,
+    maxDailyCalls: config.aiMaxDailyCalls,
   };
 }
-type StoredAI = ReturnType<typeof envAIConfig> & { encryptedApiKey: string };
+type StoredAI = Omit<ReturnType<typeof envAIConfig>, 'maxDailyCalls'> & {
+  maxDailyCalls?: number;
+  encryptedApiKey: string;
+};
 export async function readAIConfig() {
   const row = (await sql`SELECT data FROM system_settings WHERE key=${CONFIG_KEY}`)[0];
   if (!row)
@@ -66,7 +70,7 @@ export async function readAIConfig() {
     };
   const data = row.data as StoredAI;
   return {
-    ...AIConfigSchema.parse(data),
+    ...AIConfigSchema.parse({ maxDailyCalls: config.aiMaxDailyCalls, ...data }),
     apiKey: decryptIntegrationSecret(data.encryptedApiKey, CONFIG_KEY),
     configOrigin: 'database' as const,
     hasOverride: true,
@@ -81,7 +85,11 @@ export async function saveAIConfig(patch: AIConfigPatch) {
     await tx`SELECT pg_advisory_xact_lock(hashtext(${CONFIG_KEY}))`;
     const row = (await tx`SELECT data FROM system_settings WHERE key=${CONFIG_KEY}`)[0];
     const stored = row?.data as StoredAI | undefined;
-    const fields = AIConfigSchema.parse({ ...(stored ?? envAIConfig()), ...patch });
+    const fields = AIConfigSchema.parse({
+      maxDailyCalls: config.aiMaxDailyCalls,
+      ...(stored ?? envAIConfig()),
+      ...patch,
+    });
     // A full replacement can recover from a lost/rotated encryption key without decrypting old data.
     const apiKey = patch.clearApiKey
       ? ''

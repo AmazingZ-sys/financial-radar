@@ -38,6 +38,8 @@
 
 ## 5. 规则
 
+2026-11-05 机会降噪：普通新池、部署、mint 与链上快照只记录观察，旧 `includeRoutineEvents=true` 也不放行。其他链上项目通知须已核验来源、置信度至少80%、机会分至少65、独立风险分至多60，处于 EARLY_STAGE/ACTIVE 且参与条件已核验并有明确说明；用户规则可以继续收紧。`includeRoutineEvents` 仅保留行情快照选择。已确认严重风险通过独立准入，仍须匹配风险规则其他条件。规则测试、创建通知和发送前复查共用判定；详见 [38 机会通知降噪](38-opportunity-notifications.md)。AI 候选准入与通知规则分别执行，见 [34 候选优先分析](34-candidate-first-analysis.md)。
+
 Zod 允许有限条件字段：eventType、sourceIds、assets、categories、chain、stage、minConfidence、minOpportunityScore、maxRiskScore、participantGrowthPct、mintProgress、priceChangePct、yieldChangeBps、windowSeconds、maxAgeSeconds。规则字段按全部满足，单一列表内部任一值匹配；多条规则可分别设置不同事件组合。禁止任意递归深度/无限数组/eval。冷却按 ownerId/ruleId/projectOrEvent/channel 生效。P0 只由明确信号及验证证据产生；规则测试只返回匹配及原因，不发送。
 
 ### 当前历史差分实现

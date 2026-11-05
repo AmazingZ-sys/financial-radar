@@ -1,6 +1,7 @@
 import { z } from 'zod';
 export * from './integrations.js';
 export * from './source-config.js';
+export * from './x.js';
 export const DataModeSchema = z.enum(['live', 'fixture']);
 export type DataMode = z.infer<typeof DataModeSchema>;
 export const PrioritySchema = z.enum(['P0', 'P1', 'P2', 'P3']);
@@ -44,7 +45,16 @@ export const EventSchema = z.object({
   confidence: z.number().min(0).max(1),
   severity: PrioritySchema,
   verificationStatus: VerificationSchema,
-  analysisStatus: z.enum(['PENDING', 'COMPLETED', 'FAILED', 'DISABLED', 'DEFERRED']),
+  analysisStatus: z.enum(['PENDING', 'COMPLETED', 'FAILED', 'DISABLED', 'DEFERRED', 'SKIPPED']),
+  analysisDecision: z
+    .object({
+      version: z.string(),
+      reason: z.string(),
+      decidedAt: Time,
+      cooldownKey: z.string().nullable().optional(),
+      admittedAt: Time.optional(),
+    })
+    .optional(),
   opportunityScore: z.number().min(0).max(100),
   riskScore: z.number().min(0).max(100),
   dataMode: DataModeSchema,
@@ -113,6 +123,7 @@ export const RuleConditionsSchema = z
     windowSeconds: z.number().int().min(60).max(604800).optional(),
     maxAgeSeconds: z.number().int().min(0).max(31536000).optional(),
     verifiedOnly: z.boolean().optional(),
+    includeRoutineEvents: z.boolean().optional(),
   })
   .strict();
 export type RuleConditions = z.infer<typeof RuleConditionsSchema>;

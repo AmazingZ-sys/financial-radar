@@ -412,14 +412,14 @@ export async function verifyConfiguration(
       'Missing source time remains null with separate discovery time',
     );
     check(
-      event.analysisStatus === 'PENDING',
-      'Saved AI credentials enqueue analysis even without environment API key',
+      event.analysisStatus === 'SKIPPED',
+      'Unverified news is retained without automatically spending saved AI credentials',
     );
     config.dataMode = 'fixture';
     await analyzeEvent(String(eventRow.id));
     check(
       (await sql`SELECT data FROM events WHERE id=${eventRow.id}`)[0]!.data.analysisStatus ===
-        'PENDING',
+        'SKIPPED',
       'Fixture worker does not overwrite retained live events with synthetic AI',
     );
     config.dataMode = 'live';

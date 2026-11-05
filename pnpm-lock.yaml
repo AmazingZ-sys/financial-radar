@@ -247,6 +247,9 @@ importers:
       '@radar/config':
         specifier: workspace:*
         version: link:../config
+      '@radar/shared':
+        specifier: workspace:*
+        version: link:../shared
       fast-xml-parser:
         specifier: ^5.3.0
         version: 5.11.2

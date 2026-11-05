@@ -33,6 +33,8 @@ export const labels: Record<string, string> = {
   SOCIAL_MOMENTUM: '社区关注增长',
   OFFICIAL_ANNOUNCEMENT: '官方公告',
   NEWS: '热点新闻',
+  SOCIAL_POST: 'X 原创帖子',
+  X_HOT_TOPIC: 'X 讨论候选',
   EXCHANGE_LISTING: '交易所上市',
   PENDING: '等待处理',
   SENDING: '发送中',

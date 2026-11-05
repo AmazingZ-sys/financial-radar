@@ -49,6 +49,15 @@ const analysis = computed(() =>
     ? (event.value.analysis as Record<string, unknown>)
     : null,
 );
+const skippedReason = computed(() => {
+  const reason = event.value?.analysisDecision?.reason ?? '';
+  if (reason.includes('STALE')) return '信息已超过一小时的分析窗口，已跳过付费分析。';
+  if (reason.includes('BUDGET') || reason.includes('CALL_LIMIT'))
+    return '今日分析额度已用尽，已跳过付费分析。';
+  if (reason === 'ASSET_COOLDOWN') return '同一资产已进入研究冷却期，已跳过重复分析。';
+  if (reason === 'CANDIDATE_CAPACITY') return '待研究候选已达上限，已跳过本次分析。';
+  return '这条信息未进入自动研究候选，已保留原始证据，本次跳过付费分析。';
+});
 function jsonText(value: unknown): string {
   if (value === undefined) return '未知';
   try {
@@ -137,6 +146,9 @@ function breakdown(value: unknown) {
                   {{ analysis.promptVersion ?? '未知' }} · 模型推断需结合原始证据核验
                 </div></template
               >
+              <div v-else-if="event.analysisStatus === 'SKIPPED'" class="empty-inline">
+                {{ skippedReason }} 规则与确定性预警独立运行。
+              </div>
               <div v-else class="empty-inline">
                 暂无 AI 解读。规则与确定性预警持续运行，不依赖模型可用性。
               </div>

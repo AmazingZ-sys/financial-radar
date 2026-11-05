@@ -1,6 +1,16 @@
 # Local dependencies only. Run API, Worker and Web with pnpm on the host.
 name: financial-radar-dev
 services:
+  x-collector:
+    profiles: [x-free]
+    build: ./services/x-collector
+    environment:
+      X_COLLECTOR_SECRET: ${X_COLLECTOR_SECRET:-}
+    ports: ['127.0.0.1:18080:8080']
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
   postgres:
     image: postgres:17-alpine
     environment: { POSTGRES_DB: radar, POSTGRES_USER: radar, POSTGRES_PASSWORD: radar_dev_only }

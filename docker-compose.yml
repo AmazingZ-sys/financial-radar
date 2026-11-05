@@ -57,6 +57,24 @@ services:
       start_period: 30s
     mem_limit: 1g
     cpus: 1
+  x-collector:
+    profiles: [x-free]
+    build: ./services/x-collector
+    image: financial-radar-x-collector:local
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      X_COLLECTOR_SECRET: ${X_COLLECTOR_SECRET:-}
+    # Internal only: API and Worker use http://x-collector:8080.
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+    mem_limit: 512m
+    cpus: 0.5
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped

@@ -1,13 +1,24 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { config } from '@radar/config';
+
+const mocks = vi.hoisted(() => ({
+  sql: Object.assign(vi.fn<(...args: unknown[]) => Promise<unknown[]>>(), {
+    begin: vi.fn(),
+    json: (value: unknown) => value,
+  }),
+}));
+vi.mock('./index.js', () => ({ sql: mocks.sql, closeDatabase: vi.fn(async () => {}) }));
 import {
   encryptIntegrationSecret,
   decryptIntegrationSecret,
   aiConfigView,
   notificationConfigView,
   readNotificationConfig,
+  readAIConfig,
+  saveAIConfig,
 } from './integrations.js';
 import { closeDatabase } from './index.js';
-afterAll(closeDatabase);
+afterAll(async () => closeDatabase());
 describe('integration credential storage', () => {
   it('encrypts with unique nonces, authenticates context, and rejects tampering', () => {
     const one = encryptIntegrationSecret('sample-secret-for-test', 'ai');
@@ -32,6 +43,7 @@ describe('integration credential storage', () => {
       jsonMode: true,
       dailyBudgetUsd: 1,
       maxCallCostUsd: 0.1,
+      maxDailyCalls: 20,
       configOrigin: 'database',
       hasOverride: true,
     });
@@ -91,5 +103,60 @@ describe('integration credential storage', () => {
     });
     expect(JSON.stringify(view)).not.toContain('never-render-this');
     expect(view).not.toHaveProperty('smtpPassword');
+  });
+});
+
+describe('managed AI daily call limit storage', () => {
+  const initialLimit = config.aiMaxDailyCalls;
+  let stored: Record<string, unknown> | undefined;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    config.aiMaxDailyCalls = 37;
+    stored = undefined;
+    mocks.sql.begin.mockImplementation(
+      async (transaction: (tx: typeof mocks.sql) => Promise<unknown>) => transaction(mocks.sql),
+    );
+    mocks.sql.mockImplementation(async (query, ...parameters) => {
+      const text = (query as TemplateStringsArray).join('');
+      if (text.includes('SELECT data FROM system_settings'))
+        return stored ? [{ data: stored }] : [];
+      if (text.includes('INSERT INTO system_settings'))
+        stored = parameters.find(
+          (value): value is Record<string, unknown> =>
+            value !== null && typeof value === 'object' && 'encryptedApiKey' in value,
+        );
+      return [];
+    });
+  });
+  afterEach(() => {
+    config.aiMaxDailyCalls = initialLimit;
+  });
+
+  it('uses the server environment for absent storage and legacy records without the field', async () => {
+    expect((await readAIConfig()).maxDailyCalls).toBe(37);
+    stored = {
+      name: 'Legacy relay',
+      enabled: true,
+      baseUrl: 'https://relay.example/v1',
+      model: 'model-a',
+      timeoutMs: 20000,
+      jsonMode: true,
+      dailyBudgetUsd: 1,
+      maxCallCostUsd: 0.1,
+      encryptedApiKey: encryptIntegrationSecret('legacy-test-key', 'integrations:ai'),
+    };
+    expect((await readAIConfig()).maxDailyCalls).toBe(37);
+    expect((await saveAIConfig({ name: 'Renamed legacy relay' })).maxDailyCalls).toBe(37);
+    expect(stored.maxDailyCalls).toBe(37);
+  });
+
+  it('persists zero and hot-reads edits without resetting the limit on unrelated PATCHes', async () => {
+    expect((await saveAIConfig({ maxDailyCalls: 0 })).maxDailyCalls).toBe(0);
+    expect((await readAIConfig()).maxDailyCalls).toBe(0);
+    config.aiMaxDailyCalls = 80;
+    expect((await saveAIConfig({ name: 'Renamed relay' })).maxDailyCalls).toBe(0);
+    expect((await readAIConfig()).maxDailyCalls).toBe(0);
+    expect((await saveAIConfig({ maxDailyCalls: 4 })).maxDailyCalls).toBe(4);
+    expect((await readAIConfig()).maxDailyCalls).toBe(4);
   });
 });

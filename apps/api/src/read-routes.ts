@@ -390,6 +390,7 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
         provider: z.string(),
         model: z.string(),
         dailyBudgetUsd: z.number(),
+        maxDailyCalls: z.number().int().min(0).max(500),
         usage: z.object({
           calls: z.number(),
           inputTokens: z.number(),
@@ -407,7 +408,7 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
     async (c) => {
       const [hb, usage, queues, aiConfig, channels, sourceConfig] = await Promise.all([
         sql`SELECT data FROM system_settings WHERE key='worker:heartbeat'`,
-        sql`SELECT count(*) calls,coalesce(sum(input_tokens),0) input_tokens,coalesce(sum(output_tokens),0) output_tokens,coalesce(sum(estimated_cost),0) estimated_cost FROM ai_analysis_runs WHERE (provider='fixture')=${config.dataMode === 'fixture'} AND created_at>=date_trunc('day',now())`,
+        sql`SELECT CASE WHEN ${config.dataMode === 'fixture'} THEN count(*) ELSE (SELECT count(*) FROM ai_analysis_runs r CROSS JOIN LATERAL jsonb_array_elements(coalesce(r.data->'reservations','[]'::jsonb)) AS reservation WHERE r.provider<>'fixture' AND (reservation->>'at')::timestamptz>=(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')) END AS calls,coalesce(sum(input_tokens),0) input_tokens,coalesce(sum(output_tokens),0) output_tokens,coalesce(sum(estimated_cost),0) estimated_cost FROM ai_analysis_runs WHERE (provider='fixture')=${config.dataMode === 'fixture'} AND created_at>=(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')`,
         queueCounts(),
         readAIConfig(),
         sql`SELECT id,name,enabled,provider,data FROM notification_channels WHERE owner_id=${c.get('actor').id}`,
@@ -451,6 +452,7 @@ export function readRoutes(app: OpenAPIHono<ApiEnv>) {
             model:
               config.dataMode === 'fixture' ? 'fixture-evidence-v1' : aiConfig.model || '未配置',
             dailyBudgetUsd: aiConfig.dailyBudgetUsd,
+            maxDailyCalls: aiConfig.maxDailyCalls,
             usage: {
               calls: Number(u.calls),
               inputTokens: Number(u.input_tokens),

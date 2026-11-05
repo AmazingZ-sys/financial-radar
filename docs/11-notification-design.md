@@ -8,6 +8,8 @@ P0 紧急且已验证的重大事故/基础设施故障；P1 可信的早期参�
 
 决策保存：匹配规则版本、输入快照、条件解释、冷却窗口、选择渠道、发送/抑制原因。高风险必须突出，不能被机会分抵消。价格异常需真实采样和明确窗口，收益率变化用 bps，不能与价格百分比混算。
 
+2026-11-05 补充：[机会通知降噪](38-opportunity-notifications.md) 将原始新池/新币/mint/链上快照固定为观察事实，其他链上机会必须满足来源、参与条件、阶段、置信度与独立评分门槛。发送前重新读取持久化事件和当前启用规则，旧积压不达标记录 CANCELLED 和复查原因；SENT 历史不变，手动渠道测试独立。
+
 ## 2. Provider
 
 统一 `send(message, channelConfig)` 返回 `accepted`、platformMessageId、acceptedAt、retryable、retryAfter。Telegram Bot、飞书 Bot、Bark、SMTP 邮箱在通知中心配置；环境变量作为初始默认，页面保存凭据后由后续发送任务读取服务端加密配置。Token/设备 Key/Webhook、SMTP 密码不回显，页面仅显示配置状态和非密钥 Chat ID、发件人及收件人摘要；空白保留、明确清除后不回退环境密钥。邮箱支持自定义 SMTP 主机、端口、TLS/STARTTLS、可选用户名密码、发件地址和收件人列表；SMTP 连接与单次投递有超时，禁止重定向，收件人地址经 Zod 校验。支持 plain text/受控转义格式，避免来源正文注入平台格式；消息长度上限截断并附站内详情 URL。凭据损坏时保留可编辑的安全视图，实际发送记录 FAILED 并释放租约。

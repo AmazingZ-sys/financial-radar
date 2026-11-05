@@ -45,7 +45,7 @@ const form = reactive({
   name: '',
   enabled: true,
   priority: 'P1',
-  minConfidence: 70,
+  minConfidence: 80,
   minOpportunityScore: 65,
   maxRiskScore: 60,
   minParticipantGrowthPct: 0,
@@ -53,14 +53,15 @@ const form = reactive({
   maxMintProgress: 100,
   minPriceChangePct: 0,
   minYieldChangeBps: 0,
-  verifiedOnly: false,
+  verifiedOnly: true,
+  includeRoutineEvents: false,
   assets: '',
   categories: '',
   sourceIds: '',
   chains: '',
   stages: '',
   eventTypes: '',
-  cooldownSeconds: 3600,
+  cooldownSeconds: 86400,
   windowSeconds: 3600,
   channelIds: [] as string[],
 });
@@ -72,7 +73,7 @@ function edit(rule?: AlertRule) {
     name: rule?.name ?? '',
     enabled: rule?.enabled ?? true,
     priority: rule?.priority ?? 'P1',
-    minConfidence: (rule?.conditions.minConfidence ?? 0.7) * 100,
+    minConfidence: (rule?.conditions.minConfidence ?? 0.8) * 100,
     minOpportunityScore: rule?.conditions.minOpportunityScore ?? 65,
     maxRiskScore: rule?.conditions.maxRiskScore ?? 60,
     minParticipantGrowthPct: rule?.conditions.minParticipantGrowthPct ?? 0,
@@ -80,14 +81,15 @@ function edit(rule?: AlertRule) {
     maxMintProgress: rule?.conditions.maxMintProgress ?? 100,
     minPriceChangePct: rule?.conditions.minPriceChangePct ?? 0,
     minYieldChangeBps: rule?.conditions.minYieldChangeBps ?? 0,
-    verifiedOnly: rule?.conditions.verifiedOnly ?? false,
+    verifiedOnly: rule?.conditions.verifiedOnly ?? true,
+    includeRoutineEvents: rule?.conditions.includeRoutineEvents ?? false,
     assets: rule?.conditions.assets?.join(', ') ?? '',
     categories: rule?.conditions.categories?.join(', ') ?? '',
     sourceIds: rule?.conditions.sourceIds?.join(', ') ?? '',
     chains: rule?.conditions.chains?.join(', ') ?? '',
     stages: rule?.conditions.stages?.join(', ') ?? '',
     eventTypes: rule?.conditions.eventTypes?.join(', ') ?? '',
-    cooldownSeconds: rule?.cooldownSeconds ?? 3600,
+    cooldownSeconds: rule?.cooldownSeconds ?? 86400,
     windowSeconds: rule?.conditions.windowSeconds ?? 3600,
     channelIds: [...(rule?.channelIds ?? [])],
   });
@@ -128,6 +130,7 @@ async function save() {
           ? { minYieldChangeBps: Number(form.minYieldChangeBps) }
           : {}),
         verifiedOnly: form.verifiedOnly,
+        ...(form.includeRoutineEvents ? { includeRoutineEvents: true } : {}),
         windowSeconds: Number(form.windowSeconds),
         ...(form.assets ? { assets: split(form.assets) } : {}),
         ...(form.categories ? { categories: split(form.categories) } : {}),
@@ -200,7 +203,7 @@ async function test(rule: AlertRule) {
       <div>
         <div class="eyebrow">ALERT ENGINE</div>
         <h1>预警规则<span class="title-dot">.</span></h1>
-        <p>定义你关注的变化，以可解释的条件筛选信号。</p>
+        <p>普通建池、发币只观察；通知聚焦已核验的参与机会与独立风险信号。</p>
       </div>
       <button class="btn btn-primary" @click="edit()">
         <RadarIcon name="plus" :size="16" />新建规则
@@ -250,6 +253,7 @@ async function test(rule: AlertRule) {
               >风险评分 ≤ <b>{{ rule.conditions.maxRiskScore }}</b></span
             ><span v-if="rule.conditions.verifiedOnly"
               ><RadarIcon name="shield" :size="13" />仅已验证来源</span
+            ><span v-if="rule.conditions.includeRoutineEvents">包含行情快照</span
             ><span v-if="rule.conditions.assets?.length"
               >资产：<b>{{ rule.conditions.assets.join(' / ') }}</b></span
             ><span v-if="rule.conditions.sourceIds?.length"
@@ -264,7 +268,7 @@ async function test(rule: AlertRule) {
           <div class="rule-card-bottom">
             <span class="muted text-xs">{{
               rule.enabled
-                ? '规则持续检测，匹配后按冷却与偏好推送。'
+                ? '通过通知准入并匹配规则后，按冷却与偏好推送。'
                 : '规则已暂停，不再产生新的通知。'
             }}</span>
             <div>
@@ -352,6 +356,10 @@ async function test(rule: AlertRule) {
       align-center
       append-to-body
       ><form class="form-grid" @submit.prevent="save">
+        <p class="muted text-xs full">
+          链上机会须已验证来源、置信度至少 80%、机会分至少 65、风险分至多
+          60，且处于早期或活跃阶段、参与条件已核验。以下规则可进一步收紧；严重风险由独立风险规则判定。
+        </p>
         <div class="form-field full">
           <label for="rule-name">规则名称</label
           ><input
@@ -521,7 +529,7 @@ async function test(rule: AlertRule) {
           ><input
             id="rule-types"
             v-model="form.eventTypes"
-            placeholder="NEW_PROTOCOL, MINT_STARTED"
+            placeholder="UNIQUE_PARTICIPANTS_SPIKE, LIQUIDITY_ADDED"
             maxlength="1000"
           />
         </div>
@@ -539,6 +547,14 @@ async function test(rule: AlertRule) {
         <div class="form-field full">
           <label class="checkbox-label"
             ><input v-model="form.verifiedOnly" type="checkbox" />只匹配已验证来源</label
+          >
+        </div>
+        <div class="form-field full">
+          <label class="checkbox-label"
+            ><input v-model="form.includeRoutineEvents" type="checkbox" />包含行情快照</label
+          ><span class="muted text-xs"
+            >仅对行情快照生效。新建交易对、部署、普通 mint
+            和链上状态快照只记录观察，勾选也不会发送。</span
           >
         </div>
         <div v-if="formError" class="form-error full" role="alert">{{ formError }}</div>

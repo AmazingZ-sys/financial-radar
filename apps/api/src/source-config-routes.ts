@@ -98,7 +98,7 @@ export function sourceConfigRoutes(app: OpenAPIHono<ApiEnv>) {
             (source.id === 'fed-rss' ? 'https://www.federalreserve.gov/feeds/press_all.xml' : null),
           intervalSeconds: source.pollIntervalSeconds,
           licenseStatus: source.licenseStatus,
-          requiresConfiguration: ['unisat', 'dex', 'evm', 'solana'].some((prefix) =>
+          requiresConfiguration: ['unisat', 'dex', 'evm', 'solana', 'x-'].some((prefix) =>
             source.id.startsWith(prefix),
           ),
           installed: config.dataMode === 'live' && Boolean(row),

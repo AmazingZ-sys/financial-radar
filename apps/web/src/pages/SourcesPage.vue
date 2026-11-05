@@ -231,7 +231,11 @@ async function saveInterval() {
               <h2>{{ source.name }}</h2>
               <span>{{ source.connectorType }} · {{ source.id }}</span>
             </div>
+            <RouterLink v-if="source.id === 'x-search'" class="text-link" to="/system#x-integration"
+              >管理 X 采集 →</RouterLink
+            >
             <el-switch
+              v-else
               :model-value="source.enabled"
               :aria-label="`${source.name}启用状态`"
               @change="toggle(source)"
@@ -267,8 +271,10 @@ async function saveInterval() {
               </dd>
             </div>
             <div>
-              <dt>轮询周期</dt>
-              <dd>{{ number(source.intervalSeconds) }} 秒</dd>
+              <dt>{{ source.id === 'x-search' ? '采集计划' : '轮询周期' }}</dt>
+              <dd>
+                {{ source.id === 'x-search' ? '随机区间' : `${number(source.intervalSeconds)} 秒` }}
+              </dd>
             </div>
             <div>
               <dt>请求延迟</dt>
@@ -327,7 +333,14 @@ async function saveInterval() {
             </div>
             <div class="source-catalog-description">
               <p>{{ source.description }}</p>
-              <span>{{ source.licenseStatus }} · {{ source.intervalSeconds }} 秒轮询</span>
+              <span
+                >{{ source.licenseStatus }} ·
+                {{
+                  source.id === 'x-search'
+                    ? '随机区间，在系统管理配置'
+                    : `${source.intervalSeconds} 秒轮询`
+                }}</span
+              >
             </div>
             <div class="source-catalog-actions">
               <a
@@ -337,8 +350,13 @@ async function saveInterval() {
                 target="_blank"
                 rel="noopener noreferrer"
                 >来源说明<RadarIcon name="external" :size="12" /></a
+              ><RouterLink
+                v-if="source.id === 'x-search'"
+                class="text-link"
+                to="/system#x-integration"
+                >管理 X 采集 →</RouterLink
               ><button
-                v-if="live && source.installed"
+                v-else-if="live && source.installed"
                 class="text-link"
                 @click="toggleCatalog(source)"
               >
@@ -436,7 +454,11 @@ async function saveInterval() {
       append-to-body
       ><template v-if="selected"
         ><p class="muted">{{ selected.description }}</p>
-        <div class="source-config-row">
+        <div v-if="selected.id === 'x-search'" class="source-config-row">
+          <span>X 按保存的最短、最长间隔随机安排请求。</span>
+          <RouterLink class="text-link" to="/system#x-integration">调整 X 采集区间 →</RouterLink>
+        </div>
+        <div v-else class="source-config-row">
           <label for="source-interval">轮询周期（秒）</label
           ><input
             id="source-interval"

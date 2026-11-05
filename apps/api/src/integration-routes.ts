@@ -71,13 +71,13 @@ export function integrationRoutes(app: OpenAPIHono<ApiEnv>) {
       const allowed = await sql.begin(async (tx) => {
         await tx`SELECT pg_advisory_xact_lock(hashtext('financial-radar-ai-budget'))`;
         const usage = (
-          await tx`SELECT coalesce(sum((reservation->>'cost')::numeric),0)::float AS cost,count(*)::int AS calls FROM ai_analysis_runs CROSS JOIN LATERAL jsonb_array_elements(coalesce(data->'reservations','[]'::jsonb)) AS reservation WHERE provider<>'fixture' AND (reservation->>'at')::timestamptz>=date_trunc('day',now() AT TIME ZONE 'UTC')`
+          await tx`SELECT coalesce(sum((reservation->>'cost')::numeric),0)::float AS cost,count(*)::int AS calls FROM ai_analysis_runs CROSS JOIN LATERAL jsonb_array_elements(coalesce(data->'reservations','[]'::jsonb)) AS reservation WHERE provider<>'fixture' AND (reservation->>'at')::timestamptz>=(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')`
         )[0]!;
         if (
           effective.dailyBudgetUsd <= 0 ||
           reservedCost <= 0 ||
           Number(usage.cost) + reservedCost > effective.dailyBudgetUsd ||
-          Number(usage.calls) >= 500
+          Number(usage.calls) >= effective.maxDailyCalls
         )
           return false;
         const data = {

@@ -71,6 +71,7 @@ const effective = {
   reasoningEffort: 'xhigh',
   dailyBudgetUsd: 2,
   maxCallCostUsd: 0.05,
+  maxDailyCalls: 20,
   configOrigin: 'database',
   hasOverride: true,
 };
@@ -150,6 +151,57 @@ describe('AI connection test streaming and reasoning effort', () => {
     expect(mocks.fetchPublicHttpsStream).not.toHaveBeenCalled();
     expect(mocks.sql.begin).not.toHaveBeenCalled();
     expect(mocks.saveAIConfig).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { maxDailyCalls: 0, calls: 0 },
+    { maxDailyCalls: 2, calls: 2 },
+  ])(
+    'stops connection tests at the saved daily cap ($maxDailyCalls)',
+    async ({ maxDailyCalls, calls }) => {
+      mocks.readAIConfig.mockResolvedValue({ ...effective, maxDailyCalls });
+      mocks.sql.mockImplementation(async (query) =>
+        (query as TemplateStringsArray).join('').includes('coalesce(sum')
+          ? [{ cost: 0, calls }]
+          : [],
+      );
+      const response = await createTestApp().request('/api/v1/integrations/ai/test', {
+        method: 'POST',
+      });
+      expect(response.status).toBe(409);
+      expect(await response.text()).toContain('每日预算或调用额度不足');
+      expect(mocks.fetchPublicHttpsStream).not.toHaveBeenCalled();
+      expect(
+        mocks.sql.mock.calls.some((call) =>
+          (call[0] as TemplateStringsArray).join('').includes('INSERT INTO ai_analysis_runs'),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it('hot-reads a raised limit and reserves the next connection test against the same UTC budget', async () => {
+    mocks.readAIConfig.mockResolvedValueOnce({ ...effective, maxDailyCalls: 2 });
+    mocks.readAIConfig.mockResolvedValueOnce({ ...effective, maxDailyCalls: 3 });
+    mocks.sql.mockImplementation(async (query) =>
+      (query as TemplateStringsArray).join('').includes('coalesce(sum')
+        ? [{ cost: 0, calls: 2 }]
+        : [],
+    );
+    const app = createTestApp();
+    expect((await app.request('/api/v1/integrations/ai/test', { method: 'POST' })).status).toBe(
+      409,
+    );
+    expect((await app.request('/api/v1/integrations/ai/test', { method: 'POST' })).status).toBe(
+      200,
+    );
+    expect(mocks.fetchPublicHttpsStream).toHaveBeenCalledTimes(1);
+    expect(
+      mocks.sql.mock.calls.some((call) =>
+        (call[0] as TemplateStringsArray)
+          .join('')
+          .includes("date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'"),
+      ),
+    ).toBe(true);
   });
 
   it('surfaces an unsupported effort error without retrying another setting', async () => {

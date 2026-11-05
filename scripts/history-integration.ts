@@ -380,8 +380,8 @@ export async function verifyHistoricalPipeline(
     );
     check(
       (await sql`SELECT count(*)::int n FROM notifications WHERE channel_id=${channelId}`)[0]!.n ===
-        3,
-      'signals create durable notifications through the outbox',
+        2,
+      'only evidenced historical opportunity/risk signals create durable notifications',
     );
     check(
       (
@@ -404,8 +404,8 @@ export async function verifyHistoricalPipeline(
     check(
       (
         await sql`SELECT count(*)::int n FROM outbox_jobs WHERE kind='NOTIFY' AND entity_id IN (SELECT id FROM notifications WHERE channel_id=${channelId})`
-      )[0]!.n === 3,
-      'notification outbox commit matches the three deterministic rule triggers',
+      )[0]!.n === 2,
+      'notification outbox commit matches the two eligible deterministic rule triggers',
     );
     if (inspect)
       await inspect({

@@ -5,7 +5,9 @@ import {
   AIConfigViewSchema,
   AIConnectionTestSchema,
   AIReasoningEffortSchema,
+  AIMaxDailyCallsSchema,
   DEFAULT_AI_REASONING_EFFORT,
+  DEFAULT_AI_MAX_DAILY_CALLS,
   type AIConfigView,
   type AIReasoningEffort,
 } from '@radar/shared';
@@ -17,10 +19,13 @@ import RadarIcon from './RadarIcon.vue';
 // Detect support before applying the default used by historical stored configurations.
 const AIConfigResponseSchema = AIConfigViewSchema.extend({
   reasoningEffort: AIReasoningEffortSchema.optional(),
+  maxDailyCalls: AIMaxDailyCallsSchema.optional(),
 }).transform((value) => ({
   ...value,
   reasoningEffort: value.reasoningEffort ?? DEFAULT_AI_REASONING_EFFORT,
   supportsReasoningEffort: value.reasoningEffort !== undefined,
+  maxDailyCalls: value.maxDailyCalls ?? DEFAULT_AI_MAX_DAILY_CALLS,
+  supportsMaxDailyCalls: value.maxDailyCalls !== undefined,
 }));
 const client = useQueryClient();
 const { data, isPending, error, refetch } = useQuery({
@@ -28,6 +33,7 @@ const { data, isPending, error, refetch } = useQuery({
   queryFn: () => api('/integrations/ai', {}, AIConfigResponseSchema),
 });
 const reasoningSupported = computed(() => data.value?.data.supportsReasoningEffort === true);
+const dailyCallsSupported = computed(() => data.value?.data.supportsMaxDailyCalls === true);
 const form = reactive({
   name: '',
   enabled: false,
@@ -38,6 +44,7 @@ const form = reactive({
   jsonMode: true,
   dailyBudgetUsd: 1,
   maxCallCostUsd: 0.1,
+  maxDailyCalls: DEFAULT_AI_MAX_DAILY_CALLS,
 });
 const apiKey = ref('');
 const clearApiKey = ref(false);
@@ -74,6 +81,7 @@ function resetForm(value: AIConfigView) {
     jsonMode: value.jsonMode,
     dailyBudgetUsd: value.dailyBudgetUsd,
     maxCallCostUsd: value.maxCallCostUsd,
+    maxDailyCalls: value.maxDailyCalls,
   });
   apiKey.value = '';
   clearApiKey.value = false;
@@ -98,11 +106,12 @@ async function save() {
   saveError.value = '';
   testMessage.value = '';
   const submitted = { ...form };
-  const { reasoningEffort, ...legacyFields } = submitted;
+  const { reasoningEffort, maxDailyCalls, ...legacyFields } = submitted;
   try {
     await write('/integrations/ai', 'PATCH', {
       ...legacyFields,
       ...(reasoningSupported.value ? { reasoningEffort } : {}),
+      ...(dailyCallsSupported.value ? { maxDailyCalls } : {}),
       ...(apiKey.value ? { apiKey: apiKey.value } : {}),
       ...(clearApiKey.value ? { clearApiKey: true } : {}),
     });
@@ -182,6 +191,11 @@ async function clearUnavailableKey() {
             >已保存推理 · {{ savedReasoningLabel }}</span
           >
           <span v-else class="badge">推理设置待升级</span>
+          <span v-if="dailyCallsSupported" class="badge">{{
+            data.data.maxDailyCalls === 0
+              ? '真实调用已暂停'
+              : `已保存上限 · ${data.data.maxDailyCalls} 次 / UTC 日`
+          }}</span>
           <p>连接官方服务或兼容 Chat Completions 的中转站。保存后对后续任务生效。</p>
         </div>
         <form class="form-grid integration-form" autocomplete="off" @submit.prevent="save">
@@ -313,6 +327,25 @@ async function clearUnavailableKey() {
               step="0.001"
               required
             />
+          </div>
+          <div class="form-field full">
+            <label for="ai-max-daily-calls">每日最多调用次数</label>
+            <input
+              id="ai-max-daily-calls"
+              v-model.number="form.maxDailyCalls"
+              type="number"
+              min="0"
+              max="500"
+              step="1"
+              required
+              :disabled="!dailyCallsSupported"
+              aria-describedby="ai-max-daily-calls-hint"
+            />
+            <span id="ai-max-daily-calls-hint" class="field-hint">{{
+              dailyCallsSupported
+                ? '默认 20 次，0 暂停新的真实调用。分析、重试和连接测试共用此上限，按 UTC 日重置；保存后对后续请求生效。'
+                : '当前服务器不支持管理每日调用次数，请升级 API 和 Worker 后刷新。其他 AI 配置仍可保存。'
+            }}</span>
           </div>
           <p v-if="saveError" class="form-error full" role="alert">{{ saveError }}</p>
           <p

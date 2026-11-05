@@ -203,14 +203,87 @@ export type RuleEvent = {
   opportunityScore: number;
   riskScore: number;
   chain?: string;
+  assetKey?: string;
   stage?: string;
+  project?: { stage?: string; conditions?: string | null };
+  conditionsVerified?: boolean;
   verificationStatus?: string;
   firstSeenAt: string;
   metrics?: Record<string, unknown>;
+  riskFlags?: string[];
+  riskBreakdown?: unknown;
 };
+const rawChainEventTypes = new Set([
+  'PAIR_CREATED',
+  'NEW_TRADING_PAIR',
+  'TOKEN_DEPLOYED',
+  'NEW_TOKEN_DEPLOYED',
+  'MINT_CREATED',
+  'MINT_STARTED',
+  'TOKEN_STATE_SNAPSHOT',
+  'LIQUIDITY_SNAPSHOT',
+]);
+const chainSignalTypes = new Set([
+  ...rawChainEventTypes,
+  'MINT_PROGRESS_ACCELERATED',
+  'UNIQUE_PARTICIPANTS_SPIKE',
+  'LIQUIDITY_ADDED',
+  'LIQUIDITY_REMOVED',
+  'VOLUME_SPIKE',
+  'SOCIAL_MOMENTUM',
+  'PROJECT_LAUNCHED',
+  'PROJECT_TRUST_CHANGED',
+  'PARTICIPATION_WINDOW_EXPIRING',
+  'PARTICIPATION_WINDOW_EXPIRED',
+]);
+function hasCriticalRisk(event: RuleEvent) {
+  const breakdown =
+    event.riskBreakdown && typeof event.riskBreakdown === 'object'
+      ? (event.riskBreakdown as Record<string, unknown>)
+      : undefined;
+  const flags = [
+    ...(event.riskFlags ?? []),
+    ...(Array.isArray(breakdown?.flags) ? breakdown.flags : []),
+  ];
+  return flags.some((flag) =>
+    ['PHISHING', 'UNRESTRICTED_MINT', 'LIQUIDITY_REMOVAL'].includes(flag),
+  );
+}
+/** Hard opportunity admission is shared by rule previews, creation and delivery.
+ * A structured critical risk stays eligible for its independent risk rules. */
+export function evaluateNotificationAdmission(event: RuleEvent) {
+  const reasons: string[] = [];
+  if (hasCriticalRisk(event)) return { matched: true, reasons };
+  if (rawChainEventTypes.has(event.eventType))
+    return { matched: false, reasons: ['普通链上发现只记录观察，不作为机会通知'] };
+  const isChainProject =
+    event.project !== undefined ||
+    Boolean(event.chain?.trim()) ||
+    Boolean(event.assetKey?.trim()) ||
+    chainSignalTypes.has(event.eventType);
+  if (!isChainProject) return { matched: true, reasons };
+  if (event.verificationStatus !== 'VERIFIED') reasons.push('链上机会来源尚未核验');
+  if (!Number.isFinite(event.confidence) || event.confidence < 0.8 || event.confidence > 1)
+    reasons.push('链上机会置信度须至少为80%');
+  if (!Number.isFinite(event.opportunityScore) || event.opportunityScore < 65)
+    reasons.push('链上机会评分须至少为65');
+  if (!Number.isFinite(event.riskScore) || event.riskScore > 60)
+    reasons.push('链上机会独立风险评分须至多为60');
+  if (!['EARLY_STAGE', 'ACTIVE'].includes(event.project?.stage ?? event.stage ?? ''))
+    reasons.push('链上机会须处于早期或开放参与阶段');
+  if (event.conditionsVerified !== true || !event.project?.conditions?.trim())
+    reasons.push('链上机会参与条件尚未完整核验');
+  return { matched: reasons.length === 0, reasons };
+}
 export function evaluateRule(conditions: unknown, event: RuleEvent, now = Date.now()) {
   const rule = RuleConditionsSchema.parse(conditions);
-  const reasons: string[] = [];
+  const reasons = [...evaluateNotificationAdmission(event).reasons];
+  if (
+    rule.includeRoutineEvents !== true &&
+    ['MARKET_SNAPSHOT', 'SOCIAL_POST'].includes(event.eventType) &&
+    !hasCriticalRisk(event)
+  )
+    reasons.push('常规行情或社交变化默认不通知，请在规则中明确启用');
   const age = now - Date.parse(event.firstSeenAt);
   const fields: [boolean, string][] = [
     [!rule.eventTypes?.length || rule.eventTypes.includes(event.eventType), '事件类型'],
@@ -218,7 +291,10 @@ export function evaluateRule(conditions: unknown, event: RuleEvent, now = Date.n
     [!rule.assets?.length || rule.assets.some((asset) => event.assets.includes(asset)), '资产'],
     [!rule.categories?.length || rule.categories.some((c) => event.categories.includes(c)), '分类'],
     [!rule.chains?.length || rule.chains.includes(event.chain ?? ''), '公链'],
-    [!rule.stages?.length || rule.stages.includes(event.stage as never), '阶段'],
+    [
+      !rule.stages?.length || rule.stages.includes((event.project?.stage ?? event.stage) as never),
+      '阶段',
+    ],
     [!rule.verifiedOnly || event.verificationStatus === 'VERIFIED', '已验证来源'],
     [event.confidence >= (rule.minConfidence ?? 0), '置信度'],
     [event.opportunityScore >= (rule.minOpportunityScore ?? 0), '机会评分'],
@@ -381,3 +457,4 @@ export const ScoringConfigSchema = z
   })
   .strict();
 export * from './history.js';
+export * from './x-topics.js';

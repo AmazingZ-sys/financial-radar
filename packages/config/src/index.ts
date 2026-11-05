@@ -1,6 +1,7 @@
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 import { AIReasoningEffortSchema, DEFAULT_AI_REASONING_EFFORT } from '@radar/shared';
+import { isIP } from 'node:net';
 export * from './outbound.js';
 loadDotenv({ quiet: true });
 const boolean = z.enum(['true', 'false']).transform((s) => s === 'true');
@@ -43,6 +44,37 @@ function validSolanaAddress(value: string) {
   }
   return bytes + (value.match(/^1*/)?.[0].length ?? 0) === 32;
 }
+/** Only server-owned internal collector addresses may receive an X login session. */
+export function isInternalXCollectorUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !['', '/'].includes(url.pathname)
+    )
+      return false;
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (isIP(host) === 4) {
+      const [first, second] = host.split('.').map(Number);
+      return (
+        first === 127 ||
+        first === 10 ||
+        (first === 172 && second! >= 16 && second! <= 31) ||
+        (first === 192 && second === 168)
+      );
+    }
+    if (isIP(host) === 6) return host === '::1' || /^(fc|fd)[0-9a-f]{2}:/.test(host);
+    return (
+      /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(host) || /\.(localhost|internal|local)$/.test(host)
+    );
+  } catch {
+    return false;
+  }
+}
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -77,6 +109,19 @@ const schema = z.object({
   AI_REASONING_EFFORT: AIReasoningEffortSchema.default(DEFAULT_AI_REASONING_EFFORT),
   AI_DAILY_BUDGET_USD: z.coerce.number().min(0).default(1),
   AI_MAX_CALL_COST_USD: z.coerce.number().min(0).default(0.1),
+  AI_MAX_DAILY_CALLS: z.coerce.number().int().min(0).max(500).default(20),
+  X_COLLECTOR_URL: z
+    .url()
+    .refine(isInternalXCollectorUrl, 'X_COLLECTOR_URL 只允许内部采集服务的 HTTP(S) 基础地址')
+    .default('http://x-collector:8080'),
+  X_COLLECTOR_SECRET: z
+    .string()
+    .max(512)
+    .refine(
+      (value) => !value || (value.length >= 32 && !/\s/.test(value)),
+      '采集服务共享密钥至少32字符且不能包含空白',
+    )
+    .default(''),
   INTEGRATION_ENCRYPTION_KEY: z
     .string()
     .refine((value) => !value || value.length >= 32, '集成加密密钥至少 32 个字符')
@@ -163,6 +208,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     aiReasoningEffort: v.AI_REASONING_EFFORT,
     aiDailyBudgetUsd: v.AI_DAILY_BUDGET_USD,
     aiMaxCallCostUsd: v.AI_MAX_CALL_COST_USD,
+    aiMaxDailyCalls: v.AI_MAX_DAILY_CALLS,
+    xCollectorUrl: v.X_COLLECTOR_URL,
+    xCollectorSecret: v.X_COLLECTOR_SECRET,
     integrationEncryptionKey: v.INTEGRATION_ENCRYPTION_KEY,
     githubToken: v.GITHUB_TOKEN,
     githubRepositories: v.GITHUB_REPOSITORIES,

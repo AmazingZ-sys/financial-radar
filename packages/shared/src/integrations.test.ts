@@ -29,4 +29,24 @@ describe('AI reasoning configuration compatibility', () => {
       expect(AIConfigSchema.safeParse({ ...legacyConfig, reasoningEffort }).success).toBe(false);
     }
   });
+
+  it('defaults a missing daily call limit and preserves explicit limits on unrelated PATCHes', () => {
+    expect(AIConfigSchema.parse(legacyConfig).maxDailyCalls).toBe(20);
+    const patch = AIConfigPatchSchema.parse({ name: 'Renamed' });
+    expect(patch).not.toHaveProperty('maxDailyCalls');
+    for (const maxDailyCalls of [0, 1, 20, 500]) {
+      expect(AIConfigPatchSchema.parse({ maxDailyCalls }).maxDailyCalls).toBe(maxDailyCalls);
+      expect(AIConfigSchema.parse({ ...legacyConfig, maxDailyCalls, ...patch }).maxDailyCalls).toBe(
+        maxDailyCalls,
+      );
+    }
+  });
+
+  it.each([-1, 501, 1.5, NaN, Infinity, '20', null])(
+    'rejects invalid daily call limits (%s) without coercion',
+    (maxDailyCalls) => {
+      expect(AIConfigPatchSchema.safeParse({ maxDailyCalls }).success).toBe(false);
+      expect(AIConfigSchema.safeParse({ ...legacyConfig, maxDailyCalls }).success).toBe(false);
+    },
+  );
 });
