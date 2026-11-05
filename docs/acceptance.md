@@ -442,3 +442,11 @@ Node24.15.0 / pnpm10.26.2。隔离 PostgreSQL55466 / Redis56466 实际结果，�
 | 相关 Playwright E2E                                              | Chromium 12/12 通过，覆盖新规则默认门槛、行情快照 opt-in 不放开链上通知及规则持久化。           |
 
 边界：本地代码尚未提交、推送或部署；线上旧 PENDING/RETRYING 记录需更新 Worker 后由复查逻辑处理，已发出的邮件无法撤回。机会准入只减少噪声，不保证任何收益或安全性。
+
+## 2026-11-05 · 通知降噪发布门禁修复
+
+用户授权提交、推送并发布 Release，后端由用户更新。功能提交 `6bb1d71e2e9c3405c996f6166eca88f2caeed183` 已推送分支和 main；首次 [Actions 41982386831](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41982386831) 的类型、lint、432项单测、集成、构建、采集器隔离测试、生产Compose、安全扫描与依赖审计通过，但完整E2E有两项失败，未产生Release。
+
+使用GitHub连接器读取失败日志及上传trace，确认AI配置PATCH、X连接测试POST返回429：CI集成与E2E复用了Redis限流计数。E2E步骤改为独立逻辑库1，保留应用限流与安全校验。另修复评分编辑测试中重复成功toast的严格选择器，并对两次PATCH的HTTP200、响应版本/权重以及刷新后的持久结果逐项断言，避免旧toast造成提前通过。
+
+Node24.15.0 / pnpm10.26.2；本地隔离PostgreSQL55466，集成Redis逻辑库6、E2E逻辑库7，先执行完整集成保留明确标记的Fixture种子，再执行浏览器测试。typecheck、lint、432项单测、9项构建全部通过；集成主流程70项及通知24项、历史35项、模式隔离86项等全部通过；完整Chromium 27/27一次通过。收据在忽略提交的 `.local/release-41982386831/`，日志以 `*-resume.log` 命名。此前空库仅迁移未采集导致缺失事件/项目，复用Redis又触发登录限流的失败均保留，没有因此放宽业务限制。实际Release与镜像发布结果待后续追加。

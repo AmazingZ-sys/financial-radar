@@ -143,17 +143,35 @@ test('scoring editor keeps used versions immutable', async ({ page }) => {
   await expect(page.locator('.advanced-body .form-error')).toBeVisible();
   config.opportunity.version = `e2e-${Date.now()}`;
   await editor.fill(JSON.stringify(config, null, 2));
+  const savedResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/system/scoring') && response.request().method() === 'PATCH',
+  );
   await page.getByRole('button', { name: '保存评分新版本' }).click();
+  const saved = await savedResponse;
+  expect(saved.status()).toBe(200);
+  expect((await saved.json()).data.opportunity).toMatchObject(config.opportunity);
   await expect(
-    page.getByText('评分配置新版本已保存，历史评分保留原版本', { exact: true }),
+    page.getByText('评分配置新版本已保存，历史评分保留原版本', { exact: true }).last(),
   ).toBeVisible();
   config.opportunity.weights.sourceTrust = initialWeight;
   config.opportunity.version = `e2e-restored-${Date.now()}`;
   await editor.fill(JSON.stringify(config, null, 2));
+  const restoredResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/system/scoring') && response.request().method() === 'PATCH',
+  );
   await page.getByRole('button', { name: '保存评分新版本' }).click();
+  const restored = await restoredResponse;
+  expect(restored.status()).toBe(200);
+  expect((await restored.json()).data.opportunity).toMatchObject(config.opportunity);
   await expect(
-    page.getByText('评分配置新版本已保存，历史评分保留原版本', { exact: true }),
+    page.getByText('评分配置新版本已保存，历史评分保留原版本', { exact: true }).last(),
   ).toBeVisible();
+  await page.reload();
+  await page.locator('.advanced-panel summary').click();
+  await expect(editor).not.toHaveValue('');
+  expect(JSON.parse(await editor.inputValue()).opportunity).toMatchObject(config.opportunity);
 });
 
 test('network failure presents retry and recovers from the real API', async ({ page }) => {
