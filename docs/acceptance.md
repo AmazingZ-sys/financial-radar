@@ -450,3 +450,14 @@ Node24.15.0 / pnpm10.26.2。隔离 PostgreSQL55466 / Redis56466 实际结果，�
 使用GitHub连接器读取失败日志及上传trace，确认AI配置PATCH、X连接测试POST返回429：CI集成与E2E复用了Redis限流计数。E2E步骤改为独立逻辑库1，保留应用限流与安全校验。另修复评分编辑测试中重复成功toast的严格选择器，并对两次PATCH的HTTP200、响应版本/权重以及刷新后的持久结果逐项断言，避免旧toast造成提前通过。
 
 Node24.15.0 / pnpm10.26.2；本地隔离PostgreSQL55466，集成Redis逻辑库6、E2E逻辑库7，先执行完整集成保留明确标记的Fixture种子，再执行浏览器测试。typecheck、lint、432项单测、9项构建全部通过；集成主流程70项及通知24项、历史35项、模式隔离86项等全部通过；完整Chromium 27/27一次通过。收据在忽略提交的 `.local/release-41982386831/`，日志以 `*-resume.log` 命名。此前空库仅迁移未采集导致缺失事件/项目，复用Redis又触发登录限流的失败均保留，没有因此放宽业务限制。实际Release与镜像发布结果待后续追加。
+
+## 2026-11-05 · v1.4.2 通知降噪正式发布核验
+
+中断后继续核验，修复提交 `bffbe767206acd4378a8a75ff61b3e173fd14a86` 已推送 `codex/ai-streaming-release` 与 main。[Actions 41996479675](https://github.com/AmazingZ-sys/financial-radar/actions/runs/41996479675) 的 verify、release、API/Worker images、image-manifest 与 Vercel 全部成功；云端实际通过类型、lint、格式、28文件432项单测、真实PostgreSQL/Redis集成（含通知策略24项）、26项采集器隔离测试、9项构建、运行时语法、隔离生产Compose、安全扫描、生产依赖审计及Chromium 27/27浏览器测试。
+
+- [Release v1.4.2](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.4.2) 于16:47（Asia/Shanghai）正式发布，非草稿/预发布。tag、`release-metadata.json` 与 `image-manifest.json` 的版本、完整SHA一致，累计CHANGELOG及两项JSON资产均已上传。
+- API镜像digest为 `sha256:242b5f333d9576da7a04bab7e56e3bd71865afd6b83b0a30eee76cf8775658af`；Worker为 `sha256:2bb8f3066e10a2a538f800967a47556d864884663a0b4b46ec42663fae3c3bf1`。只读核验版本与SHA标签均匹配不可变清单，linux/amd64、OCI标签、版本/commit环境、Node24.22.2与非root用户均符合；未拉取镜像层或运行生产容器。
+- Vercel生产[部署](https://financial-radar-khq2tjews-amazings-projects-6f99eda0.vercel.app)的artifact绑定同一版本/SHA，成功job日志确认16:50映射[正式域名](https://radar.amazingzsys.site)。`/login`、`/rules`、新入口 `/assets/index-Cx8RM3Ff.js` 与 `RulesPage-8CzzFUm9.js` 均HTTP200；生产API前缀、静态资源immutable缓存、新规则80/65/60门槛与86400秒冷却、链上普通事件不外发说明已读取确认。静态JS未嵌入版本字面量，版本身份以artifact和成功alias日志绑定。
+- 17:03（Asia/Shanghai）只读检查生产API：`/health=200`且返回 `v1.4.2`，`/ready=200/ready`。本轮未操作后端服务器；公开健康检查不能证明Worker版本、旧通知取消数量或真实渠道投递结果，后续以服务器与持久化通知记录为准。
+
+收据保存在忽略提交的 `.local/ai-streaming-release/v1.4.2/`：`verification-summary.json`、Release资产与镜像manifest/config、`verify-job.log`、`frontend-http-receipt.json`、`vercel-alias-evidence.json`；前端部署artifact为同级 `vercel-v1.4.2/vercel-deployment.json`。本次只读核验没有登录生产、调用AI、修改业务配置或触发外部通知。
