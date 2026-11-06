@@ -490,3 +490,21 @@ Node24.15.0 / pnpm10.26.2、Docker Engine29.9.2。常规日志在忽略提交的
 确认测试用户初始配置了UTC1–2点静默时段；恢复阶段只修复无效时区，仍要求一定生成通知。生产逻辑正确保存静默触发并抑制通知，旧测试依赖运行时刻。在相同UTC时段本地复现原失败后，仅修改 `scripts/x-analysis-recovery-integration.ts` 的合成测试配置：修复时区时明确关闭静默时段。保留初始无效时区与两次RangeError注入，以及已完成结果不回滚、预算/尝试不重复、恢复后仅一条通知/触发和outbox完成的全部断言；没有修改生产规则、静默逻辑或重试放宽门禁。
 
 隔离PostgreSQL55476 / Redis56476，Node24.15.0 / pnpm10.26.2：UTC00:30、01:30、23:30三组完整恢复场景各8项通过；随后typecheck、lint、447项单测、9项构建、Prettier与完整集成（主流程70项及全部扩展）通过。收据在忽略提交的 `.local/x-collector-release/`：`verify-first-failure.log`、`recovery-before-fix.log`、`recovery-clock-matrix.log`、`typecheck.log`、`lint.log`、`unit.log`、`build.log`、`integration.log`、`format.log`。修复提交将再次触发完整云端发布门禁，实际镜像发布结果另行记录。本轮未操作生产后端或使用真实X登录态。
+
+## 2026-11-06 · v1.5.0 三镜像正式发布核验
+
+功能提交 `1ee3d072e0eeacd2e31ef5879aac0700b7f5c625` 与测试修复 `c4f172a22e4c13e2c65f2f2719c61a0abd5cdbd0` 已推送工作分支和main。[Actions 42142565160](https://github.com/AmazingZ-sys/financial-radar/actions/runs/42142565160) 的verify、release、三个images、image-manifest与Vercel全部成功。云端实际通过类型、lint、格式、447项单测、26项Python隔离测试、完整PostgreSQL/Redis集成、9项构建、运行时语法、五服务生产Compose验收、安全扫描、生产依赖审计与Chromium27/27；浏览器依赖安装因Ubuntu字体镜像源下载耗时约9分钟，正常完成，没有跳过门禁。
+
+[Release v1.5.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.5.0) 于09:30（Asia/Shanghai）正式发布，非草稿或预发布。tag、release-metadata与三项image-manifest收据的版本/40位commit均匹配 `c4f172a22e4c13e2c65f2f2719c61a0abd5cdbd0`；累计CHANGELOG、metadata与manifest均已上传。镜像使用 `ghcr.io/amazingz-sys/financial-radar/<target>:v1.5.0`：
+
+| 镜像target  | 已发布不可变digest                                                        |
+| ----------- | ------------------------------------------------------------------------- |
+| api         | `sha256:57848fa86c3225fe1e03291112170ac2bb105d516514a05313557c5e1680367c` |
+| worker      | `sha256:cf4b925d1fbc25fdae3278c4268a747a44b8535ffec544aab94376be230d1a85` |
+| x-collector | `sha256:96915ad92a8902db2195bf846052c36a5f47c189f7ab63c648593c83c7787754` |
+
+三个镜像均通过匿名GHCR访问核验：版本tag、sha-commit tag与Release固定digest一致；索引、linux/amd64子manifest和config的内容hash正确；OCI版本/revision/source、运行时APP_VERSION/COMMIT_SHA一致，默认用户分别node/node/radar。采集器仅声明容器8080端口；宿主无端口映射已由真实Compose验收确认。未下载镜像层或运行生产容器，不以镜像元数据证明真实X可用。
+
+Vercel成功job检出同一commit并注入v1.5.0，09:35将 [生产部署](https://financial-radar-motpyypqt-amazings-projects-6f99eda0.vercel.app) 映射至 [正式域名](https://radar.amazingzsys.site)。前端部署成功不代表后端已更新。
+
+证据在忽略提交的 `.local/x-collector-release/`：`verify-success.log`、`vercel-success.log`；`v1.5.0/registry-verification.json`、Release资产、各镜像manifest/config与匿名预检收据。用户明确后端自行更新，本轮没有登录或更新生产后端、执行生产迁移、改变业务配置或使用真实X登录态。服务器首次须检出v1.5.0部署文件，再运行 `bash infra/scripts/deploy.sh --version v1.5.0`；脚本会统一部署三镜像，缺少共享密钥时自动生成。
