@@ -149,7 +149,7 @@ async function testConnection() {
           <li>
             按仓库
             <code>services/x-collector/README.md</code>
-            部署内部采集器，设置服务器共享密钥。不购买数据 API、代理或账号。
+            更新服务器部署文件并执行一键部署，自动启动采集器、配置共享密钥，无需另装 Python。
           </li>
           <li>
             在浏览器登录你自己授权的 X 账号，打开开发者工具 → Application（应用）→ Cookies →
@@ -166,18 +166,13 @@ async function testConnection() {
         <details class="x-deploy">
           <summary>服务器首次部署</summary>
           <p class="muted text-xs">
-            在现有服务器的环境文件中设置以下两项。共享密钥自行生成，至少32字符，API、Worker与采集器保持一致；它不是X登录态。
+            先按仓库部署文档，将服务器代码更新到包含采集器镜像的已发布版本，保留现有环境配置与数据卷。之后在项目目录执行：
           </p>
-          <pre class="x-query">
-X_COLLECTOR_URL=http://x-collector:8080
-X_COLLECTOR_SECRET=自行生成的随机共享密钥</pre>
-          <p class="muted text-xs">保留原有部署环境和版本配置，在项目目录执行：</p>
-          <pre class="x-query">
-docker compose --profile x-free up -d --build x-collector
-docker compose up -d --force-recreate api worker</pre>
+          <pre class="x-query">sudo bash infra/scripts/deploy.sh</pre>
           <p class="muted text-xs">
-            如原部署指定了
-            --env-file，请沿用同一文件。容器8080端口不对公网开放；登录态以后可直接在此更新，无需重建容器。
+            脚本拉取同版本的 API、Worker 和采集器镜像。共享密钥未配置时自动生成，保存在服务器
+            .deploy/x-collector.secret；它不是 X 登录态。采集器仅使用 Docker
+            内网8080，不占用宿主8888。授权登录态在此填写，更新后无需重建容器。
           </p>
         </details>
         <div class="notice-box">
@@ -263,8 +258,7 @@ docker compose up -d --force-recreate api worker</pre>
           </div>
           <div v-if="!current.collectorConfigured" class="notice-box">
             <p>
-              服务器采集器尚未配置：请部署 x-collector 并设置 X_COLLECTOR_SECRET；不会回退到付费
-              API。
+              服务器采集器尚未配置：请更新服务器部署文件并运行一键部署脚本，自动启动采集器并配置共享密钥。
             </p>
           </div>
           <div v-if="current.source.lastError" class="form-error">

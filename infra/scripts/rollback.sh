@@ -14,13 +14,16 @@ task_current=""
 load_version "$task_version"
 registry_login
 compose config --quiet
-compose pull api worker
+release_services
+compose pull "${RELEASE_SERVICES[@]}"
+verify_release_image_labels
+prepare_x_collector
 rollback_failed() {
-  if [[ -n "$task_current" && "$task_current" != "$task_version" ]]; then load_version "$task_current"; compose up -d --no-deps api worker && wait_healthy || echo 'Restoring current version also failed; operator action required' >&2; fi
+  if [[ -n "$task_current" && "$task_current" != "$task_version" ]]; then load_version "$task_current"; start_release_services || echo 'Restoring current version also failed; operator action required' >&2; fi
   echo 'Rollback failed; verified deployment state retained. Database unchanged.' >&2
   exit 1
 }
-if ! { compose up -d --no-deps api worker && wait_healthy; }; then rollback_failed; fi
+if ! start_release_services; then rollback_failed; fi
 if ! reload_nginx; then rollback_failed; fi
 save_state "$task_version" "$task_current"
 printf 'Application rolled back to verified %s; database unchanged.\n' "$task_version"

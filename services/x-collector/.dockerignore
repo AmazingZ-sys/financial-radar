@@ -1,5 +1,4 @@
-__pycache__/
-*.pyc
-*.sqlite*
-*.db*
-.venv/
+**
+!Dockerfile
+!collector.py
+!requirements.txt

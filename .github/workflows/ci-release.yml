@@ -126,7 +126,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: read, packages: write }
     strategy:
-      matrix: { target: [api, worker] }
+      matrix:
+        include:
+          - target: api
+            build_target: api
+            context: .
+            file: infra/docker/Dockerfile
+          - target: worker
+            build_target: worker
+            context: .
+            file: infra/docker/Dockerfile
+          - target: x-collector
+            build_target: ''
+            context: services/x-collector
+            file: services/x-collector/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with: { ref: '${{ needs.release.outputs.commit }}' }
@@ -146,9 +159,9 @@ jobs:
       - id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: infra/docker/Dockerfile
-          target: ${{ matrix.target }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.build_target }}
           push: true
           tags: |
             ghcr.io/${{ steps.repo.outputs.name }}/${{ matrix.target }}:${{ needs.release.outputs.version }}
@@ -159,6 +172,9 @@ jobs:
             BUILD_DATE=${{ steps.repo.outputs.built_at }}
             SOURCE_URL=https://github.com/${{ github.repository }}
           labels: |
+            org.opencontainers.image.version=${{ needs.release.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.release.outputs.commit }}
+            org.opencontainers.image.created=${{ steps.repo.outputs.built_at }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
@@ -186,7 +202,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_VERSION: ${{ needs.release.outputs.version }}
         run: |
-          jq -s '{images:.}' image-api.json image-worker.json > image-manifest.json
+          jq -s '{images:.}' image-api.json image-worker.json image-x-collector.json > image-manifest.json
           gh release upload "$RELEASE_VERSION" image-manifest.json --clobber
   vercel:
     needs: [release, images, image-manifest]

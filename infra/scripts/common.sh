@@ -27,7 +27,7 @@ resolve_image_commit() {
 load_version() {
   validate_version "$1"
   export APP_VERSION="$1"
-  unset API_IMAGE WORKER_IMAGE COMMIT_SHA
+  unset API_IMAGE WORKER_IMAGE X_COLLECTOR_IMAGE COMMIT_SHA
   if [[ -f "$STATE_DIR/images/$1" ]]; then
     API_IMAGE=$(sed -n '1p' "$STATE_DIR/images/$1")
     WORKER_IMAGE=$(sed -n '2p' "$STATE_DIR/images/$1")
@@ -43,6 +43,11 @@ load_version() {
     fi
     [[ "$COMMIT_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid saved image revision' >&2; exit 1; }
     export COMMIT_SHA
+    X_COLLECTOR_IMAGE=$(sed -n '4p' "$STATE_DIR/images/$1")
+    if [[ -n "$X_COLLECTOR_IMAGE" ]]; then
+      [[ "$X_COLLECTOR_IMAGE" =~ ^ghcr\.io/[a-z0-9._/-]+/x-collector@sha256:[a-f0-9]{64}$ ]] || { echo 'Invalid saved collector image digest' >&2; exit 1; }
+      export X_COLLECTOR_IMAGE
+    fi
   fi
 }
 # Health, backups and subsequent deployments use the last verified version even
@@ -60,12 +65,46 @@ require_tools() {
   [[ -f "$APP_ENV_FILE" ]] || { echo 'Missing application env file' >&2; exit 1; }
 }
 acquire_lock() { mkdir "$STATE_DIR/lock" 2>/dev/null || { echo 'Deployment lock exists; inspect existing process before removing .deploy/lock' >&2; exit 1; }; trap 'rmdir "$STATE_DIR/lock"' EXIT; }
+release_services() {
+  RELEASE_SERVICES=(api worker)
+  [[ -z "${X_COLLECTOR_IMAGE:-}" ]] || RELEASE_SERVICES+=(x-collector)
+}
+prepare_x_collector() {
+  local task_secret task_secret_file="$STATE_DIR/x-collector.secret"
+  # A rollback to an older API/Worker may still use the retained collector.
+  [[ -n "${X_COLLECTOR_IMAGE:-}" || -f "$task_secret_file" ]] || return 0
+  # Never print resolved Compose configuration: it contains server credentials.
+  task_secret=$(compose config --format json | jq -er '.services["x-collector"].environment.X_COLLECTOR_SECRET // "" | select(type=="string")') || return 1
+  if [[ -z "$task_secret" ]]; then
+    if [[ ! -f "$task_secret_file" ]]; then
+      task_secret=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n') || return 1
+      [[ "$task_secret" =~ ^[a-f0-9]{64}$ ]] || return 1
+      printf '%s\n' "$task_secret" > "$task_secret_file.$$.tmp" || return 1
+      chmod 600 "$task_secret_file.$$.tmp" || return 1
+      mv "$task_secret_file.$$.tmp" "$task_secret_file" || return 1
+    fi
+    chmod 600 "$task_secret_file" || return 1
+    task_secret=$(cat "$task_secret_file") || return 1
+  fi
+  [[ ${#task_secret} -ge 32 && ${#task_secret} -le 512 && ! "$task_secret" =~ [[:space:]] ]] || { echo 'Invalid collector shared secret; expected 32-512 characters without whitespace' >&2; return 1; }
+  export X_COLLECTOR_SECRET="$task_secret"
+}
+collector_healthy() {
+  [[ -z "${X_COLLECTOR_IMAGE:-}" ]] || compose exec -T x-collector python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)" >/dev/null 2>&1
+}
+start_release_services() {
+  prepare_x_collector || return 1
+  if [[ -n "${X_COLLECTOR_IMAGE:-}" ]]; then
+    compose up -d --no-deps --wait --wait-timeout 60 x-collector || return 1
+  fi
+  compose up -d --no-deps api worker && wait_healthy
+}
 wait_healthy() {
   for ((task_attempt=1;task_attempt<=45;task_attempt++)); do
-    if curl --silent --fail --max-time 5 "$HEALTH_URL" >/dev/null && compose exec -T worker node apps/worker/dist/health.js >/dev/null 2>&1; then return 0; fi
+    if curl --silent --fail --max-time 5 "$HEALTH_URL" >/dev/null && compose exec -T worker node apps/worker/dist/health.js >/dev/null 2>&1 && collector_healthy; then return 0; fi
     sleep 2
   done
-  echo 'API/Worker readiness failed' >&2
+  echo 'Release service readiness failed' >&2
   return 1
 }
 reload_nginx() {
@@ -108,7 +147,7 @@ latest_ready_release() {
   return 1
 }
 load_release_images() {
-  local task_version="$1" task_release task_metadata task_manifest task_commit task_repository task_api task_worker
+  local task_version="$1" task_release task_metadata task_manifest task_commit task_repository task_api task_worker task_collector
   task_release=$(release_json "tags/$task_version") || return 1
   jq -e --arg version "$task_version" 'select(.tag_name==$version and .draft==false and .prerelease==false)' >/dev/null <<< "$task_release" || { echo 'Expected a published stable Release' >&2; return 1; }
   task_metadata=$(release_asset "$task_release" release-metadata.json) || return 1
@@ -116,8 +155,8 @@ load_release_images() {
   task_commit=$(jq -er --arg version "$task_version" 'select(.version==$version) | .commit | select(type=="string" and test("^[a-f0-9]{40}$"))' <<< "$task_metadata") || { echo 'Release metadata version/commit is invalid' >&2; return 1; }
   task_repository=$(printf '%s' "${GITHUB_REPOSITORY:-AmazingZ-sys/financial-radar}" | tr '[:upper:]' '[:lower:]')
   jq -e --arg version "$task_version" --arg commit "$task_commit" --arg repository "ghcr.io/$task_repository" '
-    .images | select(type=="array" and length==2) |
-    select(([.[].target] | sort)==["api","worker"]) |
+    .images | select(type=="array" and (length==2 or length==3)) |
+    select(([.[].target] | sort)==["api","worker"] or ([.[].target] | sort)==["api","worker","x-collector"]) |
     select(all(.[]; . as $image | .version==$version and .commit==$commit and
       (.image | type)=="string" and
       (.image | startswith($repository+"/"+$image.target+"@sha256:")) and
@@ -125,17 +164,26 @@ load_release_images() {
   ' >/dev/null <<< "$task_manifest" || { echo 'Release image manifest version/commit/digests are invalid' >&2; return 1; }
   task_api=$(jq -r '.images[] | select(.target=="api") | .image' <<< "$task_manifest")
   task_worker=$(jq -r '.images[] | select(.target=="worker") | .image' <<< "$task_manifest")
+  task_collector=$(jq -r '.images[] | select(.target=="x-collector") | .image' <<< "$task_manifest")
   if [[ -n "${API_IMAGE:-}" ]]; then
     # Keep an already verified version pinned even if a publication retry rebuilt
     # that version. Its original receipt must still identify this source/commit.
     [[ "$COMMIT_SHA" == "$task_commit" && "${API_IMAGE%@sha256:*}" == "${task_api%@sha256:*}" && "${WORKER_IMAGE%@sha256:*}" == "${task_worker%@sha256:*}" ]] || { echo 'Saved image state does not belong to this Release source/commit' >&2; return 1; }
+    if [[ -n "${X_COLLECTOR_IMAGE:-}" ]]; then
+      [[ -n "$task_collector" && "${X_COLLECTOR_IMAGE%@sha256:*}" == "${task_collector%@sha256:*}" ]] || { echo 'Saved collector image does not belong to this Release source/commit' >&2; return 1; }
+    elif [[ -n "$task_collector" ]]; then
+      export X_COLLECTOR_IMAGE="$task_collector"
+    fi
   else
     export API_IMAGE="$task_api" WORKER_IMAGE="$task_worker" COMMIT_SHA="$task_commit"
+    [[ -z "$task_collector" ]] || export X_COLLECTOR_IMAGE="$task_collector"
   fi
 }
 verify_release_image_labels() {
   local task_image task_commit task_version
-  for task_image in "$API_IMAGE" "$WORKER_IMAGE"; do
+  local task_images=("$API_IMAGE" "$WORKER_IMAGE")
+  [[ -z "${X_COLLECTOR_IMAGE:-}" ]] || task_images+=("$X_COLLECTOR_IMAGE")
+  for task_image in "${task_images[@]}"; do
     task_commit=$(docker image inspect "$task_image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}') || return 1
     task_version=$(docker image inspect "$task_image" --format '{{index .Config.Labels "org.opencontainers.image.version"}}') || return 1
     [[ "$task_commit" == "$COMMIT_SHA" && "$task_version" == "$APP_VERSION" ]] || { echo 'Pulled image revision/version does not match the Release receipts' >&2; return 1; }
@@ -148,6 +196,7 @@ save_state() {
   local task_version="$1" task_old="${2:-}"
   [[ "${COMMIT_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || { echo 'A verified image commit is required before saving state' >&2; return 1; }
   printf '%s\n%s\n%s\n' "$API_IMAGE" "$WORKER_IMAGE" "$COMMIT_SHA" > "$STATE_DIR/images/$task_version.tmp"
+  [[ -z "${X_COLLECTOR_IMAGE:-}" ]] || printf '%s\n' "$X_COLLECTOR_IMAGE" >> "$STATE_DIR/images/$task_version.tmp"
   mv "$STATE_DIR/images/$task_version.tmp" "$STATE_DIR/images/$task_version"
   if [[ -n "$task_old" && "$task_old" != "$task_version" ]]; then printf '%s\n' "$task_old" > "$STATE_DIR/previous.tmp"; mv "$STATE_DIR/previous.tmp" "$STATE_DIR/previous"; fi
   printf '%s\n' "$task_version" > "$STATE_DIR/current.tmp"

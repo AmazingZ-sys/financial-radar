@@ -461,3 +461,24 @@ Node24.15.0 / pnpm10.26.2；本地隔离PostgreSQL55466，集成Redis逻辑库6�
 - 17:03（Asia/Shanghai）只读检查生产API：`/health=200`且返回 `v1.4.2`，`/ready=200/ready`。本轮未操作后端服务器；公开健康检查不能证明Worker版本、旧通知取消数量或真实渠道投递结果，后续以服务器与持久化通知记录为准。
 
 收据保存在忽略提交的 `.local/ai-streaming-release/v1.4.2/`：`verification-summary.json`、Release资产与镜像manifest/config、`verify-job.log`、`frontend-http-receipt.json`、`vercel-alias-evidence.json`；前端部署artifact为同级 `vercel-v1.4.2/vercel-deployment.json`。本次只读核验没有登录生产、调用AI、修改业务配置或触发外部通知。
+
+## 2026-11-06 · X 采集器镜像与一键部署
+
+先完成 [39 采集器镜像部署](39-x-collector-image-deployment.md) 设计，再修改发布工作流、生产 Compose、部署/回滚/健康脚本和管理页说明。新增同版本 `x-collector` 镜像，三个镜像收据全部成功后才上传 Release 清单；部署按 digest 拉取并校验来源、版本与 commit，等待采集器健康后替换 API/Worker。服务器无需安装 Python 或执行本地构建。采集器仅在 Docker 内网监听8080，没有宿主端口映射，不占用8888。
+
+未配置共享密钥时，脚本生成32字节随机值并以0600保存在服务器 `.deploy/x-collector.secret`，三个服务使用同一值；已有环境配置优先，不打印密钥。保留历史双镜像清单、三行状态与回滚兼容，历史回滚仍复用保存的密钥。旧版手工采集器没有已验证 digest 记录，不能据旧状态恢复其历史镜像。真实 X 登录态仍由管理员在系统管理保存并测试，本轮没有使用真实登录态或访问 X。
+
+Node24.15.0 / pnpm10.26.2、Docker Engine29.9.2。常规日志在忽略提交的 `.local/x-collector-image/`，完整真实 Compose 收据在 `.local/docker-acceptance/radar-acceptance-10936c11a065/`：
+
+| 验证                                        | 实际结果                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm typecheck`、`pnpm lint`、`pnpm build` | 全部通过，9项构建任务成功；`typecheck.log`、`lint.log`、`build.log`。                                                                                                                                                                                                                                                                                                    |
+| `pnpm test`                                 | 28文件447项通过，其中部署脚本37项，覆盖三镜像固定digest、标签/清单拒绝、密钥生成/复用/脱敏、采集器失败回滚、独立进程旧版回滚复用密钥；`unit.log`。                                                                                                                                                                                                                       |
+| `pnpm test:integration`                     | 独立PostgreSQL55476 / Redis56476逻辑库1，主流程70项及全部扩展通过，含X管理50项、随机调度72项、讨论聚合17项、恢复8项及模式隔离86项；`integration.log`。                                                                                                                                                                                                                   |
+| 相关 Playwright                             | Chromium管理X的4/4通过；Redis逻辑库2隔离，真实API保存/重载、Fixture不出站、登录态不回显/清除、旧后端兼容与模拟调度展示；`e2e.log`。临时数据库服务已停止。                                                                                                                                                                                                                |
+| Python镜像与隔离测试                        | 本次镜像构建成功，实际OCI版本/commit标签符合构建参数；network-none、非root、只读文件系统及tmpfs下26/26通过，无X访问；`collector-labels.json`、`collector-tests.log`。                                                                                                                                                                                                    |
+| `bash infra/scripts/test-compose.sh`        | 唯一隔离项目实际构建3镜像、5服务healthy、两次迁移与两次采集幂等；原始项/事件/项目/信号/迁移计数为5/6/4/5/3。API和Worker均通过Docker DNS访问采集器healthz，未授权403、合法密钥加无效请求400；核验无宿主端口、3应用非root、PG/Redis替换持久化、备份恢复至新库及Session/CSRF。`result.json`、顶层`compose.log`。本项目测试容器/网络/卷及3个测试镜像已清理，不涉及其他项目。 |
+| 真实Compose共享密钥烟测                     | 无容器启动，实际解析应用env与Compose配置，生成0600密钥并断言API/Worker/采集器注入相同64位十六进制值；`secret-smoke.log`，不输出密钥。                                                                                                                                                                                                                                    |
+| 静态与安全检查                              | Prettier、Bash语法、生产/开发Compose解析、actionlint1.6.27、已知凭据/eval扫描与`git diff --check`通过。未改变依赖锁文件，未重复运行依赖漏洞审计。                                                                                                                                                                                                                        |
+
+边界：本轮为本地实现与真实隔离容器验收，尚未提交、推送、发布GHCR镜像或操作生产服务器。发布新版后，旧服务器须先更新Compose与部署脚本到同一目标Release，再运行原一键部署命令；真实X联通仍须使用管理员授权登录态实测，不能由容器健康推断成功。

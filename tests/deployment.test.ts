@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -16,6 +24,7 @@ function harness(extra: Record<string, string> = {}) {
   mkdirSync(join(root, '.deploy/images'));
   const apiDigest = 'ghcr.io/test/radar/api@sha256:' + 'a'.repeat(64);
   const workerDigest = 'ghcr.io/test/radar/worker@sha256:' + 'b'.repeat(64);
+  const collectorDigest = 'ghcr.io/test/radar/x-collector@sha256:' + '9'.repeat(64);
   const fixtureDir = join(root, 'fixtures');
   mkdirSync(fixtureDir);
   const fixture = (name: string, value: unknown) =>
@@ -45,6 +54,20 @@ function harness(extra: Record<string, string> = {}) {
     return release;
   });
   fixture('releases', releases.reverse());
+  const withCollector = () => {
+    const manifest = JSON.parse(readFileSync(join(fixtureDir, '201.json'), 'utf8'));
+    manifest.images = manifest.images.filter(
+      (entry: { target: string }) => entry.target !== 'x-collector',
+    );
+    manifest.images.push({
+      target: 'x-collector',
+      image: collectorDigest,
+      version: 'v0.2.0',
+      commit: 'c'.repeat(40),
+    });
+    fixture('201', manifest);
+    return manifest;
+  };
   writeFileSync(
     join(root, '.deploy/images/v0.1.0'),
     apiDigest + '\n' + workerDigest + '\n' + 'c'.repeat(40) + '\n',
@@ -56,14 +79,23 @@ function harness(extra: Record<string, string> = {}) {
   executable(
     'docker',
     `printf '%s|%s\\n' "\${APP_VERSION:-none}" "$*" >> "$TEST_LOG"
-if [[ "$*" == *'config --format json'* ]]; then printf '{"services":{"api":{"image":"ghcr.io/test/radar/api:test"},"worker":{"image":"ghcr.io/test/radar/worker:test"}}}'; fi
+if [[ "$*" == *'config --format json'* ]]; then printf '{"services":{"api":{"image":"ghcr.io/test/radar/api:test"},"worker":{"image":"ghcr.io/test/radar/worker:test"},"x-collector":{"environment":{"X_COLLECTOR_SECRET":"%s"}}}}' "\${X_COLLECTOR_SECRET:-\${CONFIGURED_COLLECTOR_SECRET:-}}"; fi
 if [[ "$*" == *'pull api worker'* ]]; then printf 'images:%s|%s\\n' "\${API_IMAGE:-none}" "\${WORKER_IMAGE:-none}" >> "$TEST_LOG"; fi
+if [[ "$*" == *'pull api worker x-collector'* ]]; then printf 'collector-image:%s\\n' "\${X_COLLECTOR_IMAGE:-none}" >> "$TEST_LOG"; fi
 if [[ "$*" == 'image inspect'* && "$*" == *org.opencontainers.image.version* ]]; then printf '%s' "\${IMAGE_VERSION_OVERRIDE:-$APP_VERSION}";
-elif [[ "$*" == 'image inspect'* && "$*" == *org.opencontainers.image.revision* ]]; then if [[ "\${FAIL_REVISION:-false}" == true && "$*" == *'/worker@'* || "\${FAIL_ALL_REVISIONS:-false}" == true ]]; then printf 'dddddddddddddddddddddddddddddddddddddddd'; else printf 'cccccccccccccccccccccccccccccccccccccccc'; fi
+elif [[ "$*" == 'image inspect'* && "$*" == *org.opencontainers.image.revision* ]]; then if [[ "\${FAIL_REVISION:-false}" == true && "$*" == *'/worker@'* || "\${FAIL_COLLECTOR_REVISION:-false}" == true && "$*" == *'/x-collector@'* || "\${FAIL_ALL_REVISIONS:-false}" == true ]]; then printf 'dddddddddddddddddddddddddddddddddddddddd'; else printf 'cccccccccccccccccccccccccccccccccccccccc'; fi
 elif [[ "$*" == 'image inspect'* ]]; then if [[ "$*" == *'/api:'* ]]; then printf 'ghcr.io/test/radar/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; else printf 'ghcr.io/test/radar/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'; fi; fi
 if [[ "$*" == *dist/migrate.js* ]]; then printf 'migration-commit:%s\\n' "\${COMMIT_SHA:-missing}" >> "$TEST_LOG"; fi
 if [[ "$*" == *pg_dump* ]]; then [[ "\${FAIL_BACKUP:-false}" != true ]] || exit 1; printf 'mock-backup-archive'; fi
 if [[ "$*" == *'worker node apps/worker/dist/health.js'* && "\${APP_VERSION:-}" == "\${FAIL_VERSION:-none}" ]]; then exit 1; fi
+if [[ "$*" == *'up -d --no-deps --wait --wait-timeout 60 x-collector'* && "\${FAIL_COLLECTOR_START:-false}" == true ]]; then exit 1; fi
+if [[ "$*" == *'exec -T x-collector python'* && "\${FAIL_COLLECTOR_HEALTH:-false}" == true ]]; then exit 1; fi
+if [[ "$*" == *'up -d --no-deps api worker'* ]] && [[ -n "\${X_COLLECTOR_IMAGE:-}" || -f "$DEPLOY_ROOT/.deploy/x-collector.secret" ]]; then
+  expected="\${EXPECTED_COLLECTOR_SECRET:-}"
+  if [[ -z "$expected" && -f "$DEPLOY_ROOT/.deploy/x-collector.secret" ]]; then expected=$(cat "$DEPLOY_ROOT/.deploy/x-collector.secret"); fi
+  [[ -n "$expected" && "\${X_COLLECTOR_SECRET:-}" == "$expected" ]] || exit 1
+  printf 'collector-secret:matched\\n' >> "$TEST_LOG"
+fi
 `,
   );
   executable(
@@ -91,6 +123,7 @@ elif [[ "$url" == *'/releases?'* ]]; then cat "$TEST_FIXTURES/releases.json"; fi
     TEST_FIXTURES: fixtureDir,
     GITHUB_REPOSITORY: 'test/radar',
     NGINX_RELOAD: 'true',
+    X_COLLECTOR_SECRET: '',
     ...extra,
   };
   const run = (script: string, args: string[] = []) =>
@@ -99,9 +132,170 @@ elif [[ "$url" == *'/releases?'* ]]; then cat "$TEST_FIXTURES/releases.json"; fi
       encoding: 'utf8',
       timeout: 15000,
     });
-  return { root, run, fixture, log: () => readFileSync(join(root, 'calls'), 'utf8') };
+  return {
+    root,
+    run,
+    fixture,
+    withCollector,
+    collectorDigest,
+    log: () => readFileSync(join(root, 'calls'), 'utf8'),
+  };
 }
 describe('deployment application transaction', () => {
+  it('deploys and pins all three release images, waiting for the collector before replacing applications', () => {
+    const h = harness();
+    h.withCollector();
+    const result = h.run('deploy.sh', ['v0.2.0']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(h.log()).toContain('pull api worker x-collector');
+    expect(h.log()).toContain('collector-image:' + h.collectorDigest);
+    expect(h.log().indexOf('up -d --no-deps --wait --wait-timeout 60 x-collector')).toBeLessThan(
+      h.log().indexOf('up -d --no-deps api worker'),
+    );
+    expect(h.log()).toContain('exec -T x-collector python');
+    expect(h.log()).toContain('collector-secret:matched');
+    expect(readFileSync(join(h.root, '.deploy/images/v0.2.0'), 'utf8').trim().split('\n')).toEqual([
+      'ghcr.io/test/radar/api@sha256:' + 'a'.repeat(64),
+      'ghcr.io/test/radar/worker@sha256:' + 'b'.repeat(64),
+      'c'.repeat(40),
+      h.collectorDigest,
+    ]);
+  });
+  it('creates a private shared secret once and reuses it during deployment and standalone health checks', () => {
+    const h = harness();
+    h.withCollector();
+    const deployed = h.run('deploy.sh', ['v0.2.0']);
+    expect(deployed.status, deployed.stderr).toBe(0);
+    const secretPath = join(h.root, '.deploy/x-collector.secret');
+    const secret = readFileSync(secretPath, 'utf8').trim();
+    expect(secret).toMatch(/^[a-f0-9]{64}$/);
+    expect(statSync(secretPath).mode & 0o777).toBe(0o600);
+    const redeployed = h.run('deploy.sh', ['v0.2.0']);
+    expect(redeployed.status, redeployed.stderr).toBe(0);
+    const health = h.run('check-health.sh');
+    expect(health.status, health.stderr).toBe(0);
+    expect(readFileSync(secretPath, 'utf8').trim()).toBe(secret);
+    expect(
+      h.log() +
+        deployed.stdout +
+        deployed.stderr +
+        redeployed.stdout +
+        redeployed.stderr +
+        health.stdout +
+        health.stderr,
+    ).not.toContain(secret);
+  });
+  it('preserves an existing configured shared secret without disclosing it', () => {
+    const secret = 'synthetic-existing-collector-secret-1234567890';
+    const h = harness({ CONFIGURED_COLLECTOR_SECRET: secret, EXPECTED_COLLECTOR_SECRET: secret });
+    h.withCollector();
+    const result = h.run('deploy.sh', ['v0.2.0']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(h.log()).toContain('collector-secret:matched');
+    expect(h.log() + result.stdout + result.stderr).not.toContain(secret);
+  });
+  it('refuses a short configured collector secret before backup or migration', () => {
+    const h = harness({ CONFIGURED_COLLECTOR_SECRET: 'too-short' });
+    h.withCollector();
+    const result = h.run('deploy.sh', ['v0.2.0']);
+    expect(result.status).not.toBe(0);
+    expect(h.log()).not.toContain('pg_dump');
+    expect(h.log()).not.toContain('dist/migrate.js');
+    expect(result.stdout + result.stderr).not.toContain('too-short');
+  });
+  it('retains all three immutable digests if the same release is rebuilt', () => {
+    const h = harness();
+    h.withCollector();
+    const first = h.run('deploy.sh', ['v0.2.0']);
+    expect(first.status, first.stderr).toBe(0);
+    const statePath = join(h.root, '.deploy/images/v0.2.0');
+    const original = readFileSync(statePath, 'utf8');
+    const manifest = h.withCollector();
+    for (const image of manifest.images)
+      image.image = image.image.split('@')[0] + '@sha256:' + 'e'.repeat(64);
+    h.fixture('201', manifest);
+    const result = h.run('deploy.sh', ['v0.2.0']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(h.log()).toContain('collector-image:' + h.collectorDigest);
+    expect(readFileSync(statePath, 'utf8')).toBe(original);
+  });
+  it.each(['FAIL_COLLECTOR_START', 'FAIL_COLLECTOR_HEALTH'])(
+    'restores the previous applications after %s and retains the verified state',
+    (failure) => {
+      const h = harness({ [failure]: 'true' });
+      h.withCollector();
+      const result = h.run('deploy.sh', ['v0.2.0']);
+      expect(result.status).not.toBe(0);
+      expect(h.log()).toContain(
+        'v0.1.0|compose --env-file .env -f docker-compose.yml up -d --no-deps api worker',
+      );
+      expect(readFileSync(join(h.root, '.deploy/current'), 'utf8').trim()).toBe('v0.1.0');
+      expect(existsSync(join(h.root, '.deploy/images/v0.2.0'))).toBe(false);
+      expect(h.log()).not.toMatch(/down -v|volume rm|TRUNCATE/);
+    },
+  );
+  it('rejects a collector built from a different commit before backup or migration', () => {
+    const h = harness({ FAIL_COLLECTOR_REVISION: 'true' });
+    h.withCollector();
+    const result = h.run('deploy.sh', ['v0.2.0']);
+    expect(result.status).not.toBe(0);
+    expect(h.log()).not.toContain('pg_dump');
+    expect(h.log()).not.toContain('dist/migrate.js');
+    expect(readFileSync(join(h.root, '.deploy/current'), 'utf8').trim()).toBe('v0.1.0');
+  });
+  it.each(['repository', 'commit', 'duplicate-target', 'unknown-target', 'digest'])(
+    'refuses a malformed collector receipt (%s) before pulling images',
+    (fault) => {
+      const h = harness();
+      const manifest = h.withCollector();
+      const collector = manifest.images[2];
+      if (fault === 'repository')
+        collector.image = 'ghcr.io/unrelated/radar/x-collector@sha256:' + '9'.repeat(64);
+      if (fault === 'commit') collector.commit = 'd'.repeat(40);
+      if (fault === 'duplicate-target') collector.target = 'worker';
+      if (fault === 'unknown-target') collector.target = 'other-service';
+      if (fault === 'digest') collector.image = 'ghcr.io/test/radar/x-collector:latest';
+      h.fixture('201', manifest);
+      const result = h.run('deploy.sh', ['v0.2.0']);
+      expect(result.status).not.toBe(0);
+      expect(h.log()).not.toContain('pull api worker');
+      expect(h.log()).not.toContain('pg_dump');
+    },
+  );
+  it('rolls back from a three-image release to a previously verified legacy release', () => {
+    const h = harness();
+    h.withCollector();
+    const deployed = h.run('deploy.sh', ['v0.2.0']);
+    expect(deployed.status, deployed.stderr).toBe(0);
+    const result = h.run('rollback.sh');
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(h.root, '.deploy/current'), 'utf8').trim()).toBe('v0.1.0');
+    expect(
+      readFileSync(join(h.root, '.deploy/images/v0.1.0'), 'utf8').trim().split('\n'),
+    ).toHaveLength(3);
+    expect(h.log()).not.toContain('stop x-collector');
+  });
+  it('restores the saved shared secret during a fresh-process rollback to legacy applications', () => {
+    const h = harness();
+    const previousState = readFileSync(join(h.root, '.deploy/images/v0.1.0'), 'utf8');
+    writeFileSync(join(h.root, '.deploy/images/v0.2.0'), previousState + h.collectorDigest + '\n');
+    writeFileSync(join(h.root, '.deploy/current'), 'v0.2.0\n');
+    writeFileSync(join(h.root, '.deploy/previous'), 'v0.1.0\n');
+    const secret = '8'.repeat(64);
+    const secretPath = join(h.root, '.deploy/x-collector.secret');
+    writeFileSync(secretPath, secret + '\n', { mode: 0o600 });
+    const result = h.run('rollback.sh', ['v0.1.0']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(h.log()).toContain(
+      'v0.1.0|compose --env-file .env -f docker-compose.yml up -d --no-deps api worker',
+    );
+    expect(h.log().match(/collector-secret:matched/g)).toHaveLength(1);
+    expect(h.log()).not.toContain('up -d --no-deps --wait --wait-timeout 60 x-collector');
+    expect(readFileSync(secretPath, 'utf8')).toBe(secret + '\n');
+    expect(readFileSync(join(h.root, '.deploy/current'), 'utf8')).toBe('v0.1.0\n');
+    expect(readFileSync(join(h.root, '.deploy/images/v0.1.0'), 'utf8')).toBe(previousState);
+    expect(h.log() + result.stdout + result.stderr).not.toContain(secret);
+  });
   it('backs up before migration, verifies both services and reloads nginx after syntax validation', () => {
     const h = harness();
     const result = h.run('deploy.sh', ['--version', 'v0.2.0']);

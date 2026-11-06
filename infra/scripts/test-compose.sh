@@ -19,6 +19,7 @@ export APP_VERSION=v0.1.0
 export COMMIT_SHA="${TEST_COMMIT_SHA:-$(git rev-parse HEAD)}"
 export API_IMAGE="${TEST_API_IMAGE:-financial-radar-api:$COMPOSE_PROJECT_NAME}"
 export WORKER_IMAGE="${TEST_WORKER_IMAGE:-financial-radar-worker:$COMPOSE_PROJECT_NAME}"
+export X_COLLECTOR_IMAGE="${TEST_X_COLLECTOR_IMAGE:-financial-radar-x-collector:$COMPOSE_PROJECT_NAME}"
 export BACKUP_DIR="$DEPLOY_ROOT/backups"
 export NGINX_RELOAD=false
 # Exclude unrelated host env / URLs by supplying authoritative test config.
@@ -27,13 +28,13 @@ import {randomBytes} from 'node:crypto';
 import {writeFileSync} from 'node:fs';
 const pg='Pg-@:/%#'+randomBytes(20).toString('hex');
 const redis='Redis-@:/%#'+randomBytes(20).toString('hex');
-const env={NODE_ENV:'production',DATA_MODE:'fixture',PORT:'3000',ADMIN_EMAIL:'acceptance@radar.local',ADMIN_PASSWORD:randomBytes(24).toString('hex'),SESSION_SECRET:randomBytes(32).toString('hex'),SECURE_COOKIE:'true',COOKIE_SAME_SITE:'Lax',WEB_ORIGIN:'https://acceptance.invalid',POSTGRES_USER:'radar_acceptance',POSTGRES_DB:'radar',POSTGRES_PASSWORD:pg,REDIS_PASSWORD:redis,DATABASE_URL:`postgresql://radar_acceptance:${encodeURIComponent(pg)}@postgres:5432/radar`,REDIS_URL:`redis://:${encodeURIComponent(redis)}@redis:6379`,APP_VERSION:process.env.APP_VERSION,COMMIT_SHA:process.env.COMMIT_SHA,POLL_INTERVAL_SECONDS:'30',LOG_LEVEL:'info'};
+const env={NODE_ENV:'production',DATA_MODE:'fixture',PORT:'3000',ADMIN_EMAIL:'acceptance@radar.local',ADMIN_PASSWORD:randomBytes(24).toString('hex'),SESSION_SECRET:randomBytes(32).toString('hex'),SECURE_COOKIE:'true',COOKIE_SAME_SITE:'Lax',WEB_ORIGIN:'https://acceptance.invalid',POSTGRES_USER:'radar_acceptance',POSTGRES_DB:'radar',POSTGRES_PASSWORD:pg,REDIS_PASSWORD:redis,DATABASE_URL:`postgresql://radar_acceptance:${encodeURIComponent(pg)}@postgres:5432/radar`,REDIS_URL:`redis://:${encodeURIComponent(redis)}@redis:6379`,X_COLLECTOR_URL:'http://x-collector:8080',X_COLLECTOR_SECRET:randomBytes(32).toString('hex'),APP_VERSION:process.env.APP_VERSION,COMMIT_SHA:process.env.COMMIT_SHA,POLL_INTERVAL_SECONDS:'30',LOG_LEVEL:'info'};
 writeFileSync(process.env.APP_ENV_FILE,Object.entries(env).map(([k,v])=>`${k}='${v}'`).join('\n')+'\n',{mode:0o600});
 writeFileSync(process.env.COMPOSE_OVERRIDE_FILE,'services:\n  api:\n    ports: !reset []\n',{mode:0o600});
 JS
 # Compose's process environment overrides --env-file; explicitly remove unrelated
 # host database/password values so the random isolated credentials are used.
-unset DATABASE_URL REDIS_URL POSTGRES_USER POSTGRES_DB POSTGRES_PASSWORD REDIS_PASSWORD
+unset DATABASE_URL REDIS_URL POSTGRES_USER POSTGRES_DB POSTGRES_PASSWORD REDIS_PASSWORD X_COLLECTOR_URL X_COLLECTOR_SECRET
 compose_test() { docker compose --env-file "$APP_ENV_FILE" -f "$COMPOSE_FILE" -f "$COMPOSE_OVERRIDE_FILE" "$@"; }
 [[ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME")" ]] || { echo 'Acceptance project collision' >&2; exit 1; }
 task_started=false
@@ -50,7 +51,7 @@ cleanup() {
       echo 'Acceptance cleanup failed; retain the temporary configuration for targeted operator cleanup.' >&2
     fi
   fi
-  if [[ "$task_images_built" == true ]]; then docker image rm "$API_IMAGE" "$WORKER_IMAGE" >> "$DEPLOY_ROOT/cleanup.log" 2>&1 || task_exit=1; fi
+  if [[ "$task_images_built" == true ]]; then docker image rm "$API_IMAGE" "$WORKER_IMAGE" "$X_COLLECTOR_IMAGE" >> "$DEPLOY_ROOT/cleanup.log" 2>&1 || task_exit=1; fi
   if [[ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME")" && -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME")" ]]; then rm -f "$APP_ENV_FILE"; else task_exit=1; fi
   if [[ "$task_exit" != 0 ]]; then printf 'Container acceptance failed; inspect %s\n' "$DEPLOY_ROOT" >&2; fi
   exit "$task_exit"
@@ -60,8 +61,10 @@ if [[ "${TEST_SKIP_BUILD:-false}" != true ]]; then
   task_images_built=true
   docker build -f infra/docker/Dockerfile --target api --build-arg "APP_VERSION=$APP_VERSION" --build-arg "COMMIT_SHA=$COMMIT_SHA" -t "$API_IMAGE" . > "$DEPLOY_ROOT/build-api.log" 2>&1
   docker build -f infra/docker/Dockerfile --target worker --build-arg "APP_VERSION=$APP_VERSION" --build-arg "COMMIT_SHA=$COMMIT_SHA" -t "$WORKER_IMAGE" . > "$DEPLOY_ROOT/build-worker.log" 2>&1
+  docker build --build-arg "APP_VERSION=$APP_VERSION" --build-arg "COMMIT_SHA=$COMMIT_SHA" -t "$X_COLLECTOR_IMAGE" services/x-collector > "$DEPLOY_ROOT/build-x-collector.log" 2>&1
 fi
 compose_test config --quiet
+compose_test config --format json | jq -e '(.services["x-collector"].ports // []) | length==0' >/dev/null
 task_started=true
 printf 'Starting isolated PostgreSQL and Redis (%s).\n' "$COMPOSE_PROJECT_NAME"
 compose_test up -d --wait --wait-timeout 180 postgres redis > "$DEPLOY_ROOT/start-dependencies.log" 2>&1
@@ -73,9 +76,28 @@ task_before=$(counts)
 [[ "$task_before" =~ ^[1-9][0-9]*\|[1-9][0-9]*\|[1-9][0-9]*\|[1-9][0-9]*\|[1-9][0-9]*$ ]] || { echo 'Expected persisted Fixture facts and migration state' >&2; exit 1; }
 compose_test run --rm --no-deps worker node apps/worker/dist/index.js --once > "$DEPLOY_ROOT/worker-twice.log" 2>&1
 [[ "$(counts)" == "$task_before" ]] || { echo 'Duplicate ingestion created extra facts' >&2; exit 1; }
-compose_test up -d --wait --wait-timeout 180 api worker > "$DEPLOY_ROOT/start-applications.log" 2>&1
+compose_test up -d --wait --wait-timeout 180 x-collector api worker > "$DEPLOY_ROOT/start-applications.log" 2>&1
 compose_test exec -T api node -e "fetch('http://127.0.0.1:3000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 compose_test exec -T worker node apps/worker/dist/health.js
+# Real Docker DNS and HTTP authentication checks use only health/invalid input;
+# no valid search, X session or upstream request is sent in Fixture acceptance.
+for task_client in api worker; do
+  compose_test exec -T "$task_client" node --input-type=module <<'JS'
+import assert from 'node:assert/strict';
+const base=process.env.X_COLLECTOR_URL;
+assert.equal(base,'http://x-collector:8080');
+assert.match(process.env.X_COLLECTOR_SECRET,/^[a-f0-9]{64}$/);
+const health=await fetch(base+'/healthz',{signal:AbortSignal.timeout(5000)});
+assert.equal(health.status,200);
+const request={method:'POST',headers:{'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(5000)};
+assert.equal((await fetch(base+'/v1/search',request)).status,403);
+assert.equal((await fetch(base+'/v1/search',{...request,headers:{...request.headers,Authorization:'Bearer '+process.env.X_COLLECTOR_SECRET},signal:AbortSignal.timeout(5000)})).status,400);
+console.info('Internal X collector health and authentication passed without upstream access.');
+JS
+done
+task_collector_id=$(compose_test ps -q x-collector)
+[[ -n "$task_collector_id" ]] || { echo 'Missing X collector container' >&2; exit 1; }
+docker inspect "$task_collector_id" --format '{{json .HostConfig.PortBindings}}' | jq -e '.==null or length==0' >/dev/null
 compose_test exec -T api node --input-type=module <<'JS'
 import assert from 'node:assert/strict';
 const base='http://127.0.0.1:3000';
@@ -87,8 +109,8 @@ for(const route of ['/events','/projects','/sources','/dashboard','/system/statu
 const test=await fetch(base+'/api/v1/alert-rules/test',{method:'POST',headers,body:JSON.stringify({conditions:{minConfidence:0}})});assert.equal(test.status,200);
 console.info('Production administrator session, Secure/HttpOnly cookie, CSRF and protected data APIs passed.');
 JS
-[[ "$(compose_test exec -T api id -u)" != 0 && "$(compose_test exec -T worker id -u)" != 0 ]] || { echo 'Application containers must run without root' >&2; exit 1; }
-printf 'All four services healthy; verifying PostgreSQL/Redis container replacement retains volumes.\n'
+[[ "$(compose_test exec -T api id -u)" != 0 && "$(compose_test exec -T worker id -u)" != 0 && "$(compose_test exec -T x-collector id -u)" != 0 ]] || { echo 'Application containers must run without root' >&2; exit 1; }
+printf 'All five services healthy; verifying PostgreSQL/Redis container replacement retains volumes.\n'
 # Record an explicit Redis durability marker; AOF appendfsync everysec needs a
 # bounded drain before replacing only this project's dependency containers.
 compose_test exec -T redis redis-cli SET acceptance:persistent-marker retained >/dev/null
@@ -108,6 +130,6 @@ bash "$TASK_REPO_ROOT/infra/scripts/restore.sh" "$task_archive" radar_restore_ac
 task_restored=$(compose_test exec -T postgres sh -ec 'psql -U "$POSTGRES_USER" -d radar_restore_acceptance -Atc "SELECT (SELECT count(*) FROM raw_items),(SELECT count(*) FROM events),(SELECT count(*) FROM projects),(SELECT count(*) FROM opportunity_signals),(SELECT count(*) FROM _radar_migrations);"')
 [[ "$task_restored" == "$task_before" ]] || { echo 'Restored database facts differ from backup' >&2; exit 1; }
 compose_test ps --format json > "$DEPLOY_ROOT/services.json"
-jq -s -e '(if length==1 and (.[0]|type)=="array" then .[0] else . end) | length==4 and all(.[]; .Health=="healthy")' "$DEPLOY_ROOT/services.json" >/dev/null
-jq -n --arg project "$COMPOSE_PROJECT_NAME" --arg counts "$task_before" --arg commit "$COMMIT_SHA" '{project:$project,commit:$commit,counts:$counts,mode:"fixture",migrationsTwice:true,idempotency:true,fourServicesHealthy:true,productionSessionAndCsrf:true,nonRootApplications:true,postgresContainerReplacement:true,redisAofPersistence:true,backupRestoredToNewDatabase:true,cleanup:"only this unique project and volumes"}' > "$DEPLOY_ROOT/result.json"
+jq -s -e '(if length==1 and (.[0]|type)=="array" then .[0] else . end) | length==5 and all(.[]; .Health=="healthy")' "$DEPLOY_ROOT/services.json" >/dev/null
+jq -n --arg project "$COMPOSE_PROJECT_NAME" --arg counts "$task_before" --arg commit "$COMMIT_SHA" '{project:$project,commit:$commit,counts:$counts,mode:"fixture",migrationsTwice:true,idempotency:true,fiveServicesHealthy:true,internalCollectorConnectivity:true,collectorAuthentication:true,collectorHostPorts:false,productionSessionAndCsrf:true,nonRootApplications:true,postgresContainerReplacement:true,redisAofPersistence:true,backupRestoredToNewDatabase:true,cleanup:"only this unique project and volumes"}' > "$DEPLOY_ROOT/result.json"
 printf 'Docker Compose acceptance passed. Evidence: %s/result.json\n' "$DEPLOY_ROOT"

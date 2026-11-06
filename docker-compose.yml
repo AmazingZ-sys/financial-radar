@@ -18,6 +18,8 @@ x-app: &app
     PORT: '3000'
     APP_VERSION: ${APP_VERSION:?Set an explicit release version}
     COMMIT_SHA: ${COMMIT_SHA:-unknown}
+    X_COLLECTOR_URL: ${X_COLLECTOR_URL:-http://x-collector:8080}
+    X_COLLECTOR_SECRET: ${X_COLLECTOR_SECRET:-}
   depends_on:
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -58,9 +60,7 @@ services:
     mem_limit: 1g
     cpus: 1
   x-collector:
-    profiles: [x-free]
-    build: ./services/x-collector
-    image: financial-radar-x-collector:local
+    image: ${X_COLLECTOR_IMAGE:-${IMAGE_REPOSITORY:-ghcr.io/amazingz-sys/financial-radar}/x-collector:${APP_VERSION:?Set APP_VERSION}}
     restart: unless-stopped
     init: true
     read_only: true
