@@ -98,7 +98,9 @@ export async function verifyXAnalysisRecovery() {
       'Cached completion also commits before notifications without another provider reservation',
     );
 
-    await sql`UPDATE user_settings SET data=jsonb_set(data,'{timezone}','"UTC"') WHERE user_id=${userId}`;
+    // Repair the injected timezone error and disable quiet hours so replay is
+    // independent of the UTC hour when this integration suite runs.
+    await sql`UPDATE user_settings SET data=data || ${json({ timezone: 'UTC', notifications: { quietStart: null, quietEnd: null, minimumPriority: 'P2' } })}::jsonb WHERE user_id=${userId}`;
     const staleAt = new Date(Date.now() - 7_200_000).toISOString();
     await sql`UPDATE events SET first_seen_at=${staleAt},data=data || ${json({ dataMode: 'live', firstSeenAt: staleAt, sourcePublishedAt: staleAt })}::jsonb WHERE id=${eventId}`;
     config.dataMode = 'live';

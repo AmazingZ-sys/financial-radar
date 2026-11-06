@@ -482,3 +482,11 @@ Node24.15.0 / pnpm10.26.2、Docker Engine29.9.2。常规日志在忽略提交的
 | 静态与安全检查                              | Prettier、Bash语法、生产/开发Compose解析、actionlint1.6.27、已知凭据/eval扫描与`git diff --check`通过。未改变依赖锁文件，未重复运行依赖漏洞审计。                                                                                                                                                                                                                        |
 
 边界：本轮为本地实现与真实隔离容器验收，尚未提交、推送、发布GHCR镜像或操作生产服务器。发布新版后，旧服务器须先更新Compose与部署脚本到同一目标Release，再运行原一键部署命令；真实X联通仍须使用管理员授权登录态实测，不能由容器健康推断成功。
+
+## 2026-11-06 · 采集器发布门禁的测试时间依赖修复
+
+用户授权提交并发布镜像，后端由用户更新。功能提交 `1ee3d072e0eeacd2e31ef5879aac0700b7f5c625` 已推送工作分支与main；首次 [Actions 42141690346](https://github.com/AmazingZ-sys/financial-radar/actions/runs/42141690346) 通过类型、lint、格式、447项单测和26项采集器隔离测试，但集成测试在UTC01:09的X分析恢复通知断言失败，因此未创建新版Release或发布镜像。
+
+确认测试用户初始配置了UTC1–2点静默时段；恢复阶段只修复无效时区，仍要求一定生成通知。生产逻辑正确保存静默触发并抑制通知，旧测试依赖运行时刻。在相同UTC时段本地复现原失败后，仅修改 `scripts/x-analysis-recovery-integration.ts` 的合成测试配置：修复时区时明确关闭静默时段。保留初始无效时区与两次RangeError注入，以及已完成结果不回滚、预算/尝试不重复、恢复后仅一条通知/触发和outbox完成的全部断言；没有修改生产规则、静默逻辑或重试放宽门禁。
+
+隔离PostgreSQL55476 / Redis56476，Node24.15.0 / pnpm10.26.2：UTC00:30、01:30、23:30三组完整恢复场景各8项通过；随后typecheck、lint、447项单测、9项构建、Prettier与完整集成（主流程70项及全部扩展）通过。收据在忽略提交的 `.local/x-collector-release/`：`verify-first-failure.log`、`recovery-before-fix.log`、`recovery-clock-matrix.log`、`typecheck.log`、`lint.log`、`unit.log`、`build.log`、`integration.log`、`format.log`。修复提交将再次触发完整云端发布门禁，实际镜像发布结果另行记录。本轮未操作生产后端或使用真实X登录态。
