@@ -563,3 +563,21 @@ Node24.15.0 / pnpm10.26.2 下重新运行 typecheck、lint、453项单测（30�
 读取失败页面快照与网络trace确认：用例默认打开列表第一条，新增窗口事件恰为最新记录，AI状态为 PENDING。API两次正确返回409“分析尚未完成，无法人工复核”，页面正确显示错误；不能放宽生产复核校验。测试应从真实API已有Fixture事件中明确选择已完成分析的记录，再验证复核保存、刷新持久化与事实/评分独立性。收据在 `.local/participation-release/actions-second-failure.log` 和 `e2e-failure/`。
 
 仅修改 `radar.spec.ts`：真实API分页读取并用 EventSchema 验证现有Fixture事件，明确选择 COMPLETED 且已有分析的记录；通过真实详情UI提交并检查POST200、复核内容、原核验状态及两项评分不变，保留刷新持久化和侧栏事实不变断言。没有伪造分析完成状态、修改生产API/UI或跳过测试。单文件strict类型、ESLint、格式和测试加载通过；随后在独立随机Docker PostgreSQL17.11 / Redis7.4.12下再次通过完整653项集成与Chromium27/27（无重试）。证据 `.local/participation-release/e2e-fixed.log`、`docker-e2e-fixed.json`（passed=true）；本轮测试容器及API/Web进程已清理。
+
+## 2026-11-17 · v1.6.0 正式发布核验
+
+功能、SQL预算修复与浏览器测试修正均已推送 `codex/participation-scheduling-optimization` 和 main。最终 Release commit 为 `9fc47b9afbbd4837abac1126b18e77178f8239d4`。[Actions 43995081367](https://github.com/AmazingZ-sys/financial-radar/actions/runs/43995081367) 的 verify、release、三个 images、image-manifest 和 vercel 共7个job全部成功。云端实际通过类型、lint、格式、31文件457项单测、26项采集器隔离测试、PostgreSQL17完整集成653项、9项构建、运行时语法、五服务生产Compose、安全扫描、生产依赖高危门槛审计及Chromium27/27（无重试）。
+
+[Release v1.6.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.6.0) 于09:28:21（Asia/Shanghai）正式发布，非草稿或预发布。中文发布说明包含手动排空旧Worker、新增迁移、默认due模式与升级命令，并保留自动生成的变更记录。tag、`release-metadata.json`、`image-manifest.json` 的版本与40位commit一致；累计CHANGELOG和两项JSON资产均已上传。
+
+| 镜像target  | 已发布不可变digest                                                        |
+| ----------- | ------------------------------------------------------------------------- |
+| api         | `sha256:a4bbd985fd3638430f15f1b243b75ef1925f47e7267791752ca55f07724790ae` |
+| worker      | `sha256:b5b4b01d3b21f87ab5241aa3ea65e8fa3a321d87b83ed72b60f8371de7861db1` |
+| x-collector | `sha256:af09e4d6e245c9294cbf3f045b417fb4d3e2e3ba96b006fba8d03fd6682af6b5` |
+
+匿名GHCR读取验证三个镜像的版本tag、commit tag与固定digest一致，linux/amd64子manifest和config内容hash正确，OCI版本/revision/source及运行时APP_VERSION/COMMIT_SHA匹配；API/Worker为Node24.22.3、默认用户node，采集器为radar。仅下载manifest/config，没有拉取镜像层或运行生产容器。
+
+Vercel artifact绑定同一版本/SHA，[生产部署](https://financial-radar-avr4p5d8i-amazings-projects-6f99eda0.vercel.app)于09:31:44映射[正式域名](https://radar.amazingzsys.site)。09:34:16（Asia/Shanghai）只读核验 `/login`、`/rules` 和 `/assets/index-BnFUSu8n.js` 均HTTP200，SPA fallback、生产API前缀与入口静态资源immutable缓存正确。
+
+收据在忽略提交的 `.local/participation-release/v1.6.0/`：`registry-verification.json`、`verification-summary.json`、`frontend-http-receipt.json`、Release资产、镜像manifest/config、`vercel-job.log` 与 `vercel/vercel-deployment.json`；云端门禁日志为同级上层 `verify-success.log`。本轮未请求、登录或更新生产后端，未执行生产迁移或发送真实通知。后端由用户自行更新：先备份数据库、停止并排空所有旧Worker，再运行 `sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.6.0`，保留生产Compose组合、环境文件、`.deploy`与数据卷；生产性能与窗口延迟仍须上线后实测。
