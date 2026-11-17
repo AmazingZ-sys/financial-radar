@@ -543,3 +543,15 @@ Vercel成功job检出同一commit并注入v1.5.0，09:35将 [生产部署](https
 Node24.15.0 / pnpm10.26.2 下重新运行 typecheck、lint、453项单测（30文件）、9项构建、Prettier、安全扫描、生成 API 契约一致性和构建运行时语法检查，全部通过。独立随机端口 embedded PostgreSQL18.6 / Redis7.4.2、新建空库与显式 fixture 下，完整集成主流程70项及全部扩展共648项断言通过，另有迁移专项11项和 Worker故障恢复8项通过；自建服务已停止。日志在忽略提交的 `.local/participation-release/`。
 
 本节记录本地发布前结果；GitHub Actions 的 PostgreSQL17、生产Compose、浏览器与镜像发布结果须在实际完成后另行记录。未登录或更新生产后端、执行生产迁移或发送真实通知。
+
+## 2026-11-17 · 发布门禁发现数据库超时崩溃
+
+功能提交 `418e90e06c3cb17ea0f865e39965ccc4502d0ca2` 已推送工作分支与 main。首轮 [Actions 43990384298](https://github.com/AmazingZ-sys/financial-radar/actions/runs/43990384298) 通过类型、lint、格式、453项单测与采集器隔离测试，在 PostgreSQL17 完整集成的 preflight 超时场景失败；发布、镜像与前端任务被门禁跳过，没有创建新 Release。
+
+根因：旧实现把 statement_timeout、transaction_timeout 设为相同剩余时间。PostgreSQL 在此配置下会优先终止整个会话，postgres.js3.4.9 的事务回滚随后可能向已关闭 socket 写入并触发未捕获 TypeError。这是生产超时路径缺陷，不能仅延长或跳过测试。在 Node24.15.0 / 独立 PostgreSQL18.6 下，100ms 预算最小复现于第二轮触发同一进程崩溃，日志为 `.local/participation-release/repro-timeouts.log`；故障不限于云端 Node/PG版本。
+
+修复设计先更新 [40 参与窗口调度](40-participation-scheduling.md)：业务预算按逐语句绝对截止时间递减，使用普通 SQL 取消并保留回滚连接；提交前检查累计预算。最终修复验证与发布结果须以下续记录为准。
+
+最终实现共享 `withSqlDeadline`，保留 postgres.js 懒查询、SQL片段与结果修饰，失败后停止排队语句并排空已启动查询，ROLLBACK 使用原连接。保留100ms锁等待与无部分事实断言，新增累计预算取消、同 backend PID 恢复、回滚和正常提交验证。PG17复核还暴露合成测试墙钟依赖：指标触发器使用真实时钟，测试随后把检测时钟拨回 `time(2)`。仅将 Fixture 新刷新请求对齐合成时钟，并按明确条件有界排空；未放宽生产预算。
+
+最终 Node24.15.0 / pnpm10.26.2：worker和tools类型、相关lint、31文件457项完整单测、9项构建、格式、安全扫描、运行时语法与diff检查通过。Docker29.9.3 中随机唯一、loopback端口、tmpfs的 PostgreSQL17.11 / Redis7.4.12 下，完整集成主流程70项及全部扩展共653项断言通过（窗口55项），三个独立新库窗口专项各55项通过；迁移专项11项、Worker恢复8项通过。所有本轮自建服务和唯一测试容器均已清理。收据为 `.local/participation-release/docker-integration-fixed.json`（passed=true）、`integration-fixed.log`、`migration-fixed.log`、`recovery-fixed.log` 及各 `*-fixed.log`；未访问生产后端。

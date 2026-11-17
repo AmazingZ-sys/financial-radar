@@ -8,7 +8,7 @@
 - 指标写入触发器在原事务内记录刷新；来源 enabled/mode 变化触发持久来源刷新。后者按 `(source_id,project_id)` 分批展开，重新选择所有启用来源的最新可用观察，不能筛掉更新的未核验条款。
 - 单项目重选使用类型化 evidence_id/available_at；排序保持 observed_at DESC、source_id，并追加 id 解决并列。定时检查只读计划快照；遇到未消费的项目/来源刷新先重选。未来指标的下一可用时刻纳入计划；项目尚不存在的未来观察单独持久化，到时通过原 ingestion 路径恢复。
 - 计划与刷新均受项目锁保护。到期领取使用 SKIP LOCKED、revision、claim_token、60 秒租约；执行先取项目锁再锁计划。信号、通知 outbox 和计划推进同事务提交。来源行共享锁保证停用与执行有明确提交顺序。
-- 每模式 PostgreSQL advisory lock 保证窗口 tick 跨副本串行；每轮最多 25 个到期项，主处理和修复分别 2 秒预算；事务 statement_timeout/lock_timeout 有限，失败退避并最终保留 FAILED。批次未开始项按令牌释放。
+- 每模式 PostgreSQL advisory lock 保证窗口 tick 跨副本串行；每轮最多 25 个到期项，主处理和修复分别 2 秒预算。事务内每条 SQL 按绝对截止时间递减设置 statement_timeout/lock_timeout，超出预算以普通错误回滚；不使用会终止会话的 transaction_timeout 执行业务预算。失败退避并最终保留 FAILED。批次未开始项按令牌释放。
 - 修复每批 50 项，主键 keyset 游标持久化；完成后每日重跑。检测配置版本包含算法版本与阈值，变化时重启修复；执行时对旧版本重选。
 - 心跳、来源调度、X 检查、outbox 补投、租约回收和窗口 tick 各自运行、错误隔离并在退出时等待在途任务。
 
@@ -26,7 +26,7 @@
 
 验收包含核验撤销、日期变更、来源回退、未来可用、幂等、租约恢复、旧令牌拒绝、模式隔离、独立心跳与有界规模查询。实际命令和结果追加 `docs/acceptance.md`；生产 CPU、swap、VPN 改善与通知延迟需部署后实测。
 
-调度锁和所有窗口事务复用同一个保留连接，每次事务检查 backend PID；连接断开或重连后停止旧轮次，由租约恢复。使用 PostgreSQL 17+ 的事务超时（仓库 Compose 为 PostgreSQL 17）；本地 embedded PostgreSQL 验证版本单独记录。主键分页将初始页和续页分成不同 SQL，避免通用执行计划把游标退化为过滤条件。
+调度锁和所有窗口事务复用同一个保留连接，每次事务检查 backend PID；连接断开或重连后停止旧轮次，由租约恢复。窗口事务关闭会终止连接的 transaction_timeout，以逐语句剩余时间和提交前截止检查约束累计预算，保留正常 ROLLBACK 路径及会话锁。仓库 Compose 基线为 PostgreSQL 17，本地 embedded PostgreSQL 验证版本单独记录。主键分页将初始页和续页分成不同 SQL，避免通用执行计划把游标退化为过滤条件。
 
 ## 发布与恢复步骤
 

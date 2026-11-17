@@ -6,11 +6,14 @@ import { config } from '../packages/config/src/index.js';
 import { sql, closeDatabase } from '../packages/database/src/index.js';
 import { migrate } from '../packages/database/src/migrate.js';
 import { persistEvent } from '../apps/worker/src/pipeline.js';
+import { withSqlDeadline } from '../apps/worker/src/sql-deadline.js';
 import {
   runParticipationTick,
   claimDuePlans,
   processClaimedPlan,
 } from '../apps/worker/src/participation.js';
+
+type TransactionSql = Parameters<typeof withSqlDeadline>[0];
 
 /** All observations are synthetic Fixture facts in the real PostgreSQL pipeline.
  * No notification provider or AI endpoint is contacted by this acceptance. */
@@ -101,6 +104,7 @@ export async function verifyParticipationScheduler() {
   async function bootstrap(event: NormalizedEvent) {
     const { rawId, item } = await raw(event);
     await persistEvent(connector(event.sourceId), rawId, time(-10), item, time(0));
+    await alignRefreshClock(event.project!.assetKey);
     const project = (
       await sql`SELECT id FROM projects WHERE asset_key=${event.project!.assetKey}`
     )[0];
@@ -130,7 +134,14 @@ export async function verifyParticipationScheduler() {
           },
         },
       )})`;
+    await alignRefreshClock(event.project!.assetKey);
     return rawId;
+  }
+  async function alignRefreshClock(assetKey: string) {
+    // Metric triggers use PostgreSQL's real clock. These scenarios deliberately
+    // move their synthetic detector clock backwards, independently of test speed.
+    await sql`UPDATE participation_refresh_requests SET requested_at=${time(0)},next_attempt_at=${time(0)}
+      WHERE data_mode='fixture' AND asset_key=${assetKey} AND attempts=0`;
   }
   async function plan(projectId: string) {
     return (
@@ -158,15 +169,21 @@ export async function verifyParticipationScheduler() {
     return selected;
   }
   async function refresh(seconds: number) {
-    for (let pass = 0; pass < 10; pass++) {
+    const drainDeadline = Date.now() + 30000;
+    for (let pass = 0; pass < 100 && Date.now() < drainDeadline; pass++) {
       await tick(seconds);
       const pending = (
-        await sql`SELECT 1 FROM participation_refresh_requests WHERE data_mode='fixture' AND asset_key LIKE ${assetPrefix + '%'} AND next_attempt_at<=${time(seconds)}::timestamptz LIMIT 1`
-      ).length;
+        await sql`SELECT
+          EXISTS(SELECT 1 FROM participation_refresh_requests WHERE data_mode='fixture' AND asset_key LIKE ${assetPrefix + '%'}) OR
+          EXISTS(SELECT 1 FROM participation_source_refreshes WHERE data_mode='fixture' AND source_id=ANY(${sources}::text[])) OR
+          EXISTS(SELECT 1 FROM participation_deferred_observations WHERE data_mode='fixture' AND asset_key LIKE ${assetPrefix + '%'} AND available_at<=${time(seconds)}::timestamptz) OR
+          EXISTS(SELECT 1 FROM participation_window_plans WHERE data_mode='fixture' AND asset_key LIKE ${assetPrefix + '%'} AND status='WAITING' AND next_check_at<=${time(seconds)}::timestamptz)
+          AS pending`
+      )[0]!.pending;
       if (!pending) return;
     }
     throw new Error(
-      'Synthetic participation refresh backlog did not drain within ten bounded ticks',
+      'Synthetic participation backlog did not drain within 100 bounded ticks or 30 seconds',
     );
   }
   try {
@@ -540,8 +557,7 @@ export async function verifyParticipationScheduler() {
           time(0),
           Date.now() + 100,
         ),
-        (error: unknown) =>
-          ['57014', '55P03', '25P04'].includes(String((error as { code?: string }).code)),
+        (error: unknown) => ['57014', '55P03'].includes(String((error as { code?: string }).code)),
         'ingestion preflight table locks obey the same SQL deadline as project processing',
       );
       checks++;
@@ -560,6 +576,67 @@ export async function verifyParticipationScheduler() {
         (await sql`SELECT 1 FROM projects WHERE asset_key=${timed.project!.assetKey}`).length === 0,
       'preflight timeout leaves no partial event or project facts',
     );
+    const bounded = await sql.reserve();
+    try {
+      const backendPid = Number((await bounded`SELECT pg_backend_pid() AS pid`)[0]!.pid);
+      await bounded`CREATE TEMP TABLE radar_sql_deadline_fixture(value integer)`;
+      await bounded`BEGIN`;
+      let completedSleeps = 0;
+      try {
+        await assert.rejects(
+          withSqlDeadline(bounded as unknown as TransactionSql, Date.now() + 250, async (tx) => {
+            await tx`INSERT INTO radar_sql_deadline_fixture VALUES(1)`;
+            for (let i = 0; i < 3; i++) {
+              await tx`SELECT pg_sleep(0.1)`;
+              completedSleeps++;
+            }
+          }),
+          (error: unknown) => (error as { code?: string }).code === '57014',
+          'several individually short statements share one absolute deadline',
+        );
+        checks++;
+      } finally {
+        // Rollback uses the original connection and is allowed after the budget.
+        await bounded`ROLLBACK`;
+      }
+      check(
+        completedSleeps > 0 && completedSleeps < 3,
+        'the total SQL budget expires after successful earlier statements',
+      );
+      check(
+        Number((await bounded`SELECT pg_backend_pid() AS pid`)[0]!.pid) === backendPid &&
+          Number((await bounded`SELECT count(*)::int n FROM radar_sql_deadline_fixture`)[0]!.n) ===
+            0,
+        'budget cancellation rolls back all writes and preserves the same backend session',
+      );
+      await bounded`BEGIN`;
+      try {
+        await withSqlDeadline(
+          bounded as unknown as TransactionSql,
+          Date.now() + 1000,
+          async (tx) => {
+            const fragment = tx`20 + 22`;
+            const rows = await tx`SELECT (${fragment})::integer AS answer`.values();
+            check(
+              rows[0]?.[0] === 42,
+              'bounded queries preserve lazy fragments and result modifiers',
+            );
+            await tx`INSERT INTO radar_sql_deadline_fixture VALUES(2)`;
+          },
+        );
+        await bounded`COMMIT`;
+      } catch (error) {
+        await bounded`ROLLBACK`;
+        throw error;
+      }
+      check(
+        Number((await bounded`SELECT count(*)::int n FROM radar_sql_deadline_fixture`)[0]!.n) ===
+          1 && Number((await bounded`SELECT pg_backend_pid() AS pid`)[0]!.pid) === backendPid,
+        'a transaction inside the budget commits normally on the preserved session',
+      );
+    } finally {
+      bounded.release();
+    }
     config.participationSchedulerMode = 'shadow';
     const shadowEvent = normalized('shadow-switch');
     const shadowId = (await bootstrap(shadowEvent)).projectId!;

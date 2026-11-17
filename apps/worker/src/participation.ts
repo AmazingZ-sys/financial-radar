@@ -18,6 +18,7 @@ import {
   type ParticipationSnapshot,
 } from './participation-observation.js';
 import { earliestCheck, nextParticipationCheck } from './participation-planner.js';
+import { assertSqlDeadline, withSqlDeadline } from './sql-deadline.js';
 
 const log = createLogger('worker.participation');
 const BATCH = 25;
@@ -39,11 +40,7 @@ async function transaction<T>(
   deadline: number,
   run: (tx: TransactionSql) => Promise<T>,
 ): Promise<T> {
-  const execute = async (tx: TransactionSql) => {
-    const remaining = Math.max(1, deadline - Date.now());
-    await tx`SELECT set_config('statement_timeout',${`${remaining}ms`},true),set_config('lock_timeout',${`${Math.min(100, remaining)}ms`},true),set_config('transaction_timeout',${`${remaining}ms`},true)`;
-    return run(tx);
-  };
+  const execute = (tx: TransactionSql) => withSqlDeadline(tx, deadline, run);
   const context = connectionContext.getStore();
   if (!context) return sql.begin(execute) as Promise<T>;
   const { connection, backendPid } = context;
@@ -51,9 +48,11 @@ async function transaction<T>(
   // mutex connection therefore aborts its in-flight transaction as well.
   const session = (await connection`SELECT pg_backend_pid() AS pid`)[0];
   if (Number(session?.pid) !== backendPid) throw new Error('PARTICIPATION_LOCK_SESSION_LOST');
+  assertSqlDeadline(deadline);
   await connection`BEGIN`;
   try {
     const result = await execute(connection as unknown as TransactionSql);
+    assertSqlDeadline(deadline);
     await connection`COMMIT`;
     return result;
   } catch (error) {

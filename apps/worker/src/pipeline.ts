@@ -13,6 +13,7 @@ import {
 } from '@radar/database';
 import { initialAnalysisState, enqueueAnalysis } from './analysis-admission.js';
 import { selectParticipationObservation } from './participation-observation.js';
+import { withSqlDeadline } from './sql-deadline.js';
 import { config } from '@radar/config';
 import { createLogger } from '@radar/observability';
 import {
@@ -584,10 +585,6 @@ export async function persistEvent(
   // Keep preflight reads on this connection as well: deferred observation
   // replays must obey the same transaction deadline before acquiring locks.
   const persist = async (tx: Tx) => {
-    if (deadline !== undefined) {
-      const remaining = Math.max(1, deadline - Date.now());
-      await tx`SELECT set_config('statement_timeout',${`${remaining}ms`},true),set_config('lock_timeout',${`${Math.min(100, remaining)}ms`},true),set_config('transaction_timeout',${`${remaining}ms`},true)`;
-    }
     const now = new Date(processingAt).toISOString();
     if (normalized.eventType === 'MARKET_SNAPSHOT') {
       const value = normalized.metrics?.value;
@@ -936,7 +933,9 @@ export async function persistEvent(
     await enqueueAnalysis(tx, event);
     return true;
   };
-  return options.transaction ? persist(options.transaction) : sql.begin(persist);
+  const execute = (tx: Tx) =>
+    deadline === undefined ? persist(tx) : withSqlDeadline(tx, deadline, persist);
+  return options.transaction ? execute(options.transaction) : sql.begin(execute);
 }
 export async function runIngestion(sourceId: string) {
   // PostgreSQL also serializes a source if Redis loses a lease or is restarted.
