@@ -16,7 +16,7 @@ export function analysisDecision(reason: string, at = new Date().toISOString()) 
   return { version: ANALYSIS_POLICY_VERSION, reason, decidedAt: at };
 }
 
-export async function initialAnalysisState(event: Record<string, unknown>) {
+export async function initialAnalysisState(event: Record<string, unknown>, tx?: TransactionSql) {
   const decision = evaluateAnalysisCandidate(event);
   if (!decision.eligible)
     return {
@@ -25,7 +25,7 @@ export async function initialAnalysisState(event: Record<string, unknown>) {
     };
   if (config.dataMode === 'fixture') return { analysisStatus: 'PENDING' as const };
   try {
-    const ai = await readAIConfig();
+    const ai = await readAIConfig(tx);
     return {
       analysisStatus:
         ai.enabled && ai.apiKey && ai.model ? ('PENDING' as const) : ('DISABLED' as const),

@@ -7,6 +7,7 @@ import { verifyXTopicPipeline } from './x-topics-integration.js';
 import { verifyXAnalysisRecovery } from './x-analysis-recovery-integration.js';
 import { verifyConfiguration } from './configuration-integration.js';
 import { verifyHistoricalPipeline } from './history-integration.js';
+import { verifyParticipationScheduler } from './participation-integration.js';
 import { verifyNotificationPolicy } from './notification-policy-integration.js';
 import { verifyUniSatIngestion } from './unisat-integration.js';
 import { verifySolanaHistoryRecovery } from './solana-recovery-integration.js';
@@ -336,6 +337,8 @@ try {
     }
   });
   console.log(`Historical pipeline passed: ${historical.checks} PostgreSQL checks.`);
+  const participation = await verifyParticipationScheduler();
+  console.log(`Participation scheduler passed: ${participation.checks} PostgreSQL checks.`);
   await verifyEvmPagination();
   await verifySolanaTransactionVersion();
   await verifySolanaHistoryRecovery();

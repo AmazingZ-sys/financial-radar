@@ -12,6 +12,7 @@ import {
   XRequestDeferredError,
 } from '@radar/database';
 import { initialAnalysisState, enqueueAnalysis } from './analysis-admission.js';
+import { selectParticipationObservation } from './participation-observation.js';
 import { config } from '@radar/config';
 import { createLogger } from '@radar/observability';
 import {
@@ -318,7 +319,7 @@ function retainedCriticalFlags(data?: Record<string, unknown>) {
     .filter((value): value is string => typeof value === 'string' && criticalFlags.includes(value));
   return [...new Set(stored)];
 }
-async function persistHistoricalSignal(
+export async function persistHistoricalSignal(
   tx: Tx,
   normalized: NormalizedEvent,
   projectId: string,
@@ -349,7 +350,7 @@ async function persistHistoricalSignal(
     detectedAt: at,
     rawDataReference: historical.evidenceIds.at(-1)!,
     fingerprint: `history:${historical.stableKey}`,
-    ...(await initialAnalysisState({ ...derived, firstSeenAt: at })),
+    ...(await initialAnalysisState({ ...derived, firstSeenAt: at }, tx)),
     opportunityScore: opportunity.score,
     riskScore: risk.score,
     opportunityBreakdown: opportunity,
@@ -574,107 +575,130 @@ export async function persistEvent(
   rawId: string,
   firstSeenAt: string,
   item: RawItem,
+  processingAt = new Date().toISOString(),
+  deadline?: number,
+  options: { transaction?: Tx; requireEnabledSource?: boolean } = {},
 ) {
   let normalized = connector.normalize(item);
   if (normalized.dataMode !== connector.metadata.mode) throw new Error('Connector 数据模式不一致');
-  const now = new Date().toISOString();
-  if (normalized.eventType === 'MARKET_SNAPSHOT') {
-    const value = normalized.metrics?.value;
-    const asset = normalized.assets[0];
-    const unit = String(normalized.metrics?.unit ?? '');
-    const frequency = String(normalized.metrics?.frequency ?? 'tick');
-    const sourceDate =
-      typeof normalized.metrics?.sourceDate === 'string' ? normalized.metrics.sourceDate : null;
-    if (typeof value !== 'string' || !/^-?\d+(\.\d+)?$/.test(value) || !asset || !unit)
-      throw new Error('行情缺少有效值/资产/单位');
-    if (!normalized.sourcePublishedAt && (!sourceDate || frequency !== 'daily'))
-      throw new Error('行情缺少来源时刻或明确日度数据日期');
-    const observedAt = normalized.sourcePublishedAt ?? firstSeenAt;
-    const metadata = {
-      dataMode: normalized.dataMode,
-      originalUrl: normalized.originalUrl,
-      sourceUrl: normalized.originalUrl,
-      frequency,
-      sourceDate,
-      precision: normalized.metrics?.precision ?? null,
-      publicationTimeKnown: normalized.sourcePublishedAt !== null,
-      delayLabel: normalized.metrics?.delayLabel ?? '最新可用成交快照',
-      name: normalized.metrics?.name ?? asset,
-      rawDataReference: rawId,
-    };
-    const alreadyObserved =
-      await sql`SELECT id FROM market_observations WHERE data->>'rawDataReference'=${rawId} LIMIT 1`;
-    if (alreadyObserved.length) return false;
-    const prior =
-      await sql`SELECT value,data FROM market_observations WHERE asset_key=${asset} AND source_id=${connector.metadata.id} ORDER BY observed_at DESC LIMIT 1`;
-    await sql`INSERT INTO market_observations(id,asset_key,source_id,observed_at,value,unit,delay_seconds,data) VALUES(${randomUUID()},${asset},${connector.metadata.id},${observedAt},${value},${unit},${normalized.sourcePublishedAt ? Math.max(0, Math.floor((Date.parse(now) - Date.parse(normalized.sourcePublishedAt)) / 1000)) : null},${json(metadata)}) ON CONFLICT DO NOTHING`;
-    // Daily revisions/history are retained without manufacturing intraday discovery or price-change signals.
-    if (frequency === 'daily') return false;
-    const previous = Number(prior[0]?.value);
-    const change = previous > 0 ? ((Number(value) - previous) / previous) * 100 : null;
-    if (change === null || Math.abs(change) < 2) return false;
-    normalized = {
-      ...normalized,
-      eventType: 'PRICE_ANOMALY',
-      identity: item.externalId,
-      title: `${asset} 采样间价格变化 ${change.toFixed(2)}%`,
-      metrics: { ...normalized.metrics, priceChangePct: change },
-      severity: 'P2',
-    };
-  }
-  const inputs = inputsForEvent(normalized, firstSeenAt);
-  const savedScoring = (await sql`SELECT data FROM system_settings WHERE key='scoring-config'`)[0];
-  const scoring = savedScoring
-    ? ScoringConfigSchema.parse(savedScoring.data)
-    : DEFAULT_SCORING_CONFIG;
-  const opportunity = scoreOpportunity(inputs.opportunity, scoring.opportunity);
-  const risk = scoreRisk(inputs.risk, normalized.riskFlags, scoring.risk);
-  let hash = fingerprint(normalized);
-  // Bounded candidate search only aggregates compatible asset identities and timestamps.
-  const candidates =
-    await sql`SELECT fingerprint,data FROM events WHERE event_type=${normalized.eventType} AND first_seen_at > now()-interval '1 hour' ORDER BY first_seen_at DESC LIMIT 100`;
-  for (const candidate of candidates)
-    if (
-      canAggregate(
-        normalized,
-        candidate.data as NormalizedEvent & { title: string; sourcePublishedAt: string | null },
-      )
-    ) {
-      hash = String(candidate.fingerprint);
-      break;
+  // Keep preflight reads on this connection as well: deferred observation
+  // replays must obey the same transaction deadline before acquiring locks.
+  const persist = async (tx: Tx) => {
+    if (deadline !== undefined) {
+      const remaining = Math.max(1, deadline - Date.now());
+      await tx`SELECT set_config('statement_timeout',${`${remaining}ms`},true),set_config('lock_timeout',${`${Math.min(100, remaining)}ms`},true),set_config('transaction_timeout',${`${remaining}ms`},true)`;
     }
-  const eventId = randomUUID();
-  const event = {
-    ...normalized,
-    id: eventId,
-    firstSeenAt,
-    collectedAt: now,
-    normalizedAt: now,
-    detectedAt: now,
-    rawDataReference: rawId,
-    fingerprint: hash,
-    ...(await initialAnalysisState({ ...normalized, firstSeenAt })),
-    opportunityScore: opportunity.score,
-    riskScore: risk.score,
-    riskWarnings: [...risk.flags, ...risk.unknowns.map((key) => `${key}未知`)],
-    opportunityBreakdown: opportunity,
-    riskBreakdown: risk,
-    createdAt: now,
-    updatedAt: now,
-  };
-  EventSchema.parse(event);
-  return await sql.begin(async (tx) => {
+    const now = new Date(processingAt).toISOString();
+    if (normalized.eventType === 'MARKET_SNAPSHOT') {
+      const value = normalized.metrics?.value;
+      const asset = normalized.assets[0];
+      const unit = String(normalized.metrics?.unit ?? '');
+      const frequency = String(normalized.metrics?.frequency ?? 'tick');
+      const sourceDate =
+        typeof normalized.metrics?.sourceDate === 'string' ? normalized.metrics.sourceDate : null;
+      if (typeof value !== 'string' || !/^-?\d+(\.\d+)?$/.test(value) || !asset || !unit)
+        throw new Error('行情缺少有效值/资产/单位');
+      if (!normalized.sourcePublishedAt && (!sourceDate || frequency !== 'daily'))
+        throw new Error('行情缺少来源时刻或明确日度数据日期');
+      const observedAt = normalized.sourcePublishedAt ?? firstSeenAt;
+      const metadata = {
+        dataMode: normalized.dataMode,
+        originalUrl: normalized.originalUrl,
+        sourceUrl: normalized.originalUrl,
+        frequency,
+        sourceDate,
+        precision: normalized.metrics?.precision ?? null,
+        publicationTimeKnown: normalized.sourcePublishedAt !== null,
+        delayLabel: normalized.metrics?.delayLabel ?? '最新可用成交快照',
+        name: normalized.metrics?.name ?? asset,
+        rawDataReference: rawId,
+      };
+      const alreadyObserved =
+        await tx`SELECT id FROM market_observations WHERE data->>'rawDataReference'=${rawId} LIMIT 1`;
+      if (alreadyObserved.length) return false;
+      const prior =
+        await tx`SELECT value,data FROM market_observations WHERE asset_key=${asset} AND source_id=${connector.metadata.id} ORDER BY observed_at DESC LIMIT 1`;
+      await tx`INSERT INTO market_observations(id,asset_key,source_id,observed_at,value,unit,delay_seconds,data) VALUES(${randomUUID()},${asset},${connector.metadata.id},${observedAt},${value},${unit},${normalized.sourcePublishedAt ? Math.max(0, Math.floor((Date.parse(now) - Date.parse(normalized.sourcePublishedAt)) / 1000)) : null},${json(metadata)}) ON CONFLICT DO NOTHING`;
+      // Daily revisions/history are retained without manufacturing intraday discovery or price-change signals.
+      if (frequency === 'daily') return false;
+      const previous = Number(prior[0]?.value);
+      const change = previous > 0 ? ((Number(value) - previous) / previous) * 100 : null;
+      if (change === null || Math.abs(change) < 2) return false;
+      normalized = {
+        ...normalized,
+        eventType: 'PRICE_ANOMALY',
+        identity: item.externalId,
+        title: `${asset} 采样间价格变化 ${change.toFixed(2)}%`,
+        metrics: { ...normalized.metrics, priceChangePct: change },
+        severity: 'P2',
+      };
+    }
+    const inputs = inputsForEvent(normalized, firstSeenAt);
+    const savedScoring = (await tx`SELECT data FROM system_settings WHERE key='scoring-config'`)[0];
+    const scoring = savedScoring
+      ? ScoringConfigSchema.parse(savedScoring.data)
+      : DEFAULT_SCORING_CONFIG;
+    const opportunity = scoreOpportunity(inputs.opportunity, scoring.opportunity);
+    const risk = scoreRisk(inputs.risk, normalized.riskFlags, scoring.risk);
+    let hash = fingerprint(normalized);
+    // Bounded candidate search only aggregates compatible asset identities and timestamps.
+    const candidates =
+      await tx`SELECT fingerprint,data FROM events WHERE event_type=${normalized.eventType} AND first_seen_at > now()-interval '1 hour' ORDER BY first_seen_at DESC LIMIT 100`;
+    for (const candidate of candidates)
+      if (
+        canAggregate(
+          normalized,
+          candidate.data as NormalizedEvent & { title: string; sourcePublishedAt: string | null },
+        )
+      ) {
+        hash = String(candidate.fingerprint);
+        break;
+      }
+    const eventId = randomUUID();
+    const event = {
+      ...normalized,
+      id: eventId,
+      firstSeenAt,
+      collectedAt: now,
+      normalizedAt: now,
+      detectedAt: now,
+      rawDataReference: rawId,
+      fingerprint: hash,
+      ...(await initialAnalysisState({ ...normalized, firstSeenAt }, tx)),
+      opportunityScore: opportunity.score,
+      riskScore: risk.score,
+      riskWarnings: [...risk.flags, ...risk.unknowns.map((key) => `${key}未知`)],
+      opportunityBreakdown: opportunity,
+      riskBreakdown: risk,
+      createdAt: now,
+      updatedAt: now,
+    };
+    EventSchema.parse(event);
     const observation = observationFrom(normalized, rawId, firstSeenAt, now);
     let previousProject: Record<string, unknown> | undefined;
     if (normalized.project) {
       await tx`SELECT pg_advisory_xact_lock(hashtext(${`project:${normalized.dataMode}:${normalized.project.assetKey}`}))`;
+      const source = (
+        await tx`SELECT enabled,mode FROM data_sources WHERE id=${normalized.sourceId} FOR SHARE`
+      )[0];
+      // Preserve in-flight immutable ingestion facts after a source is paused.
+      // Deferred first observations wait for re-enablement before materializing.
+      if (options.requireEnabledSource && (!source?.enabled || source.mode !== normalized.dataMode))
+        return false;
       previousProject = (
         await tx`SELECT id,stage,data,first_seen_at,updated_at FROM projects WHERE asset_key=${normalized.project.assetKey} FOR UPDATE`
       )[0];
       // Keep the raw evidence, but a first snapshot from a future measurement
       // or publication time cannot establish today's project/event summary.
-      if (!previousProject && observation && Date.parse(observation.availableAt) > Date.parse(now))
+      if (
+        !previousProject &&
+        observation &&
+        Date.parse(observation.availableAt) > Date.parse(now)
+      ) {
+        await tx`INSERT INTO participation_deferred_observations(raw_item_id,data_mode,asset_key,source_id,available_at,first_seen_at,payload,next_attempt_at)
+          VALUES(${rawId},${normalized.dataMode},${normalized.project.assetKey},${normalized.sourceId},${observation.availableAt},${firstSeenAt},${json(normalized)},${observation.availableAt}) ON CONFLICT(raw_item_id) DO NOTHING`;
         return false;
+      }
     }
     const inserted =
       await tx`INSERT INTO events(id,fingerprint,source_id,external_id,title,event_type,severity,first_seen_at,data) VALUES(${eventId},${hash},${connector.metadata.id},${item.externalId},${event.title},${event.eventType},${event.severity},${firstSeenAt},${json(event)}) ON CONFLICT(fingerprint) DO NOTHING RETURNING id`;
@@ -830,7 +854,7 @@ export async function persistEvent(
             event: normalized,
           },
         };
-        await tx`INSERT INTO project_metrics(id,project_id,source_id,observed_at,data) VALUES(${randomUUID()},${projectId},${connector.metadata.id},${observation.observedAt},${json(metricData)}) ON CONFLICT DO NOTHING`;
+        await tx`INSERT INTO project_metrics(id,project_id,source_id,observed_at,evidence_id,available_at,data) VALUES(${randomUUID()},${projectId},${connector.metadata.id},${observation.observedAt},${rawId},${observation.availableAt},${json(metricData)}) ON CONFLICT DO NOTHING`;
         const metricRows =
           await tx`SELECT observed_at,data FROM project_metrics WHERE project_id=${projectId} AND source_id=${connector.metadata.id} ORDER BY observed_at DESC LIMIT 100`;
         const history: ProjectObservation[] = metricRows.map((row) => {
@@ -875,10 +899,9 @@ export async function persistEvent(
           };
         });
         const current = history.find((entry) => entry.evidenceId === rawId) ?? observation;
-        const derived = [
-          ...detectHistoricalSignals(current, history, now),
-          ...(isLatest ? detectParticipationWindow(current, now) : []),
-        ];
+        // Window signals have one clock-driven writer. The metric trigger
+        // records a durable refresh in this transaction, including revocations.
+        const derived = detectHistoricalSignals(current, history, now);
         for (const historical of derived)
           await persistHistoricalSignal(
             tx,
@@ -912,7 +935,8 @@ export async function persistEvent(
     await decideNotifications(tx, event, normalized, projectId, signalId, now);
     await enqueueAnalysis(tx, event);
     return true;
-  });
+  };
+  return options.transaction ? persist(options.transaction) : sql.begin(persist);
 }
 export async function runIngestion(sourceId: string) {
   // PostgreSQL also serializes a source if Redis loses a lease or is restarted.
@@ -1090,47 +1114,15 @@ export async function scanParticipationWindows(
       await tx`SELECT pg_advisory_xact_lock(hashtext(${`project:${config.dataMode}:${project.asset_key}`}))`;
       // Re-read under the same project lock as ingestion. A newer revocation of
       // verified terms therefore supersedes the older participation window.
-      const row = (
-        await tx`
-        SELECT m.source_id,m.observed_at,m.data,r.external_id,r.payload,p.data AS project_data
-        FROM project_metrics m
-        JOIN projects p ON p.id=m.project_id
-        JOIN data_sources s ON s.id=m.source_id AND s.mode=${config.dataMode} AND s.enabled=true
-        JOIN raw_items r ON r.id::text=m.data->>'evidenceId'
-        WHERE m.project_id=${String(project.id)} AND p.data->>'dataMode'=${config.dataMode}
-          AND m.observed_at<=${at}::timestamptz
-          AND coalesce(m.data->>'availableAt',m.observed_at::text)::timestamptz<=${at}::timestamptz
-          AND (${sourceIds === undefined} OR m.source_id=ANY(${sourceIds ? [...sourceIds] : []}::text[]))
-        ORDER BY m.observed_at DESC,m.source_id LIMIT 1`
-      )[0];
-      if (!row) return 0;
-      const data = row.data as Record<string, unknown>;
-      const metadata = (data.__observation ?? {}) as Record<string, unknown>;
-      // Old deployments without an immutable normalized observation must wait
-      // for a fresh source observation; project DTOs cannot verify old terms.
-      const normalized = metadata.event as NormalizedEvent | undefined;
-      if (
-        !normalized?.project ||
-        normalized.dataMode !== config.dataMode ||
-        normalized.sourceId !== row.source_id
-      )
-        return 0;
-      const observation: ProjectObservation = {
-        evidenceId: String(data.evidenceId),
-        sourceId: String(row.source_id),
-        assetKey: String(project.asset_key),
-        dataMode: config.dataMode,
-        observedAt: new Date(row.observed_at as string).toISOString(),
-        availableAt: String(data.availableAt),
-        metrics: normalized.metrics ?? {},
-        stage: String(metadata.stage),
-        verificationStatus: String(metadata.verificationStatus),
-        confidence: Number(metadata.confidence),
-        conditionsVerified: metadata.conditionsVerified === true,
-        conditions: typeof metadata.conditions === 'string' ? metadata.conditions : null,
-        startsAt: typeof metadata.startsAt === 'string' ? metadata.startsAt : null,
-        endsAt: typeof metadata.endsAt === 'string' ? metadata.endsAt : null,
-      };
+      const { snapshot } = await selectParticipationObservation(
+        tx,
+        String(project.id),
+        config.dataMode,
+        at,
+        sourceIds,
+      );
+      if (!snapshot) return 0;
+      const { normalized, observation } = snapshot;
       let inserted = 0;
       for (const historical of detectParticipationWindow(observation, at))
         if (

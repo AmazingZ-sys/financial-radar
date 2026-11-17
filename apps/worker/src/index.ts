@@ -6,6 +6,8 @@ import { sql } from '@radar/database';
 import { createLogger } from '@radar/observability';
 import { scanXTopics } from './x-topics.js';
 import { synchronizeXSchedule } from './x-scheduling.js';
+import { runParticipationTick } from './participation.js';
+import { startPeriodicTask } from './periodic-task.js';
 import {
   initializeSources,
   registry,
@@ -36,8 +38,20 @@ redis.on('error', (error) =>
 const queue = new Queue('financial-radar', { connection: redis });
 const aiQueue = new Queue('financial-radar-ai', { connection: redis });
 let stopping = false;
-let reconcileRunning = false;
-await initializeSources();
+let sourcesInitialized = false;
+let sourceInitialization: Promise<void> | undefined;
+async function ensureSourcesInitialized() {
+  if (sourcesInitialized) return;
+  if (!sourceInitialization)
+    sourceInitialization = initializeSources()
+      .then(() => {
+        sourcesInitialized = true;
+      })
+      .finally(() => {
+        sourceInitialization = undefined;
+      });
+  await sourceInitialization;
+}
 async function scanXTopicsSafely() {
   try {
     await scanXTopics();
@@ -75,6 +89,7 @@ async function enqueueOutboxJob(name: 'ANALYZE' | 'NOTIFY', outboxId: string, en
 }
 if (process.argv.includes('--once')) {
   try {
+    await ensureSourcesInitialized();
     for (const connector of registry.list()) {
       try {
         await runIngestion(connector.metadata.id);
@@ -88,7 +103,7 @@ if (process.argv.includes('--once')) {
         );
       }
     }
-    await scanParticipationWindows();
+    await runParticipationTick({ shouldStop: () => stopping });
     await scanXTopicsSafely();
     await runOutboxOnce();
     await beat();
@@ -126,6 +141,7 @@ if (process.argv.includes('--once')) {
     'financial-radar',
     async (job) => {
       if (job.name === 'INGEST') {
+        await ensureSourcesInitialized();
         const sourceId = String(job.data.sourceId);
         const token = randomUUID();
         const lock = `radar:source-lock:${sourceId}`;
@@ -182,6 +198,7 @@ if (process.argv.includes('--once')) {
   }
   const scheduled = new Map<string, number>();
   async function synchronizeSchedules() {
+    await ensureSourcesInitialized();
     await synchronizeConfiguredSources();
     await synchronizeCustomSources();
     const rows =
@@ -218,35 +235,39 @@ if (process.argv.includes('--once')) {
     for (const id of scheduled.keys()) if (!enabled.has(id)) scheduled.delete(id);
     await synchronizeXSchedule(queue);
   }
-  async function reconcile() {
-    if (stopping || reconcileRunning) return;
-    reconcileRunning = true;
-    try {
-      await synchronizeSchedules();
-      await recoverLeases();
-      await scanParticipationWindows();
-      await scanXTopicsSafely();
-      const rows = await claimOutboxJobs();
-      for (const row of rows) {
-        const kind = String(row.kind).toUpperCase();
-        const name = ['NOTIFY', 'NOTIFICATION'].includes(kind) ? 'NOTIFY' : 'ANALYZE';
-        // Completed jobs are removed so PostgreSQL can redispatch after Redis loss.
-        await enqueueOutboxJob(name, String(row.id), String(row.entity_id));
-      }
-      await beat();
-    } catch (error) {
-      log.error(
-        { error: error instanceof Error ? error.message : 'reconcile failed' },
-        'reconciler will retry; no durable facts discarded',
-      );
-    } finally {
-      reconcileRunning = false;
+  async function dispatchOutbox() {
+    const rows = await claimOutboxJobs();
+    for (const row of rows) {
+      const kind = String(row.kind).toUpperCase();
+      const name = ['NOTIFY', 'NOTIFICATION'].includes(kind) ? 'NOTIFY' : 'ANALYZE';
+      // Completed jobs are removed so PostgreSQL can redispatch after Redis loss.
+      await enqueueOutboxJob(name, String(row.id), String(row.entity_id));
     }
   }
-  const timer = setInterval(() => {
-    void reconcile();
-  }, 15000);
-  await reconcile();
+  const tasks = [
+    { name: 'heartbeat', run: beat },
+    { name: 'outbox', run: dispatchOutbox },
+    { name: 'leases', run: recoverLeases },
+    {
+      name: 'participation',
+      run: () => runParticipationTick({ shouldStop: () => stopping }),
+    },
+    { name: 'sources', run: synchronizeSchedules },
+    {
+      name: 'x-topics',
+      run: async () => {
+        await ensureSourcesInitialized();
+        await scanXTopicsSafely();
+      },
+    },
+  ].map(({ name, run }) =>
+    startPeriodicTask(run, (error) => {
+      log.error(
+        { task: name, error: error instanceof Error ? error.message : 'periodic task failed' },
+        'periodic task will retry; no durable facts discarded',
+      );
+    }),
+  );
   log.info(
     { mode: config.dataMode, sources: registry.list().map((source) => source.metadata.id) },
     'worker started',
@@ -254,14 +275,14 @@ if (process.argv.includes('--once')) {
   async function shutdown(signal: string) {
     if (stopping) return;
     stopping = true;
-    clearInterval(timer);
+    for (const task of tasks) task.stop();
     log.info({ signal }, 'draining worker');
     const force = setTimeout(() => {
       log.error('graceful shutdown timeout');
       process.exit(1);
     }, 30000);
     force.unref();
-    await Promise.all([worker.close(), aiWorker.close()]);
+    await Promise.all([worker.close(), aiWorker.close(), ...tasks.map((task) => task.drain())]);
     await queue.close();
     await aiQueue.close();
     await registry.shutdown();

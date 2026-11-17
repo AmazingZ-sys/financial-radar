@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type TestJob = { name: string; data: { entityId: string; outboxId: string } };
 const mocks = vi.hoisted(() => ({
@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   sql: vi.fn(async () => []),
   analyzeEvent: vi.fn(async (_id: string) => {}),
   sendNotification: vi.fn(async (_id: string) => {}),
+  initializeSources: vi.fn(async () => {}),
+  runParticipationTick: vi.fn(async () => {}),
+  heartbeat: vi.fn(async () => ({})),
   claimOutboxJobs: vi.fn(async () => [
     { id: 'analysis-outbox', kind: 'ANALYZE', entity_id: 'event' },
     { id: 'notify-outbox', kind: 'NOTIFY', entity_id: 'notification' },
@@ -61,26 +64,38 @@ vi.mock('@radar/observability', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
 }));
 vi.mock('./pipeline.js', () => ({
-  initializeSources: vi.fn(),
+  initializeSources: mocks.initializeSources,
   registry: { list: () => [], shutdown: vi.fn() },
   runIngestion: vi.fn(),
   scanParticipationWindows: vi.fn(),
   synchronizeCustomSources: vi.fn(),
   synchronizeConfiguredSources: vi.fn(),
 }));
+vi.mock('./participation.js', () => ({ runParticipationTick: mocks.runParticipationTick }));
+vi.mock('./x-topics.js', () => ({ scanXTopics: vi.fn() }));
+vi.mock('./x-scheduling.js', () => ({ synchronizeXSchedule: vi.fn() }));
 vi.mock('./jobs.js', () => ({
   analyzeEvent: mocks.analyzeEvent,
   sendNotification: mocks.sendNotification,
   recoverLeases: vi.fn(),
   runOutboxOnce: vi.fn(),
-  heartbeat: vi.fn(async () => ({})),
+  heartbeat: mocks.heartbeat,
   DeferredWorkError: class extends Error {},
   claimOutboxJobs: mocks.claimOutboxJobs,
   extendAnalysisOutboxLease: vi.fn(),
 }));
 
 describe('AI queue isolation', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    mocks.queues.clear();
+    mocks.workers.clear();
+    mocks.initializeSources.mockResolvedValue(undefined);
+    mocks.runParticipationTick.mockResolvedValue(undefined);
+  });
   afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -89,6 +104,7 @@ describe('AI queue isolation', () => {
     vi.useFakeTimers();
     vi.spyOn(process, 'on').mockReturnValue(process);
     await import('./index.js');
+    await vi.advanceTimersByTimeAsync(0);
     const coreQueue = mocks.queues.get('financial-radar')!;
     const aiQueue = mocks.queues.get('financial-radar-ai')!;
     const coreWorker = mocks.workers.get('financial-radar')!;
@@ -138,5 +154,39 @@ describe('AI queue isolation', () => {
     expect(mocks.sendNotification).toHaveBeenCalledWith('urgent-notification');
     finishAI!();
     await Promise.all(aiJobs);
+  });
+
+  it('keeps heartbeats and outbox dispatch running while windows and source startup wait', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(process, 'on').mockReturnValue(process);
+    let finishWindows!: () => void;
+    let finishSources!: () => void;
+    mocks.runParticipationTick.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishWindows = resolve;
+        }),
+    );
+    mocks.initializeSources.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSources = resolve;
+        }),
+    );
+    mocks.claimOutboxJobs.mockRejectedValueOnce(new Error('temporary outbox failure'));
+    await import('./index.js');
+    await vi.advanceTimersByTimeAsync(45000);
+    expect(mocks.runParticipationTick).toHaveBeenCalledTimes(1);
+    expect(mocks.initializeSources).toHaveBeenCalledTimes(1);
+    expect(mocks.heartbeat).toHaveBeenCalledTimes(4);
+    expect(mocks.claimOutboxJobs).toHaveBeenCalledTimes(4);
+    expect(mocks.queues.get('financial-radar')!.add).toHaveBeenCalledWith(
+      'NOTIFY',
+      { outboxId: 'notify-outbox', entityId: 'notification' },
+      expect.anything(),
+    );
+    finishWindows();
+    finishSources();
+    await vi.advanceTimersByTimeAsync(0);
   });
 });

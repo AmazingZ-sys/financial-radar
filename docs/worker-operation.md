@@ -8,6 +8,10 @@
 - `pnpm --filter @radar/worker dev`：BullMQ 长驻进程，15秒补投 outbox、更新心跳、同步 DB 数据源 enabled/interval；SIGTERM/SIGINT 排空当前任务后退出。
 - `node apps/worker/dist/health.js`：读取 Redis `radar:worker:heartbeat`，缺失或超过90秒退出1。API 同时读 PostgreSQL `system_settings.worker:heartbeat`。
 
+2026-11-16 调度优化：来源初始化/同步、窗口处理、X 讨论扫描、租约回收、outbox 补投和心跳分别由独立的15秒任务驱动，每个任务在同进程内不重叠，失败仅延后该任务的下一轮。慢窗口或来源初始化不阻止心跳和通知补投。退出时停止所有计时器，窗口任务通过停止标记停止新领取，等待在途周期任务及队列消费者完成后再关闭队列、来源连接、Redis 和数据库。
+
+`PARTICIPATION_SCHEDULER_MODE` 支持 `due`（默认，使用持久投影和到期计划）、`shadow`（建立并推进计划，不产生窗口信号）、`legacy`（沿用有界到期队列，每次到期重新选择该项目的原始观察，供绕过投影排障）和 `paused`（暂停窗口处理）。切换模式会触发分批重建；从 shadow 切到 due 后按真实处理时刻检测，不补造已错过的临近提醒。切换须让全部 Worker 使用相同配置，并排空旧进程，不能让不同版本同时写入。`--once` 在一次来源采集后执行一轮有界窗口任务；待处理项目超出单轮预算时保留在 PostgreSQL，后续运行继续处理。
+
 采集/通知队列为 `financial-radar`（并发4），分析队列为 `financial-radar-ai`（并发2）；旧队列遗留 ANALYZE 转入分析队列后仍复查候选资格。PostgreSQL outbox为持久事实，Redis丢队列后可按DB租约重新投递。source锁租约120秒；通知 outbox 租约2分钟，分析15分钟；通知发送租约60秒。live 同时最多派发2个分析，通知独立优先派发。消息发送超时可能平台已接收，记录ambiguousAcceptance，SENT仅表示平台API接受。
 
 Fixture默认不通过真实渠道发送，包括手动测试；通知状态CANCELLED，attempt为SIMULATED，不计为真实成功。Telegram/飞书/Bark已实现适配，真实密钥未提供所以生产发送仍待验收。

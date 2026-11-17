@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from './index.js';
 describe('configuration security', () => {
+  it('uses the durable window scheduler by default and rejects unknown switch modes', () => {
+    expect(loadConfig({}).participationSchedulerMode).toBe('due');
+    for (const mode of ['due', 'shadow', 'legacy', 'paused'])
+      expect(loadConfig({ PARTICIPATION_SCHEDULER_MODE: mode }).participationSchedulerMode).toBe(
+        mode,
+      );
+    expect(() => loadConfig({ PARTICIPATION_SCHEDULER_MODE: 'off' })).toThrow();
+  });
   it('bounds the paid analysis daily call limit, including the stop value', () => {
     expect(loadConfig({}).aiMaxDailyCalls).toBe(20);
     expect(loadConfig({ AI_MAX_DAILY_CALLS: '0' }).aiMaxDailyCalls).toBe(0);

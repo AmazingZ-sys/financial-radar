@@ -508,3 +508,38 @@ Node24.15.0 / pnpm10.26.2、Docker Engine29.9.2。常规日志在忽略提交的
 Vercel成功job检出同一commit并注入v1.5.0，09:35将 [生产部署](https://financial-radar-motpyypqt-amazings-projects-6f99eda0.vercel.app) 映射至 [正式域名](https://radar.amazingzsys.site)。前端部署成功不代表后端已更新。
 
 证据在忽略提交的 `.local/x-collector-release/`：`verify-success.log`、`vercel-success.log`；`v1.5.0/registry-verification.json`、Release资产、各镜像manifest/config与匿名预检收据。用户明确后端自行更新，本轮没有登录或更新生产后端、执行生产迁移、改变业务配置或使用真实X登录态。服务器首次须检出v1.5.0部署文件，再运行 `bash infra/scripts/deploy.sh --version v1.5.0`；脚本会统一部署三镜像，缺少共享密钥时自动生成。
+
+## 2026-11-16 · 参与窗口增量调度与数据库负载优化
+
+依据用户提供的 `/Users/zhix/Downloads/financial-radar-optimization-20261116` 设计与服务器只读诊断实施。本地基线 `6ed849e` 包含线上 v1.5.0 的 `c4f172a`，工作分支 `codex/participation-scheduling-optimization`。设计与操作说明见 [40 参与窗口调度](40-participation-scheduling.md)。
+
+周期窗口处理改为 PostgreSQL 持久计划和合并刷新请求；每轮最多领取25项，按到期索引处理，主处理/修复分别2秒预算，事务与锁等待超时有限，未开始项按令牌释放。采集、来源启停、未来可用观察、每日修复和配置版本重建均有持久恢复入口。计划使用 revision/claim_token/租约 fencing，项目锁顺序与 ingestion 一致；信号、通知 outbox 和计划推进同事务提交，原 stableKey 与核验规则保留。窗口调度锁和事务使用同一保留连接，并检查 backend PID 防止断线后继续旧轮次。心跳、来源同步、X、outbox 和租约任务独立运行并支持退出排空。正常在途采集仍保留停用来源的不可变事实；延迟首次观察须在来源重新启用后物化，定时检测只选择当前启用来源。
+
+新增0004为兼容性结构/触发器与合法 UUID、时间回填；0005为历史表在线索引。未改旧迁移和校验和。迁移器串行化会话锁覆盖事务与 CONCURRENTLY 步骤，校验索引定义/有效性并处理本迁移留下的无效索引。原 JSON 兼容保留，无删除历史事实、删卷或破坏性 DDL。
+
+实际环境：Node24.15.0 / pnpm10.26.2；本地独立 embedded PostgreSQL18.6 / Redis7.4.2，生产基线仍为仓库 Compose 的 PostgreSQL17，未声称本次测试运行在PG17容器。
+
+| 检查                                                                                           | 实际结果                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm typecheck`、`pnpm lint`                                                                  | 全工作区通过；`.local/participation-typecheck.log`、`participation-lint.log`。                                                                                                                                      |
+| `pnpm test`                                                                                    | 30文件453项通过，含独立调度、不重叠/退出排空、配置和在线索引校验；`.local/participation-unit.log`。                                                                                                                 |
+| `pnpm build`                                                                                   | 9项构建通过；`.local/participation-build.log`。                                                                                                                                                                     |
+| `pnpm test:integration`                                                                        | 新建 `radar_participation_final` 数据库、独立Redis逻辑库15，全链退出0；主流程70项，窗口50、历史35、AI候选27、通知策略24，及全部X/链上/配置/模式隔离扩展通过；`.local/participation-integration-final.log`。         |
+| `DATA_MODE=fixture NODE_ENV=test pnpm exec tsx scripts/participation-migration-integration.ts` | 自建临时数据库11项通过，含旧库脏值升级、重复/并发迁移、兼容旧写入、无效在线索引恢复与错误定义拒绝；`.local/participation-migration.log`。                                                                           |
+| `pnpm --filter @radar/worker recovery`                                                         | 独立随机端口PG/Redis，真实停止/重启、Worker SIGKILL、租约补偿和通知幂等8项通过；`.local/participation-recovery.log`、`.local/recovery-latest.json`。                                                                |
+| `pnpm exec tsx scripts/participation-scale.ts`                                                 | 1000/10000/100000个合成Fixture项目，固定50项到期、批次25，均命中 `participation_due_idx`。到期查询执行0.089/0.069/0.072ms，缓存块命中9/9/10，磁盘读取0/0/0；是隔离暖缓存查询结果，非完整tick/线上CPU或通知P95测量。 |
+| 格式、安全与差异检查                                                                           | `pnpm format:check`、`pnpm security:check`、`git diff --check` 通过；格式/安全记录位于 `.local/participation-format.log`、`participation-security.log`。                                                            |
+
+窗口专项覆盖开始时间门槛、结束时间调整、撤销核验、来源回退、相同结束时间更换证据的去重、迟到历史不倒退、无当前观察时的未来唤醒、首次未来观察重放、停机跨窗、租约恢复、旧版本拒绝、关闭后释放、锁等待超时回滚、跨会话互斥、paused与shadow→due切换、fixture不外发。
+
+调试记录：首次复用已运行专项/规模脚本的数据库执行主集成，出现AI领取数量断言；单独用例和全新数据库完整复跑均通过，未确认生产领取缺陷，未修改 `jobs.ts`。首次新库完整测试还发现新增来源检查抑制了既有停用来源合成观察，已修正为保留正常在途事实、仅延迟重放检查启用状态，原通知策略24项恢复通过。最终门禁以上述新库完整运行结果为准。
+
+本次未提交、推送、发布镜像或操作生产服务器。上线须先备份并排空旧Worker、运行新增迁移，再按现有Compose组合启动匹配版本。需观察回填与刷新积压，实测服务器CPU/pressure/swap、窗口通知延迟和VPN体验；尚未验证生产资源降幅、完整业务高低峰或真实窗口边界，不把查询基准推算为线上CPU降低50%。本轮无前端交互变更，未重复浏览器E2E或生产Compose镜像验收。
+
+## 2026-11-17 · 参与窗口优化发布前复核
+
+用户授权推送代码并发布 Release，生产后端由用户更新。基线与远端 main 同为 `6ed849e`，工作分支 `codex/participation-scheduling-optimization`；只读审查未发现发布阻碍。升级必须先备份数据库、停止并排空旧 Worker，再运行迁移并启动匹配版本；现有 `deploy.sh` 不会在迁移前主动停止旧 Worker。
+
+Node24.15.0 / pnpm10.26.2 下重新运行 typecheck、lint、453项单测（30文件）、9项构建、Prettier、安全扫描、生成 API 契约一致性和构建运行时语法检查，全部通过。独立随机端口 embedded PostgreSQL18.6 / Redis7.4.2、新建空库与显式 fixture 下，完整集成主流程70项及全部扩展共648项断言通过，另有迁移专项11项和 Worker故障恢复8项通过；自建服务已停止。日志在忽略提交的 `.local/participation-release/`。
+
+本节记录本地发布前结果；GitHub Actions 的 PostgreSQL17、生产Compose、浏览器与镜像发布结果须在实际完成后另行记录。未登录或更新生产后端、执行生产迁移或发送真实通知。

@@ -9,7 +9,9 @@ import {
   numeric,
   uniqueIndex,
   index,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import type { RadarEvent, Project, AlertRule, OpportunitySignal } from '@radar/shared';
 const time = (name: string) => timestamp(name, { withTimezone: true });
 export const users = pgTable('users', {
@@ -177,16 +179,116 @@ export const projectLifecycleEvents = pgTable('project_lifecycle_events', {
   occurredAt: time('occurred_at').notNull(),
   recordedAt: time('recorded_at').notNull().defaultNow(),
 });
-export const projectMetrics = pgTable('project_metrics', {
-  id: uuid('id').primaryKey(),
-  projectId: uuid('project_id')
-    .notNull()
-    .references(() => projects.id),
-  sourceId: text('source_id')
-    .notNull()
-    .references(() => dataSources.id),
-  observedAt: time('observed_at').notNull(),
-  data: jsonb('data').notNull(),
+export const projectMetrics = pgTable(
+  'project_metrics',
+  {
+    id: uuid('id').primaryKey(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id),
+    sourceId: text('source_id')
+      .notNull()
+      .references(() => dataSources.id),
+    observedAt: time('observed_at').notNull(),
+    evidenceId: uuid('evidence_id').references(() => rawItems.id),
+    availableAt: time('available_at'),
+    data: jsonb('data').notNull(),
+  },
+  (t) => [
+    index('project_metrics_latest_participation').on(
+      t.projectId,
+      t.observedAt.desc(),
+      t.sourceId,
+      t.id,
+    ),
+    index('project_metrics_participation_source').on(t.sourceId, t.projectId),
+  ],
+);
+export const participationWindowPlans = pgTable(
+  'participation_window_plans',
+  {
+    dataMode: text('data_mode').notNull(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    assetKey: text('asset_key').notNull(),
+    sourceId: text('source_id').references(() => dataSources.id),
+    observationId: uuid('observation_id'),
+    evidenceId: uuid('evidence_id').references(() => rawItems.id),
+    observationSnapshot: jsonb('observation_snapshot'),
+    revision: integer('revision').notNull().default(1),
+    detectorVersion: text('detector_version').notNull(),
+    nextCheckAt: time('next_check_at'),
+    status: text('status').notNull().default('IDLE'),
+    claimToken: uuid('claim_token'),
+    lockedUntil: time('locked_until'),
+    attempts: integer('attempts').notNull().default(0),
+    lastErrorCode: text('last_error_code'),
+    updatedAt: time('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.dataMode, t.projectId] }),
+    index('participation_due_idx')
+      .on(t.dataMode, t.nextCheckAt, t.projectId)
+      .where(sql`${t.status} = 'WAITING' AND ${t.nextCheckAt} IS NOT NULL`),
+    index('participation_lease_idx')
+      .on(t.lockedUntil, t.dataMode, t.projectId)
+      .where(sql`${t.status} = 'PROCESSING'`),
+    index('participation_source_idx').on(t.sourceId, t.dataMode, t.projectId),
+  ],
+);
+export const participationRefreshRequests = pgTable(
+  'participation_refresh_requests',
+  {
+    dataMode: text('data_mode').notNull(),
+    assetKey: text('asset_key').notNull(),
+    requestedAt: time('requested_at').notNull().defaultNow(),
+    nextAttemptAt: time('next_attempt_at').notNull().defaultNow(),
+    attempts: integer('attempts').notNull().default(0),
+    lastErrorCode: text('last_error_code'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.dataMode, t.assetKey] }),
+    index('participation_refresh_due_idx').on(t.dataMode, t.nextAttemptAt, t.assetKey),
+  ],
+);
+export const participationSourceRefreshes = pgTable(
+  'participation_source_refreshes',
+  {
+    dataMode: text('data_mode').notNull(),
+    sourceId: text('source_id')
+      .notNull()
+      .references(() => dataSources.id, { onDelete: 'cascade' }),
+    cursor: uuid('cursor'),
+    requestedAt: time('requested_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.dataMode, t.sourceId] })],
+);
+export const participationDeferredObservations = pgTable(
+  'participation_deferred_observations',
+  {
+    rawItemId: uuid('raw_item_id')
+      .primaryKey()
+      .references(() => rawItems.id, { onDelete: 'cascade' }),
+    dataMode: text('data_mode').notNull(),
+    assetKey: text('asset_key').notNull(),
+    sourceId: text('source_id')
+      .notNull()
+      .references(() => dataSources.id),
+    availableAt: time('available_at').notNull(),
+    firstSeenAt: time('first_seen_at').notNull(),
+    payload: jsonb('payload').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: time('next_attempt_at').notNull(),
+    lastErrorCode: text('last_error_code'),
+  },
+  (t) => [index('participation_deferred_due_idx').on(t.dataMode, t.nextAttemptAt, t.rawItemId)],
+);
+export const participationRepairState = pgTable('participation_repair_state', {
+  dataMode: text('data_mode').primaryKey(),
+  cursor: uuid('cursor'),
+  nextRunAt: time('next_run_at').notNull().defaultNow(),
+  detectorVersion: text('detector_version').notNull(),
 });
 export const opportunitySignals = pgTable('opportunity_signals', {
   id: uuid('id').primaryKey(),

@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import { config } from '@radar/config';
 import { AIConfigSchema, type AIConfigPatch, type NotificationConfigPatch } from '@radar/shared';
 import { z } from 'zod';
+import type { Sql, TransactionSql } from 'postgres';
 import { sql } from './index.js';
 
 const CONFIG_KEY = 'integrations:ai';
@@ -59,8 +60,8 @@ type StoredAI = Omit<ReturnType<typeof envAIConfig>, 'maxDailyCalls'> & {
   maxDailyCalls?: number;
   encryptedApiKey: string;
 };
-export async function readAIConfig() {
-  const row = (await sql`SELECT data FROM system_settings WHERE key=${CONFIG_KEY}`)[0];
+export async function readAIConfig(query: Sql | TransactionSql = sql) {
+  const row = (await query`SELECT data FROM system_settings WHERE key=${CONFIG_KEY}`)[0];
   if (!row)
     return {
       ...envAIConfig(),
