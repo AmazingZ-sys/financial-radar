@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
+import { EventSchema, type RadarEvent } from '@radar/shared';
 
 const email = process.env.E2E_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? 'admin@radar.local';
 const password =
@@ -207,11 +208,46 @@ test('fixture connector can be disabled and restored without losing its history'
 });
 
 test('human review is saved independently of fact verification and scores', async ({ page }) => {
-  await page.getByRole('link', { name: '实时热点', exact: true }).click();
-  await page.locator('.event-row').first().click();
+  // A newer deterministic alert can still be waiting for AI. Review an actual
+  // completed Fixture analysis rather than relying on the event feed's order.
+  let reviewable: RadarEvent | undefined;
+  let lastPage = 1;
+  for (let pageNumber = 1; pageNumber <= lastPage; pageNumber++) {
+    const response = await page.request.get(`/api/v1/events?page=${pageNumber}&pageSize=100`);
+    expect(response.status()).toBe(200);
+    const list = (await response.json()) as {
+      data: unknown[];
+      meta: { total: number; page: number; pageSize: number; dataMode: string };
+    };
+    expect(list.meta.dataMode).toBe('fixture');
+    reviewable = list.data
+      .map((event) => EventSchema.parse(event))
+      .find((event) => event.analysisStatus === 'COMPLETED' && event.analysis);
+    if (reviewable) break;
+    lastPage = Math.ceil(list.meta.total / list.meta.pageSize);
+  }
+  if (!reviewable) throw new Error('Fixture requires an existing completed AI analysis for review');
+  const eventId = reviewable.id;
+  await page.goto(`/events/${eventId}`);
+  await expect(page.getByRole('heading', { name: reviewable.title, exact: true })).toBeVisible();
   const before = await page.locator('.detail-side').innerText();
   await page.getByLabel('复核说明（可选）').fill('E2E 人工核对：仅评审辅助解读，不改变来源事实。');
+  const reviewResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/events/${eventId}/review`) &&
+      response.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: '通过复核', exact: true }).click();
+  const saved = await reviewResponse;
+  expect(saved.status()).toBe(200);
+  const reviewed = EventSchema.parse((await saved.json()).data);
+  expect(reviewed).toMatchObject({
+    id: reviewable.id,
+    verificationStatus: reviewable.verificationStatus,
+    opportunityScore: reviewable.opportunityScore,
+    riskScore: reviewable.riskScore,
+    review: { status: 'APPROVED', note: 'E2E 人工核对：仅评审辅助解读，不改变来源事实。' },
+  });
   await expect(page.getByText('人工已通过', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText('人工已通过', { exact: true })).toBeVisible();

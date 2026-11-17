@@ -555,3 +555,11 @@ Node24.15.0 / pnpm10.26.2 下重新运行 typecheck、lint、453项单测（30�
 最终实现共享 `withSqlDeadline`，保留 postgres.js 懒查询、SQL片段与结果修饰，失败后停止排队语句并排空已启动查询，ROLLBACK 使用原连接。保留100ms锁等待与无部分事实断言，新增累计预算取消、同 backend PID 恢复、回滚和正常提交验证。PG17复核还暴露合成测试墙钟依赖：指标触发器使用真实时钟，测试随后把检测时钟拨回 `time(2)`。仅将 Fixture 新刷新请求对齐合成时钟，并按明确条件有界排空；未放宽生产预算。
 
 最终 Node24.15.0 / pnpm10.26.2：worker和tools类型、相关lint、31文件457项完整单测、9项构建、格式、安全扫描、运行时语法与diff检查通过。Docker29.9.3 中随机唯一、loopback端口、tmpfs的 PostgreSQL17.11 / Redis7.4.12 下，完整集成主流程70项及全部扩展共653项断言通过（窗口55项），三个独立新库窗口专项各55项通过；迁移专项11项、Worker恢复8项通过。所有本轮自建服务和唯一测试容器均已清理。收据为 `.local/participation-release/docker-integration-fixed.json`（passed=true）、`integration-fixed.log`、`migration-fixed.log`、`recovery-fixed.log` 及各 `*-fixed.log`；未访问生产后端。
+
+## 2026-11-17 · 浏览器复核测试的事件选择修正
+
+修复提交 `d9e5aada423206984f45dc66514558712ba6a046` 已推送。第二轮 [Actions 43993121684](https://github.com/AmazingZ-sys/financial-radar/actions/runs/43993121684) 通过类型、lint、格式、457项单测、采集器测试、PostgreSQL17完整集成、构建、真实隔离生产Compose、安全扫描与生产依赖审计；浏览器26/27通过，人工复核用例失败，Release与镜像发布仍被门禁跳过。
+
+读取失败页面快照与网络trace确认：用例默认打开列表第一条，新增窗口事件恰为最新记录，AI状态为 PENDING。API两次正确返回409“分析尚未完成，无法人工复核”，页面正确显示错误；不能放宽生产复核校验。测试应从真实API已有Fixture事件中明确选择已完成分析的记录，再验证复核保存、刷新持久化与事实/评分独立性。收据在 `.local/participation-release/actions-second-failure.log` 和 `e2e-failure/`。
+
+仅修改 `radar.spec.ts`：真实API分页读取并用 EventSchema 验证现有Fixture事件，明确选择 COMPLETED 且已有分析的记录；通过真实详情UI提交并检查POST200、复核内容、原核验状态及两项评分不变，保留刷新持久化和侧栏事实不变断言。没有伪造分析完成状态、修改生产API/UI或跳过测试。单文件strict类型、ESLint、格式和测试加载通过；随后在独立随机Docker PostgreSQL17.11 / Redis7.4.12下再次通过完整653项集成与Chromium27/27（无重试）。证据 `.local/participation-release/e2e-fixed.log`、`docker-e2e-fixed.json`（passed=true）；本轮测试容器及API/Web进程已清理。
