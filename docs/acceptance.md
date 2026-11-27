@@ -589,3 +589,5 @@ Worker 按北京时间 10:00 截取当日行情，盘中报价与昨天同一截
 本地使用 Node 24.15.0、pnpm 10.26.2 和 Docker 中独立的 PostgreSQL 17.11、Redis 7.4.12，执行 `pnpm test:integration` 成功。主流程通过 70 项检查，行情日报专项通过 12 项，其他集成专项全部通过。行情专项覆盖 10 点前后、当日恢复补发、并发去重、通知与 outbox 原子写入、日期切换、同源同单位基准、来源日期修订、收益率百分点与基点换算、缺失值及 Fixture 出站拦截。运行日志与容器清理记录位于 `.local/market-digest-check/integration.log` 和 `.local/market-digest-check/integration.json`。
 
 Node 24 下全工作区 typecheck、lint、格式检查、33 个文件的 462 项单元测试及 9 项构建通过。生成的 API 契约无变化，安全扫描通过，生产依赖审计通过 high 门槛（1 个 low、2 个 moderate）。本地发布前检查记录在 `.local/market-release/`。
+
+[Release v1.7.0](https://github.com/AmazingZ-sys/financial-radar/releases/tag/v1.7.0) 于北京时间 13:51 发布。[Actions 45947560134](https://github.com/AmazingZ-sys/financial-radar/actions/runs/45947560134) 全部 7 个任务成功。已核对 tag、release-metadata.json 与三个镜像的 image-manifest.json 均对应提交 `0064a853c3f469d7386780ee95ec2c9604edb4c1`。后端由用户登录服务器执行 `sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.7.0`，生产日报的首次投递结果以更新后的通知中心记录为准。
