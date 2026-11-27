@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { Socket } from 'node:net';
 
 export type NotificationMessage = {
+  kind?: 'daily-market-digest';
   title: string;
   description: string;
   priority: string;
@@ -42,14 +43,17 @@ export function formatMessage(message: NotificationMessage) {
     `${message.dataMode === 'fixture' ? '【Fixture 测试 · 非实时】' : '【Financial Radar】'} ${message.priority}`,
     message.title,
     message.description,
-    `资产：${message.assets?.join(' / ') || '未知'} · 阶段：${message.stage || '不适用'}`,
-    `发现：${message.firstSeenAt || '未知'}`,
-    `来源发布：${message.sourcePublishedAt || '未知'}`,
-    `置信度：${message.confidence === undefined ? '未知' : Math.round(message.confidence * 100) + '%'}`,
-    `机会 ${message.opportunityScore ?? '未知'} / 风险 ${message.riskScore ?? '未知'}`,
-    `风险：${message.riskFlags?.join('、') || '未完成完整风险审查，未知风险仍存在'}`,
-    '参与条件、费用以已验证来源为准；不提供签名或自动交易。',
   ];
+  if (message.kind !== 'daily-market-digest')
+    lines.push(
+      `资产：${message.assets?.join(' / ') || '未知'} · 阶段：${message.stage || '不适用'}`,
+      `发现：${message.firstSeenAt || '未知'}`,
+      `来源发布：${message.sourcePublishedAt || '未知'}`,
+      `置信度：${message.confidence === undefined ? '未知' : Math.round(message.confidence * 100) + '%'}`,
+      `机会 ${message.opportunityScore ?? '未知'} / 风险 ${message.riskScore ?? '未知'}`,
+      `风险：${message.riskFlags?.join('、') || '未完成完整风险审查，未知风险仍存在'}`,
+      '参与条件、费用以已验证来源为准；不提供签名或自动交易。',
+    );
   if (message.originalUrl && /^https:\/\//.test(message.originalUrl) && message.dataMode === 'live')
     lines.push(`来源：${message.originalUrl}`);
   if (message.detailUrl && /^https:\/\//.test(message.detailUrl))

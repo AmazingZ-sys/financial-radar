@@ -7,6 +7,7 @@ import { createLogger } from '@radar/observability';
 import { scanXTopics } from './x-topics.js';
 import { synchronizeXSchedule } from './x-scheduling.js';
 import { runParticipationTick } from './participation.js';
+import { runMarketDigest } from './market-digest.js';
 import { startPeriodicTask } from './periodic-task.js';
 import {
   initializeSources,
@@ -105,6 +106,7 @@ if (process.argv.includes('--once')) {
     }
     await runParticipationTick({ shouldStop: () => stopping });
     await scanXTopicsSafely();
+    await runMarketDigest();
     await runOutboxOnce();
     await beat();
   } finally {
@@ -248,6 +250,7 @@ if (process.argv.includes('--once')) {
     { name: 'heartbeat', run: beat },
     { name: 'outbox', run: dispatchOutbox },
     { name: 'leases', run: recoverLeases },
+    { name: 'market-digest', run: runMarketDigest },
     {
       name: 'participation',
       run: () => runParticipationTick({ shouldStop: () => stopping }),

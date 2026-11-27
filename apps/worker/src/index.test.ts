@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   sendNotification: vi.fn(async (_id: string) => {}),
   initializeSources: vi.fn(async () => {}),
   runParticipationTick: vi.fn(async () => {}),
+  runMarketDigest: vi.fn(async () => 0),
   heartbeat: vi.fn(async () => ({})),
   claimOutboxJobs: vi.fn(async () => [
     { id: 'analysis-outbox', kind: 'ANALYZE', entity_id: 'event' },
@@ -72,6 +73,7 @@ vi.mock('./pipeline.js', () => ({
   synchronizeConfiguredSources: vi.fn(),
 }));
 vi.mock('./participation.js', () => ({ runParticipationTick: mocks.runParticipationTick }));
+vi.mock('./market-digest.js', () => ({ runMarketDigest: mocks.runMarketDigest }));
 vi.mock('./x-topics.js', () => ({ scanXTopics: vi.fn() }));
 vi.mock('./x-scheduling.js', () => ({ synchronizeXSchedule: vi.fn() }));
 vi.mock('./jobs.js', () => ({
@@ -179,6 +181,7 @@ describe('AI queue isolation', () => {
     expect(mocks.runParticipationTick).toHaveBeenCalledTimes(1);
     expect(mocks.initializeSources).toHaveBeenCalledTimes(1);
     expect(mocks.heartbeat).toHaveBeenCalledTimes(4);
+    expect(mocks.runMarketDigest).toHaveBeenCalledTimes(4);
     expect(mocks.claimOutboxJobs).toHaveBeenCalledTimes(4);
     expect(mocks.queues.get('financial-radar')!.add).toHaveBeenCalledWith(
       'NOTIFY',

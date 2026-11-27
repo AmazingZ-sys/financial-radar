@@ -9,6 +9,7 @@ import { verifyConfiguration } from './configuration-integration.js';
 import { verifyHistoricalPipeline } from './history-integration.js';
 import { verifyParticipationScheduler } from './participation-integration.js';
 import { verifyNotificationPolicy } from './notification-policy-integration.js';
+import { verifyMarketDigest } from './market-digest-integration.js';
 import { verifyUniSatIngestion } from './unisat-integration.js';
 import { verifySolanaHistoryRecovery } from './solana-recovery-integration.js';
 import { verifyCommodityRecovery } from './commodity-recovery-integration.js';
@@ -352,6 +353,7 @@ try {
   await verifyXTopicPipeline();
   await verifyXAnalysisRecovery();
   await verifyNotificationPolicy();
+  await verifyMarketDigest();
   await app.request('/api/v1/auth/logout', { method: 'POST', headers });
   check(
     (await app.request('/api/v1/auth/me', { headers })).status === 401,

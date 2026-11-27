@@ -8,6 +8,23 @@ const message = {
   originalUrl: 'https://example.com',
 };
 describe('notification safety and acceptance semantics', () => {
+  it('renders a daily market digest with its observations and market link', () => {
+    const text = formatMessage({
+      ...message,
+      kind: 'daily-market-digest',
+      priority: 'P2',
+      title: '每日行情监控',
+      description: 'BTC 105 USD（+5.00%）',
+      originalUrl: undefined,
+      detailUrl: 'https://radar.example/markets',
+    });
+    expect(text.split('\n')).toEqual([
+      '【Financial Radar】 P2',
+      '每日行情监控',
+      'BTC 105 USD（+5.00%）',
+      '详情：https://radar.example/markets',
+    ]);
+  });
   it('never sends fixture messages through Telegram', async () => {
     const fetcher = vi.fn();
     const result = await new TelegramProvider('test-token', 'test-chat', fetcher).send({

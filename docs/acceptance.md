@@ -581,3 +581,11 @@ Node24.15.0 / pnpm10.26.2 下重新运行 typecheck、lint、453项单测（30�
 Vercel artifact绑定同一版本/SHA，[生产部署](https://financial-radar-avr4p5d8i-amazings-projects-6f99eda0.vercel.app)于09:31:44映射[正式域名](https://radar.amazingzsys.site)。09:34:16（Asia/Shanghai）只读核验 `/login`、`/rules` 和 `/assets/index-BnFUSu8n.js` 均HTTP200，SPA fallback、生产API前缀与入口静态资源immutable缓存正确。
 
 收据在忽略提交的 `.local/participation-release/v1.6.0/`：`registry-verification.json`、`verification-summary.json`、`frontend-http-receipt.json`、Release资产、镜像manifest/config、`vercel-job.log` 与 `vercel/vercel-deployment.json`；云端门禁日志为同级上层 `verify-success.log`。本轮未请求、登录或更新生产后端，未执行生产迁移或发送真实通知。后端由用户自行更新：先备份数据库、停止并排空所有旧Worker，再运行 `sudo bash /opt/financial-radar/infra/scripts/deploy.sh --version v1.6.0`，保留生产Compose组合、环境文件、`.deploy`与数据卷；生产性能与窗口延迟仍须上线后实测。
+
+## 2026-11-27 · 每日 10 点行情通知
+
+Worker 按北京时间 10:00 截取当日行情，盘中报价与昨天同一截止时间前的观测比较，日度数据使用来源日期。生产接收渠道沿用通知中心的已启用配置。功能与取数口径见[每日行情通知设计](22-research-review-and-digests.md)。
+
+本地使用 Node 24.15.0、pnpm 10.26.2 和 Docker 中独立的 PostgreSQL 17.11、Redis 7.4.12，执行 `pnpm test:integration` 成功。主流程通过 70 项检查，行情日报专项通过 12 项，其他集成专项全部通过。行情专项覆盖 10 点前后、当日恢复补发、并发去重、通知与 outbox 原子写入、日期切换、同源同单位基准、来源日期修订、收益率百分点与基点换算、缺失值及 Fixture 出站拦截。运行日志与容器清理记录位于 `.local/market-digest-check/integration.log` 和 `.local/market-digest-check/integration.json`。
+
+Node 24 下全工作区 typecheck、lint、格式检查、33 个文件的 462 项单元测试及 9 项构建通过。生成的 API 契约无变化，安全扫描通过，生产依赖审计通过 high 门槛（1 个 low、2 个 moderate）。本地发布前检查记录在 `.local/market-release/`。
